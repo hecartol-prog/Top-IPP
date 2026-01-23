@@ -4,11 +4,12 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Filter, LayoutGrid, List } from "lucide-react";
+import { Plus, Search, Filter, LayoutGrid, List, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import LeadCard from "../components/leads/LeadCard";
 import LeadForm from "../components/leads/LeadForm";
 import LeadDetails from "../components/leads/LeadDetails";
+import LeadIQSearch from "../components/leads/LeadIQSearch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +30,7 @@ export default function Leads() {
   const [selectedLead, setSelectedLead] = useState(null);
   const [editingLead, setEditingLead] = useState(null);
   const [deletingLead, setDeletingLead] = useState(null);
+  const [showLeadIQSearch, setShowLeadIQSearch] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
@@ -144,13 +146,22 @@ export default function Leads() {
               Manage and track your prospective clients
             </motion.p>
           </div>
-          <Button 
-            onClick={() => { setEditingLead(null); setShowForm(true); }}
-            className="bg-slate-900 hover:bg-slate-800"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Lead
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => setShowLeadIQSearch(true)}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Search LeadIQ
+            </Button>
+            <Button 
+              onClick={() => { setEditingLead(null); setShowForm(true); }}
+              className="bg-slate-900 hover:bg-slate-800"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Lead
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -252,6 +263,16 @@ export default function Leads() {
           </div>
         )}
       </div>
+
+      {/* LeadIQ Search Modal */}
+      <LeadIQSearch
+        open={showLeadIQSearch}
+        onClose={() => setShowLeadIQSearch(false)}
+        onLeadsAdded={(count) => {
+          queryClient.invalidateQueries({ queryKey: ['leads'] });
+          alert(`Successfully added ${count} leads from LeadIQ!`);
+        }}
+      />
 
       {/* Lead Form Modal */}
       <LeadForm
