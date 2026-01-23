@@ -4,7 +4,7 @@ import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { 
   LayoutDashboard, Users, Kanban, Building2, Settings, 
-  Menu, X, LogOut, ChevronDown, Linkedin
+  Menu, X, LogOut, ChevronDown, Linkedin, Plug
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ const navigation = [
   { name: "Leads", href: "Leads", icon: Users },
   { name: "Pipeline", href: "Pipeline", icon: Kanban },
   { name: "Companies", href: "Companies", icon: Building2 },
+  { name: "Integrations", href: "Integrations", icon: Plug },
 ];
 
 export default function Layout({ children, currentPageName }) {
@@ -110,14 +111,14 @@ export default function Layout({ children, currentPageName }) {
                     <Linkedin className="w-4 h-4 text-blue-600" />
                     <span className="text-sm text-slate-600">LinkedIn</span>
                   </div>
-                  <span className="text-xs text-slate-400">Setup Required</span>
+                  <span className="text-xs text-emerald-600 font-medium">✓ Connected</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 bg-gradient-to-br from-purple-500 to-pink-500 rounded text-white flex items-center justify-center text-[8px] font-bold">LQ</div>
                     <span className="text-sm text-slate-600">LeadIQ</span>
                   </div>
-                  <span className="text-xs text-slate-400">Setup Required</span>
+                  <span className="text-xs text-emerald-600 font-medium">✓ Connected</span>
                 </div>
               </div>
             </div>
