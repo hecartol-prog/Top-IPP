@@ -20,13 +20,40 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'LeadIQ API key not configured' }, { status: 500 });
         }
 
-        // Get contacts from the list
-        const response = await fetch(`https://api.leadiq.com/v2/lists/${list_id}/contacts`, {
-            method: 'GET',
+        // Get contacts from the list using GraphQL
+        const query = `
+            query GetListContacts($listId: ID!) {
+                list(id: $listId) {
+                    contacts {
+                        id
+                        firstName
+                        lastName
+                        email
+                        phones
+                        title
+                        location
+                        linkedInUrl
+                        company {
+                            name
+                            website
+                            industry
+                            employeeCount
+                        }
+                    }
+                }
+            }
+        `;
+
+        const response = await fetch('https://api.leadiq.com/graphql', {
+            method: 'POST',
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({ 
+                query,
+                variables: { listId: list_id }
+            })
         });
 
         if (!response.ok) {
@@ -38,7 +65,7 @@ Deno.serve(async (req) => {
         }
 
         const data = await response.json();
-        const contacts = data.contacts || data.data || [];
+        const contacts = data.data?.list?.contacts || [];
 
         // Transform and import to CRM
         const leadsToCreate = contacts.map(contact => ({

@@ -14,12 +14,23 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'LeadIQ API key not configured' }, { status: 500 });
         }
 
-        const response = await fetch('https://api.leadiq.com/v2/lists', {
-            method: 'GET',
+        const query = `
+            query {
+                lists {
+                    id
+                    name
+                    contactCount
+                }
+            }
+        `;
+
+        const response = await fetch('https://api.leadiq.com/graphql', {
+            method: 'POST',
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({ query })
         });
 
         if (!response.ok) {
@@ -31,7 +42,7 @@ Deno.serve(async (req) => {
         }
 
         const data = await response.json();
-        return Response.json(data);
+        return Response.json(data.data?.lists || []);
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });
     }
