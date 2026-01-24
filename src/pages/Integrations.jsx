@@ -4,7 +4,6 @@ import { Linkedin, CheckCircle, AlertCircle } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import LinkedInPanel from "../components/integrations/LinkedInPanel";
-import LeadIQPanel from "../components/integrations/LeadIQPanel";
 
 export default function Integrations() {
   return (
@@ -39,15 +38,6 @@ export default function Integrations() {
           >
             <LinkedInPanel />
           </motion.div>
-
-          {/* LeadIQ Integration */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <LeadIQPanel />
-          </motion.div>
         </div>
 
         {/* Usage Tips */}
@@ -59,27 +49,15 @@ export default function Integrations() {
         >
           <Card className="border-0 shadow-sm bg-gradient-to-br from-slate-800 to-slate-900 text-white">
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">🚀 Best Practices for Prospecting</h3>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium mb-2 text-slate-200">LinkedIn Strategy</h4>
-                  <ul className="text-sm text-slate-300 space-y-1">
-                    <li>• Post regularly about industry insights</li>
-                    <li>• Share case studies and success stories</li>
-                    <li>• Engage with prospects' content first</li>
-                    <li>• Use hashtags like #PlasticInjectionMolding</li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-medium mb-2 text-slate-200">LeadIQ Strategy</h4>
-                  <ul className="text-sm text-slate-300 space-y-1">
-                    <li>• Target specific job titles (VP Manufacturing, etc.)</li>
-                    <li>• Focus on industries needing plastic parts</li>
-                    <li>• Verify contact info before outreach</li>
-                    <li>• Track all prospects in your CRM</li>
-                  </ul>
-                </div>
-              </div>
+              <h3 className="text-lg font-semibold mb-4">🚀 Best Practices for LinkedIn Prospecting</h3>
+              <ul className="text-sm text-slate-300 space-y-2">
+                <li>• Post regularly about industry insights and case studies</li>
+                <li>• Share success stories and customer testimonials</li>
+                <li>• Engage with prospects' content before reaching out</li>
+                <li>• Use hashtags like #PlasticInjectionMolding #Manufacturing</li>
+                <li>• Connect with decision-makers in target industries</li>
+                <li>• Track all prospects in your CRM for follow-up</li>
+              </ul>
             </CardContent>
           </Card>
         </motion.div>

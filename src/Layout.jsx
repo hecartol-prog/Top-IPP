@@ -113,13 +113,6 @@ export default function Layout({ children, currentPageName }) {
                   </div>
                   <span className="text-xs text-emerald-600 font-medium">✓ Connected</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-gradient-to-br from-purple-500 to-pink-500 rounded text-white flex items-center justify-center text-[8px] font-bold">LQ</div>
-                    <span className="text-sm text-slate-600">LeadIQ</span>
-                  </div>
-                  <span className="text-xs text-emerald-600 font-medium">✓ Connected</span>
-                </div>
               </div>
             </div>
           </div>
