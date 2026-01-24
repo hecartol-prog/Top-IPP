@@ -1,77 +1,26 @@
-import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Download, Loader2, CheckCircle2, List } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Search, ExternalLink } from "lucide-react";
 
 export default function LeadIQPanel() {
-  const [lists, setLists] = useState([]);
-  const [selectedList, setSelectedList] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [importing, setImporting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState(null);
 
-  useEffect(() => {
-    loadLists();
-  }, []);
-
-  const loadLists = async () => {
-    try {
-      setLoading(true);
-      const { data } = await base44.functions.invoke('leadiqGetLists');
-      
-      if (data.error) {
-        setMessage({ type: 'error', text: data.error });
-        return;
-      }
-      
-      const listsData = data.lists || data.data || [];
-      setLists(listsData);
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to load LeadIQ lists' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleImport = async () => {
-    if (!selectedList) {
-      setMessage({ type: 'error', text: 'Please select a list' });
+  const handleSearch = async () => {
+    if (!searchTerm.trim()) {
+      setMessage({ type: 'error', text: 'Please enter a company name or domain' });
       return;
     }
 
-    try {
-      setImporting(true);
-      setMessage(null);
-      
-      const { data } = await base44.functions.invoke('leadiqImportList', {
-        list_id: selectedList
-      });
-
-      if (data.error) {
-        setMessage({ type: 'error', text: data.error });
-        return;
-      }
-
-      setMessage({ 
-        type: 'success', 
-        text: `Successfully imported ${data.imported} leads out of ${data.total} contacts` 
-      });
-      setSelectedList("");
-    } catch (error) {
-      setMessage({ type: 'error', text: error.message || 'Failed to import list' });
-    } finally {
-      setImporting(false);
-    }
+    setMessage({ 
+      type: 'info', 
+      text: 'LeadIQ search functionality coming soon. Use the LeadIQ Chrome extension to save leads, then sync them here.' 
+    });
   };
 
   return (
@@ -89,64 +38,48 @@ export default function LeadIQPanel() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <Alert className="bg-blue-50 border-blue-200">
+          <AlertDescription className="text-blue-800 text-sm">
+            ℹ️ LeadIQ's Public API doesn't support accessing saved lists. Use LeadIQ's Chrome extension to find and save leads, then they'll appear in your LeadIQ dashboard.
+          </AlertDescription>
+        </Alert>
+
         {message && (
-          <Alert className={message.type === 'success' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}>
-            <AlertDescription className={message.type === 'success' ? 'text-emerald-800' : 'text-red-800'}>
+          <Alert className={message.type === 'success' ? 'bg-emerald-50 border-emerald-200' : message.type === 'error' ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}>
+            <AlertDescription className={message.type === 'success' ? 'text-emerald-800' : message.type === 'error' ? 'text-red-800' : 'text-slate-700'}>
               {message.text}
             </AlertDescription>
           </Alert>
         )}
 
         <div className="space-y-3">
-          <label className="text-sm font-medium text-slate-700">Select List to Import</label>
-          
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-            </div>
-          ) : (
-            <>
-              <Select value={selectedList} onValueChange={setSelectedList}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a LeadIQ list..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {lists.map((list) => (
-                    <SelectItem key={list.id} value={list.id}>
-                      <div className="flex items-center gap-2">
-                        <List className="w-4 h-4" />
-                        {list.name} ({list.contactCount || list.count || 0} contacts)
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button 
-                onClick={handleImport} 
-                disabled={!selectedList || importing}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-              >
-                {importing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Importing...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4 mr-2" />
-                    Import Selected List
-                  </>
-                )}
-              </Button>
-            </>
-          )}
+          <label className="text-sm font-medium text-slate-700">Real-Time Contact Search</label>
+          <div className="flex gap-2">
+            <Input 
+              placeholder="Search by company name or domain..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            <Button 
+              onClick={handleSearch}
+              disabled={searching}
+              variant="outline"
+            >
+              <Search className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
-        <div className="pt-4 border-t border-slate-200">
-          <p className="text-xs text-slate-500">
-            💡 <strong>Tip:</strong> Look for "Moldes Leads" list to import your target prospects
-          </p>
+        <div className="pt-4 border-t border-slate-200 space-y-3">
+          <p className="text-sm font-medium text-slate-700">How to use LeadIQ:</p>
+          <ol className="text-xs text-slate-600 space-y-2 list-decimal list-inside">
+            <li>Install the <a href="https://chrome.google.com/webstore/detail/leadiq/bhmokemcncgjedekoccogblcedpplljp" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline inline-flex items-center gap-1">LeadIQ Chrome Extension <ExternalLink className="w-3 h-3" /></a></li>
+            <li>Search for prospects on LinkedIn</li>
+            <li>Use the extension to capture contact details</li>
+            <li>Saved contacts appear in your LeadIQ dashboard</li>
+            <li>Export from LeadIQ dashboard to CSV, then import here</li>
+          </ol>
         </div>
       </CardContent>
     </Card>
