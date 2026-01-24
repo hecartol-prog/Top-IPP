@@ -14,35 +14,13 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'LeadIQ API key not configured' }, { status: 500 });
         }
 
-        const query = `
-            query {
-                lists {
-                    id
-                    name
-                    contactCount
-                }
-            }
-        `;
-
-        const response = await fetch('https://api.leadiq.com/graphql', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ query })
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            return Response.json({ 
-                error: 'Failed to fetch LeadIQ lists', 
-                details: errorText 
-            }, { status: response.status });
-        }
-
-        const data = await response.json();
-        return Response.json(data.data?.lists || []);
+        // LeadIQ API doesn't have a "lists" endpoint - it's for real-time searching
+        // Return a message explaining this
+        return Response.json({ 
+            error: 'LeadIQ API does not support list management',
+            message: 'LeadIQ Public API is designed for real-time contact and company searches, not for accessing saved lists. Use the search functionality instead.',
+            suggestion: 'Use the search feature to find contacts in real-time by company, title, location, etc.'
+        }, { status: 400 });
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });
     }
