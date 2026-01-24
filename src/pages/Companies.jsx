@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Building2, Globe, MapPin, Users, ExternalLink, Edit2, Trash2 } from "lucide-react";
+import { Plus, Search, Building2, Globe, MapPin, Users, ExternalLink, Edit2, Trash2, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertDialog,
@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import CSVImport from "../components/companies/CSVImport";
 
 const COMPANY_SIZE_OPTIONS = [
   { value: "1-10", label: "1-10 employees" },
@@ -35,6 +36,7 @@ export default function Companies() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [editingCompany, setEditingCompany] = useState(null);
   const [deletingCompany, setDeletingCompany] = useState(null);
   const [formData, setFormData] = useState({
@@ -160,13 +162,22 @@ export default function Companies() {
               Track and manage target companies for plastic injection mold opportunities
             </motion.p>
           </div>
-          <Button 
-            onClick={() => { setEditingCompany(null); resetForm(); setShowForm(true); }}
-            className="bg-slate-900 hover:bg-slate-800"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Company
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => setShowImport(true)}
+              variant="outline"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Import CSV
+            </Button>
+            <Button 
+              onClick={() => { setEditingCompany(null); resetForm(); setShowForm(true); }}
+              className="bg-slate-900 hover:bg-slate-800"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Company
+            </Button>
+          </div>
         </div>
 
         {/* Search */}
@@ -410,6 +421,16 @@ export default function Companies() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* CSV Import Modal */}
+      <Dialog open={showImport} onOpenChange={setShowImport}>
+        <DialogContent className="max-w-lg bg-white">
+          <CSVImport onImportComplete={() => {
+            queryClient.invalidateQueries({ queryKey: ['companies'] });
+            setShowImport(false);
+          }} />
         </DialogContent>
       </Dialog>
 
