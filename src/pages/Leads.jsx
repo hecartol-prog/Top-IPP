@@ -4,12 +4,13 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Filter, LayoutGrid, List, Sparkles } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Plus, Search, Filter, LayoutGrid, List, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import LeadCard from "../components/leads/LeadCard";
 import LeadForm from "../components/leads/LeadForm";
 import LeadDetails from "../components/leads/LeadDetails";
-import LeadIQSearch from "../components/leads/LeadIQSearch";
+import LeadCSVImport from "../components/leads/CSVImport";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,10 +28,10 @@ export default function Leads() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
   const [editingLead, setEditingLead] = useState(null);
   const [deletingLead, setDeletingLead] = useState(null);
-  const [showLeadIQSearch, setShowLeadIQSearch] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
@@ -148,11 +149,11 @@ export default function Leads() {
           </div>
           <div className="flex gap-2">
             <Button 
-              onClick={() => setShowLeadIQSearch(true)}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              onClick={() => setShowImport(true)}
+              variant="outline"
             >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Search LeadIQ
+              <Upload className="w-4 h-4 mr-2" />
+              Import CSV
             </Button>
             <Button 
               onClick={() => { setEditingLead(null); setShowForm(true); }}
@@ -202,14 +203,14 @@ export default function Leads() {
                   <SelectValue placeholder="Source" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Sources</SelectItem>
-                  <SelectItem value="linkedin">LinkedIn</SelectItem>
-                  <SelectItem value="leadiq">LeadIQ</SelectItem>
-                  <SelectItem value="referral">Referral</SelectItem>
-                  <SelectItem value="website">Website</SelectItem>
-                  <SelectItem value="trade_show">Trade Show</SelectItem>
-                  <SelectItem value="cold_outreach">Cold Outreach</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="all">All Sources</SelectItem>
+                <SelectItem value="linkedin">LinkedIn</SelectItem>
+                <SelectItem value="csv_import">CSV Import</SelectItem>
+                <SelectItem value="referral">Referral</SelectItem>
+                <SelectItem value="website">Website</SelectItem>
+                <SelectItem value="trade_show">Trade Show</SelectItem>
+                <SelectItem value="cold_outreach">Cold Outreach</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -264,15 +265,15 @@ export default function Leads() {
         )}
       </div>
 
-      {/* LeadIQ Search Modal */}
-      <LeadIQSearch
-        open={showLeadIQSearch}
-        onClose={() => setShowLeadIQSearch(false)}
-        onLeadsAdded={(count) => {
-          queryClient.invalidateQueries({ queryKey: ['leads'] });
-          alert(`Successfully added ${count} leads from LeadIQ!`);
-        }}
-      />
+      {/* CSV Import Modal */}
+      <Dialog open={showImport} onOpenChange={setShowImport}>
+        <DialogContent className="max-w-lg bg-white">
+          <LeadCSVImport onImportComplete={() => {
+            queryClient.invalidateQueries({ queryKey: ['leads'] });
+            setShowImport(false);
+          }} />
+        </DialogContent>
+      </Dialog>
 
       {/* Lead Form Modal */}
       <LeadForm
