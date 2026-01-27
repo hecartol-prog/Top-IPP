@@ -13,7 +13,7 @@ export default function LeadCSVImport({ onImportComplete }) {
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile && selectedFile.name.endsWith('.csv')) {
+    if (selectedFile && selectedFile.name.toLowerCase().endsWith('.csv')) {
       setFile(selectedFile);
       setMessage(null);
     } else {
