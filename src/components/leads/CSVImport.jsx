@@ -29,49 +29,49 @@ export default function LeadCSVImport({ onImportComplete }) {
       setUploading(true);
       setMessage(null);
 
-      // Upload the file
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      // Read and parse CSV file
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        setMessage({ type: 'error', text: 'CSV file is empty or invalid' });
+        setUploading(false);
+        return;
+      }
 
-      // Extract data from CSV
-      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url,
-        json_schema: {
-          type: "object",
-          properties: {
-            leads: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  name: { type: "string" },
-                  email: { type: "string" },
-                  work_phone: { type: "string" },
-                  mobile_phone: { type: "string" },
-                  company_name: { type: "string" },
-                  title: { type: "string" },
-                  linkedin: { type: "string" },
-                  location: { type: "string" },
-                  company_domain: { type: "string" },
-                  company_teamsize: { type: "string" },
-                  company_industry: { type: "string" },
-                  company_location: { type: "string" },
-                  note: { type: "string" }
-                }
-              }
-            }
-          }
+      // Parse CSV
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      const leads = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+        const row = {};
+        headers.forEach((header, index) => {
+          row[header.toLowerCase().replace(/\s+/g, '_')] = values[index] || '';
+        });
+        
+        if (row.name || row.company_name) {
+          leads.push(row);
         }
-      });
+      }
 
+      if (leads.length === 0) {
+        setMessage({ type: 'error', text: 'No valid leads found in CSV. Please check your file format.' });
+        setUploading(false);
+        return;
+      }
+
+      const result = { status: 'success', output: { leads } };
+      
       if (result.status === 'error') {
         setMessage({ type: 'error', text: result.details || 'Failed to parse CSV file. Please ensure it has the required columns.' });
         setUploading(false);
         return;
       }
 
-      const leads = result.output?.leads || [];
+      const leadsData = result.output?.leads || [];
       
-      if (leads.length === 0) {
+      if (leadsData.length === 0) {
         setMessage({ type: 'error', text: 'No valid leads found in CSV. Please check your file format.' });
         setUploading(false);
         return;
@@ -79,26 +79,27 @@ export default function LeadCSVImport({ onImportComplete }) {
 
       // Import leads
       let imported = 0;
-      for (const lead of leads) {
-        if (lead.name && lead.company_name) {
+      for (const lead of leadsData) {
+        if ((lead.name || lead.work) && lead.company_name) {
           try {
             // Parse name into first and last name
-            const nameParts = (lead.name || '').trim().split(' ');
+            const fullName = lead.name || lead.work || '';
+            const nameParts = fullName.trim().split(' ');
             const first_name = nameParts[0] || '';
             const last_name = nameParts.slice(1).join(' ') || nameParts[0] || 'Unknown';
             
             await base44.entities.Lead.create({
               first_name,
               last_name,
-              email: lead.email || '',
-              phone: lead.work_phone || lead.mobile_phone || '',
+              email: lead.email || lead.work || '',
+              phone: lead.work_phones || lead.mobile_phones || '',
               job_title: lead.title || '',
               company_name: lead.company_name,
               company_size: lead.company_teamsize || '',
               industry: lead.company_industry || '',
               linkedin_url: lead.linkedin || '',
               website: lead.company_domain || '',
-              location: lead.location || lead.company_location || '',
+              location: lead.lead_location || lead.company_hq_location || '',
               notes: lead.note || '',
               status: 'new',
               source: 'csv_import'
@@ -112,8 +113,9 @@ export default function LeadCSVImport({ onImportComplete }) {
 
       setMessage({ 
         type: 'success', 
-        text: `Successfully imported ${imported} out of ${leads.length} leads` 
-      });
+        text: `Successfully imported ${imported} out of ${leadsData.length} leads`
+
+
       setFile(null);
       
       if (onImportComplete) {
