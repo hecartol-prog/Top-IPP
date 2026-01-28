@@ -13,11 +13,9 @@ export default function CSVImport({ onImportComplete }) {
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile && selectedFile.name.toLowerCase().endsWith('.csv')) {
+    if (selectedFile) {
       setFile(selectedFile);
       setMessage(null);
-    } else {
-      setMessage({ type: 'error', text: 'Please select a valid CSV file' });
     }
   };
 
