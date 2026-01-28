@@ -66,14 +66,16 @@ export default function LeadCSVImport({ onImportComplete }) {
       });
 
       if (result.status === 'error') {
-        setMessage({ type: 'error', text: result.details || 'Failed to parse CSV' });
+        setMessage({ type: 'error', text: result.details || 'Failed to parse CSV file. Please ensure it has the required columns.' });
+        setUploading(false);
         return;
       }
 
       const leads = result.output?.leads || [];
       
       if (leads.length === 0) {
-        setMessage({ type: 'error', text: 'No valid leads found in CSV' });
+        setMessage({ type: 'error', text: 'No valid leads found in CSV. Please check your file format.' });
+        setUploading(false);
         return;
       }
 
@@ -104,8 +106,8 @@ export default function LeadCSVImport({ onImportComplete }) {
         onImportComplete();
       }
     } catch (error) {
-      setMessage({ type: 'error', text: error.message || 'Failed to import CSV' });
-    } finally {
+      console.error('CSV Import Error:', error);
+      setMessage({ type: 'error', text: `Import failed: ${error.message || 'Unknown error'}` });
       setUploading(false);
     }
   };
