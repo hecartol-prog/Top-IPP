@@ -114,8 +114,7 @@ export default function LeadCSVImport({ onImportComplete }) {
       setMessage({ 
         type: 'success', 
         text: `Successfully imported ${imported} out of ${leadsData.length} leads`
-
-
+      });
       setFile(null);
       
       if (onImportComplete) {
@@ -124,6 +123,8 @@ export default function LeadCSVImport({ onImportComplete }) {
     } catch (error) {
       console.error('CSV Import Error:', error);
       setMessage({ type: 'error', text: `Import failed: ${error.message || 'Unknown error'}` });
+      setUploading(false);
+    } finally {
       setUploading(false);
     }
   };
