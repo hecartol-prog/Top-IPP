@@ -43,21 +43,19 @@ export default function LeadCSVImport({ onImportComplete }) {
               items: {
                 type: "object",
                 properties: {
-                  first_name: { type: "string" },
-                  last_name: { type: "string" },
+                  name: { type: "string" },
                   email: { type: "string" },
-                  phone: { type: "string" },
-                  job_title: { type: "string" },
+                  work_phone: { type: "string" },
+                  mobile_phone: { type: "string" },
                   company_name: { type: "string" },
-                  company_size: { type: "string" },
-                  industry: { type: "string" },
-                  linkedin_url: { type: "string" },
-                  website: { type: "string" },
+                  title: { type: "string" },
+                  linkedin: { type: "string" },
                   location: { type: "string" },
-                  status: { type: "string" },
-                  source: { type: "string" },
-                  estimated_value: { type: "number" },
-                  notes: { type: "string" }
+                  company_domain: { type: "string" },
+                  company_teamsize: { type: "string" },
+                  company_industry: { type: "string" },
+                  company_location: { type: "string" },
+                  note: { type: "string" }
                 }
               }
             }
@@ -82,12 +80,28 @@ export default function LeadCSVImport({ onImportComplete }) {
       // Import leads
       let imported = 0;
       for (const lead of leads) {
-        if (lead.first_name && lead.last_name && lead.company_name) {
+        if (lead.name && lead.company_name) {
           try {
+            // Parse name into first and last name
+            const nameParts = (lead.name || '').trim().split(' ');
+            const first_name = nameParts[0] || '';
+            const last_name = nameParts.slice(1).join(' ') || nameParts[0] || 'Unknown';
+            
             await base44.entities.Lead.create({
-              ...lead,
-              status: lead.status || 'new',
-              source: lead.source || 'csv_import'
+              first_name,
+              last_name,
+              email: lead.email || '',
+              phone: lead.work_phone || lead.mobile_phone || '',
+              job_title: lead.title || '',
+              company_name: lead.company_name,
+              company_size: lead.company_teamsize || '',
+              industry: lead.company_industry || '',
+              linkedin_url: lead.linkedin || '',
+              website: lead.company_domain || '',
+              location: lead.location || lead.company_location || '',
+              notes: lead.note || '',
+              status: 'new',
+              source: 'csv_import'
             });
             imported++;
           } catch (error) {
@@ -167,11 +181,11 @@ export default function LeadCSVImport({ onImportComplete }) {
         <div className="pt-4 border-t border-slate-200">
           <p className="text-xs text-slate-600 mb-2"><strong>Required CSV Columns:</strong></p>
           <p className="text-xs text-slate-500 mb-2">
-            first_name, last_name, company_name
+            name, company_name (or: COMPANY NAME)
           </p>
-          <p className="text-xs text-slate-600 mb-2"><strong>Optional Columns:</strong></p>
+          <p className="text-xs text-slate-600 mb-2"><strong>Supported Columns:</strong></p>
           <p className="text-xs text-slate-500">
-            email, phone, job_title, company_size, industry, linkedin_url, website, location, status, source, estimated_value, notes
+            email, work_phone, mobile_phone, title, linkedin, location, company_domain, company_teamsize, company_industry, company_location, note
           </p>
         </div>
       </CardContent>
