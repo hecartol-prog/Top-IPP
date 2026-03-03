@@ -29,6 +29,10 @@ export default function Leads() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
+  const [sortField, setSortField] = useState("created_date");
+  const [sortDir, setSortDir] = useState("desc");
+  const [selectedIds, setSelectedIds] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showScraper, setShowScraper] = useState(false);
