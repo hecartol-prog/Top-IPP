@@ -119,18 +119,40 @@ export default function Leads() {
     }
   };
 
-  // Filter leads
-  const filteredLeads = leads.filter(lead => {
-    const matchesSearch = !searchQuery || 
-      `${lead.first_name} ${lead.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.email?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-    const matchesSource = sourceFilter === "all" || lead.source === sourceFilter;
-
-    return matchesSearch && matchesStatus && matchesSource;
+  // Bulk delete
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids) => { for (const id of ids) await base44.entities.Lead.delete(id); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['leads'] }); setSelectedIds([]); }
   });
+
+  const handleSort = (field) => {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("asc"); }
+  };
+
+  const toggleSelectId = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  const toggleSelectAll = () => setSelectedIds(selectedIds.length === filteredLeads.length ? [] : filteredLeads.map(l => l.id));
+
+  // Filter leads
+  const filteredLeads = leads
+    .filter(lead => {
+      const matchesSearch = !searchQuery || 
+        `${lead.first_name} ${lead.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.email?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
+      const matchesSource = sourceFilter === "all" || lead.source === sourceFilter;
+      return matchesSearch && matchesStatus && matchesSource;
+    })
+    .sort((a, b) => {
+      let aVal = a[sortField] ?? "";
+      let bVal = b[sortField] ?? "";
+      if (typeof aVal === "string") aVal = aVal.toLowerCase();
+      if (typeof bVal === "string") bVal = bVal.toLowerCase();
+      if (aVal < bVal) return sortDir === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
 
   return (
     <div className="min-h-screen bg-slate-50">
