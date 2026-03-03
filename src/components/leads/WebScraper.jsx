@@ -19,33 +19,48 @@ export default function WebScraper({ onImportComplete }) {
   const [message, setMessage] = useState(null);
   const [progressState, setProgressState] = useState(null);
 
-  // Step 1: Discover all listing/detail links from a directory page (including pagination)
-  const discoverLinks = async (startUrl) => {
+  // Step 1a: Analyze starting URL - detect page type and get first set of links + ALL pagination URLs
+  const analyzeStartPage = async (startUrl) => {
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `Fetch this URL: ${startUrl}
 
-Your job is to find ALL links that lead to individual company/person/profile detail pages.
-Also find pagination links (next page, page 2, page 3, etc.) so we can get ALL entries.
+Analyze the page and return:
+1. is_detail_page: true if this is a single company/person profile page (not a listing)
+2. detail_links: list of absolute URLs linking to individual company/profile pages visible on THIS page only
+3. all_pagination_urls: list of ALL pagination page URLs found (page 2, page 3, page 4, etc. - include ALL page links visible in the pagination nav, not just "next")
+4. has_pagination: true if there are multiple pages
 
-Return:
-- detail_links: array of absolute URLs that each point to an individual company or person profile page (NOT category, NOT filter, NOT nav links - only profile/detail pages)
-- pagination_links: array of URLs for other pages of this same listing (page 2, page 3, etc.)
-- is_detail_page: true if this URL IS already a single company/person detail page (not a listing)
-- page_type: "listing" | "detail" | "other"
-
-For this URL, look for patterns like /directorio/company-name/ or /profile/name/ etc.`,
+Important: For detail_links, only include URLs to individual profile/company pages, NOT category or filter links.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
         properties: {
-          detail_links: { type: "array", items: { type: "string" } },
-          pagination_links: { type: "array", items: { type: "string" } },
           is_detail_page: { type: "boolean" },
-          page_type: { type: "string" }
+          detail_links: { type: "array", items: { type: "string" } },
+          all_pagination_urls: { type: "array", items: { type: "string" } },
+          has_pagination: { type: "boolean" }
         }
       }
     });
-    return result || { detail_links: [], pagination_links: [], is_detail_page: false, page_type: "other" };
+    return result || { is_detail_page: false, detail_links: [], all_pagination_urls: [], has_pagination: false };
+  };
+
+  // Step 1b: Get detail links from a single listing page (for pagination pages)
+  const getDetailLinksFromPage = async (pageUrl) => {
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `Fetch this listing page: ${pageUrl}
+
+Return ALL URLs that link to individual company or person profile/detail pages on this page.
+Do NOT include category, filter, navigation, or pagination links — only profile/detail page URLs.`,
+      add_context_from_internet: true,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          detail_links: { type: "array", items: { type: "string" } }
+        }
+      }
+    });
+    return result?.detail_links || [];
   };
 
   // Step 2: Extract lead data from a single detail page
