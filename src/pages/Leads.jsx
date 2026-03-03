@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Search, Filter, LayoutGrid, List, Upload, Globe } from "lucide-react";
+import { Plus, Search, LayoutGrid, List, Upload, Globe, ArrowUpDown, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import LeadCard from "../components/leads/LeadCard";
 import LeadForm from "../components/leads/LeadForm";
 import LeadDetails from "../components/leads/LeadDetails";
 import LeadCSVImport from "../components/leads/CSVImport";
 import WebScraper from "../components/leads/WebScraper";
+import LeadListView from "../components/leads/LeadListView";
 import {
   AlertDialog,
   AlertDialogAction,
