@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Search, Filter, LayoutGrid, List, Upload } from "lucide-react";
+import { Plus, Search, Filter, LayoutGrid, List, Upload, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import LeadCard from "../components/leads/LeadCard";
 import LeadForm from "../components/leads/LeadForm";
 import LeadDetails from "../components/leads/LeadDetails";
 import LeadCSVImport from "../components/leads/CSVImport";
+import WebScraper from "../components/leads/WebScraper";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +30,7 @@ export default function Leads() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showScraper, setShowScraper] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
   const [editingLead, setEditingLead] = useState(null);
   const [deletingLead, setDeletingLead] = useState(null);
@@ -149,6 +151,13 @@ export default function Leads() {
           </div>
           <div className="flex gap-2">
             <Button 
+              onClick={() => setShowScraper(true)}
+              variant="outline"
+            >
+              <Globe className="w-4 h-4 mr-2" />
+              Scrape Website
+            </Button>
+            <Button 
               onClick={() => setShowImport(true)}
               variant="outline"
             >
@@ -264,6 +273,22 @@ export default function Leads() {
           </div>
         )}
       </div>
+
+      {/* Web Scraper Modal */}
+      <Dialog open={showScraper} onOpenChange={setShowScraper}>
+        <DialogContent className="max-w-2xl bg-white">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <Globe className="w-5 h-5" /> Scrape Leads from Website
+            </h2>
+            <p className="text-sm text-slate-500 mt-1">Enter a team page, directory, or any page with contact info</p>
+          </div>
+          <WebScraper onImportComplete={() => {
+            queryClient.invalidateQueries({ queryKey: ['leads'] });
+            setShowScraper(false);
+          }} />
+        </DialogContent>
+      </Dialog>
 
       {/* CSV Import Modal */}
       <Dialog open={showImport} onOpenChange={setShowImport}>
