@@ -346,8 +346,9 @@ Be thorough — extract EVERY single entry, do not stop early.`,
 
       } else {
         // --- Simple mode (no deep crawl) ---
-        setProgressState({ current: 1, total: 1, label: "Extracting leads from page..." });
-        allLeads = await extractFromListingPage(url);
+        // Use batched extraction to avoid JSON overflow with large directories
+        setProgressState({ current: 1, total: 1, label: "Extracting leads from page in batches..." });
+        allLeads = await extractFromTablePage(url);
       }
 
     } catch (err) {
