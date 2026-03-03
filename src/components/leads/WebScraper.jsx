@@ -84,12 +84,77 @@ Return the data structured as a lead record.`,
     return result;
   };
 
-  // Step 3: Extract leads directly from a listing page (fallback / non-deep mode)
+  // Step 3: Extract leads from a flat table/list on a single page (handles large tables with many rows)
+  const extractFromTablePage = async (pageUrl) => {
+    // First, get the total number of entries to know how many batches we need
+    const countResult = await base44.integrations.Core.InvokeLLM({
+      prompt: `Visit this URL: ${pageUrl}
+      
+Count the TOTAL number of company/contact rows in the table or list on this page. Just return the count. Also return whether the data is in an HTML table or a list format.`,
+      add_context_from_internet: true,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          total_entries: { type: "number" },
+          format: { type: "string" }
+        }
+      }
+    });
+
+    const total = countResult?.total_entries || 0;
+    const batchSize = 20;
+    const batches = Math.max(1, Math.ceil(total / batchSize));
+    let allLeads = [];
+
+    for (let i = 0; i < batches; i++) {
+      const start = i * batchSize + 1;
+      const end = Math.min((i + 1) * batchSize, total || 999);
+
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `Visit this URL: ${pageUrl}
+
+Extract companies/contacts numbered ${start} to ${end} from the table or list on this page. 
+Extract EVERY row in that range — do not skip any.
+For each entry get: company_name, representative/contact person name (split into first_name + last_name), email, phone, website, industry/activity, location, notes.`,
+        add_context_from_internet: true,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            leads: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  first_name: { type: "string" },
+                  last_name: { type: "string" },
+                  email: { type: "string" },
+                  phone: { type: "string" },
+                  job_title: { type: "string" },
+                  company_name: { type: "string" },
+                  website: { type: "string" },
+                  location: { type: "string" },
+                  industry: { type: "string" },
+                  notes: { type: "string" }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      allLeads = [...allLeads, ...(result?.leads || [])];
+    }
+
+    return allLeads;
+  };
+
+  // Step 4: Simple single-page extraction (fallback)
   const extractFromListingPage = async (pageUrl) => {
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `Visit this page and extract ALL people/companies/contacts you find: ${pageUrl}
 
-For each, get: first_name, last_name, email, phone, job_title, company_name, linkedin_url, website, location, industry, notes.`,
+For each, get: first_name, last_name, email, phone, job_title, company_name, linkedin_url, website, location, industry, notes.
+Be thorough — extract EVERY single entry, do not stop early.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
