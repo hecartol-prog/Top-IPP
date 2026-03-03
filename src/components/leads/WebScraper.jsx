@@ -317,8 +317,11 @@ Be thorough — extract EVERY single entry, do not stop early.`,
           if (allDetailLinks.length === 0) {
             // No detail links — this is likely a flat table/list page (like aciplast.org)
             // Use batched table extraction to get ALL rows
-            setProgressState({ current: 1, total: 1, label: "Detected table/list format. Extracting all rows in batches..." });
-            allLeads = await extractFromTablePage(url);
+            setProgressState({ current: 1, total: 1, label: "Counting entries..." });
+            allLeads = await extractFromTablePage(url, (i, total, start, end) => {
+              setProgressState({ current: i, total, label: `Extracting rows ${start}–${end} of ~${total * 10}...` });
+              setMessage({ type: "info", text: `Extracted ${allLeads.length} leads so far...` });
+            });
           } else {
             // Visit each detail page and extract data
             setProgressState({ current: 0, total: allDetailLinks.length, label: `Found ${allDetailLinks.length} company pages. Extracting data...` });
