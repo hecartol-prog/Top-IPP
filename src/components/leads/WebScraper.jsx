@@ -349,8 +349,11 @@ Be thorough — extract EVERY single entry, do not stop early.`,
       } else {
         // --- Simple mode (no deep crawl) ---
         // Use batched extraction to avoid JSON overflow with large directories
-        setProgressState({ current: 1, total: 1, label: "Extracting leads from page in batches..." });
-        allLeads = await extractFromTablePage(url);
+        setProgressState({ current: 1, total: 1, label: "Counting entries..." });
+        allLeads = await extractFromTablePage(url, (i, total, start, end) => {
+          setProgressState({ current: i, total, label: `Extracting rows ${start}–${end} of ~${total * 10}...` });
+          setMessage({ type: "info", text: `Extracted ${allLeads.length} leads so far...` });
+        });
       }
 
     } catch (err) {
