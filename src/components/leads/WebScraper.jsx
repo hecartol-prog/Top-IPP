@@ -85,37 +85,37 @@ Return the data structured as a lead record.`,
   };
 
   // Step 3: Extract leads from a flat table/list on a single page (handles large tables with many rows)
-  const extractFromTablePage = async (pageUrl) => {
-    // First, get the total number of entries to know how many batches we need
+  const extractFromTablePage = async (pageUrl, onProgress) => {
+    // First, get the total number of entries
     const countResult = await base44.integrations.Core.InvokeLLM({
       prompt: `Visit this URL: ${pageUrl}
-      
-Count the TOTAL number of company/contact rows in the table or list on this page. Just return the count. Also return whether the data is in an HTML table or a list format.`,
+
+Count the TOTAL number of company/contact rows in the table or list on this page (do NOT count the header row). Return only the integer count.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
         properties: {
-          total_entries: { type: "number" },
-          format: { type: "string" }
+          total_entries: { type: "number" }
         }
       }
     });
 
-    const total = countResult?.total_entries || 0;
-    const batchSize = 20;
-    const batches = Math.max(1, Math.ceil(total / batchSize));
+    const total = countResult?.total_entries || 80; // default high to ensure we get all
+    const batchSize = 10; // smaller batches = less JSON overflow risk
+    const batches = Math.ceil(total / batchSize);
     let allLeads = [];
 
     for (let i = 0; i < batches; i++) {
       const start = i * batchSize + 1;
-      const end = Math.min((i + 1) * batchSize, total || 999);
+      const end = Math.min((i + 1) * batchSize, total);
+      if (onProgress) onProgress(i, batches, start, end);
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Visit this URL: ${pageUrl}
 
-Extract companies/contacts numbered ${start} to ${end} from the table or list on this page. 
-Extract EVERY row in that range — do not skip any.
-For each entry get: company_name, representative/contact person name (split into first_name + last_name), email, phone, website, industry/activity, location, notes.`,
+This page has a table/list of companies. Extract ONLY rows numbered ${start} to ${end} (use the # column or count from top, skipping the header).
+For each row return: company_name, first_name, last_name, email, phone, website, industry, notes.
+Return exactly the rows in that range, no more, no less.`,
         add_context_from_internet: true,
         response_json_schema: {
           type: "object",
@@ -132,7 +132,6 @@ For each entry get: company_name, representative/contact person name (split into
                   job_title: { type: "string" },
                   company_name: { type: "string" },
                   website: { type: "string" },
-                  location: { type: "string" },
                   industry: { type: "string" },
                   notes: { type: "string" }
                 }
