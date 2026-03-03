@@ -7,203 +7,307 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Globe, Search, UserPlus, CheckCircle2, AlertCircle, BookOpen } from "lucide-react";
-
-// Detect FlippingBook URLs and extract page image URLs
-function detectFlippingBook(url, htmlContent) {
-  // Match pattern like: page0001_2.jpg, page0002_2.jpg, etc.
-  const matches = htmlContent.match(/page-html5-substrates\/(page\d+_\d+\.jpg[^"']*)/g) || [];
-  if (matches.length === 0) return null;
-
-  // Get base URL
-  const baseUrl = url.endsWith("/") ? url : url + "/";
-  const imageUrls = [...new Set(matches)].map(m => {
-    const fileName = m.replace("page-html5-substrates/", "");
-    return `${baseUrl}files/assets/common/page-html5-substrates/${fileName}`;
-  });
-
-  // Get total pages from "pages:/N" pattern
-  const pagesMatch = htmlContent.match(/pages:\/(\d+)/);
-  const totalPages = pagesMatch ? parseInt(pagesMatch[1]) : imageUrls.length;
-
-  return { imageUrls, totalPages };
-}
-
-// Generate all page image URLs for a FlippingBook
-function generateAllFlippingBookImageUrls(url, totalPages) {
-  const baseUrl = url.endsWith("/") ? url : url + "/";
-  const urls = [];
-  // Use the unique hash from the URL if present
-  const hashMatch = url.match(/uni=([a-f0-9]+)/);
-  const hash = hashMatch ? hashMatch[1] : null;
-
-  for (let i = 1; i <= totalPages; i++) {
-    const pageNum = String(i).padStart(4, "0");
-    let imgUrl = `${baseUrl}files/assets/common/page-html5-substrates/page${pageNum}_2.jpg`;
-    if (hash) imgUrl += `?uni=${hash}`;
-    urls.push(imgUrl);
-  }
-  return urls;
-}
+import { Loader2, Globe, Search, UserPlus, CheckCircle2, AlertCircle, BookOpen, Link } from "lucide-react";
 
 export default function WebScraper({ onImportComplete }) {
   const [url, setUrl] = useState("");
+  const [deepCrawl, setDeepCrawl] = useState(true);
   const [scraping, setScraping] = useState(false);
   const [importing, setImporting] = useState(false);
   const [extractedLeads, setExtractedLeads] = useState([]);
   const [selectedLeads, setSelectedLeads] = useState([]);
   const [message, setMessage] = useState(null);
-  const [progress, setProgress] = useState(null); // { current, total, label }
+  const [progressState, setProgressState] = useState(null);
 
-  const handleScrape = async () => {
-    if (!url.trim()) return;
+  // Step 1: Discover all listing/detail links from a directory page (including pagination)
+  const discoverLinks = async (startUrl) => {
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `Fetch this URL: ${startUrl}
 
-    setScraping(true);
-    setMessage(null);
-    setExtractedLeads([]);
-    setSelectedLeads([]);
-    setProgress(null);
+Your job is to find ALL links that lead to individual company/person/profile detail pages.
+Also find pagination links (next page, page 2, page 3, etc.) so we can get ALL entries.
 
-    // Step 1: Fetch the page HTML to detect type
-    setProgress({ current: 0, total: 1, label: "Analyzing page..." });
+Return:
+- detail_links: array of absolute URLs that each point to an individual company or person profile page (NOT category, NOT filter, NOT nav links - only profile/detail pages)
+- pagination_links: array of URLs for other pages of this same listing (page 2, page 3, etc.)
+- is_detail_page: true if this URL IS already a single company/person detail page (not a listing)
+- page_type: "listing" | "detail" | "other"
 
-    const fetchResult = await base44.integrations.Core.InvokeLLM({
-      prompt: `Fetch this URL and return the raw HTML/content: ${url}. Also tell me: is this a FlippingBook? Does it have "pages:/N" pattern? List any page image URLs you see following the pattern page0001_2.jpg, page0002_2.jpg etc. Return all info.`,
+For this URL, look for patterns like /directorio/company-name/ or /profile/name/ etc.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
         properties: {
-          is_flippingbook: { type: "boolean" },
-          total_pages: { type: "number" },
-          base_url: { type: "string" },
-          hash_param: { type: "string" },
-          raw_html_snippet: { type: "string" },
-          page_image_urls: { type: "array", items: { type: "string" } }
+          detail_links: { type: "array", items: { type: "string" } },
+          pagination_links: { type: "array", items: { type: "string" } },
+          is_detail_page: { type: "boolean" },
+          page_type: { type: "string" }
         }
       }
     });
+    return result || { detail_links: [], pagination_links: [], is_detail_page: false, page_type: "other" };
+  };
 
-    const isFlippingBook = fetchResult?.is_flippingbook || false;
-    let allLeads = [];
+  // Step 2: Extract lead data from a single detail page
+  const extractFromDetailPage = async (pageUrl) => {
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `Fetch this company/contact detail page: ${pageUrl}
 
-    if (isFlippingBook || (fetchResult?.total_pages && fetchResult.total_pages > 1)) {
-      // FlippingBook: scrape page by page using vision
-      const totalPages = fetchResult?.total_pages || 10;
-      const baseUrl = (fetchResult?.base_url || url).replace(/\/$/, "") + "/";
-      const hashParam = fetchResult?.hash_param || "";
+Extract ALL contact and company information visible on the page:
+- Company name
+- Contact person name (first and last name)
+- Email address
+- Phone numbers
+- Website
+- Physical address / location
+- Industry / products / services
+- Any other relevant business info
 
-      // Generate image URLs for all pages
-      const pageUrls = [];
-      for (let i = 1; i <= totalPages; i++) {
-        const pageNum = String(i).padStart(4, "0");
-        let imgUrl = `${baseUrl}files/assets/common/page-html5-substrates/page${pageNum}_2.jpg`;
-        if (hashParam) imgUrl += `?uni=${hashParam}`;
-        pageUrls.push(imgUrl);
+Return the data structured as a lead record.`,
+      add_context_from_internet: true,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          first_name: { type: "string" },
+          last_name: { type: "string" },
+          job_title: { type: "string" },
+          company_name: { type: "string" },
+          email: { type: "string" },
+          phone: { type: "string" },
+          website: { type: "string" },
+          location: { type: "string" },
+          industry: { type: "string" },
+          notes: { type: "string" }
+        }
       }
+    });
+    return result;
+  };
 
-      setMessage({ type: "info", text: `FlippingBook detected with ${totalPages} pages. Scanning each page for company/contact data...` });
+  // Step 3: Extract leads directly from a listing page (fallback / non-deep mode)
+  const extractFromListingPage = async (pageUrl) => {
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `Visit this page and extract ALL people/companies/contacts you find: ${pageUrl}
 
-      // Process pages in batches of 3
-      const batchSize = 3;
-      for (let i = 0; i < pageUrls.length; i += batchSize) {
-        const batch = pageUrls.slice(i, i + batchSize);
-        setProgress({ current: i + 1, total: pageUrls.length, label: `Scanning pages ${i + 1}–${Math.min(i + batchSize, pageUrls.length)} of ${pageUrls.length}...` });
-
-        const batchResults = await Promise.all(batch.map(imgUrl =>
-          base44.integrations.Core.InvokeLLM({
-            prompt: `Look at this page image from a business directory. Extract ALL companies and contacts visible. For each company/contact, get: company name, website, phone, email, contact person name and title, location, industry. Return empty leads array if the page has no company listings (e.g. cover, index, ads).`,
-            file_urls: [imgUrl],
-            response_json_schema: {
+For each, get: first_name, last_name, email, phone, job_title, company_name, linkedin_url, website, location, industry, notes.`,
+      add_context_from_internet: true,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          leads: {
+            type: "array",
+            items: {
               type: "object",
               properties: {
-                leads: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      first_name: { type: "string" },
-                      last_name: { type: "string" },
-                      job_title: { type: "string" },
-                      company_name: { type: "string" },
-                      email: { type: "string" },
-                      phone: { type: "string" },
-                      website: { type: "string" },
-                      location: { type: "string" },
-                      industry: { type: "string" },
-                      notes: { type: "string" }
-                    }
-                  }
-                }
-              }
-            }
-          }).catch(() => ({ leads: [] }))
-        ));
-
-        for (const result of batchResults) {
-          const leads = result?.leads || [];
-          allLeads = [...allLeads, ...leads];
-        }
-
-        // Update running count
-        setMessage({ type: "info", text: `Scanning pages... Found ${allLeads.length} companies so far.` });
-      }
-
-    } else {
-      // Regular webpage: use AI with internet access
-      setProgress({ current: 1, total: 1, label: "Extracting leads from page..." });
-
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `Visit this website and extract ALL people/contacts/leads you find: ${url}
-        
-This could be a team page, directory, staff listing, contact page, or any page with people's information.
-
-For each person found, extract: first_name, last_name, email, phone, job_title, company_name, linkedin_url, location, notes.
-
-Return ALL people you find.`,
-        add_context_from_internet: true,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            leads: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  first_name: { type: "string" },
-                  last_name: { type: "string" },
-                  email: { type: "string" },
-                  phone: { type: "string" },
-                  job_title: { type: "string" },
-                  company_name: { type: "string" },
-                  linkedin_url: { type: "string" },
-                  location: { type: "string" },
-                  notes: { type: "string" }
-                }
+                first_name: { type: "string" },
+                last_name: { type: "string" },
+                email: { type: "string" },
+                phone: { type: "string" },
+                job_title: { type: "string" },
+                company_name: { type: "string" },
+                linkedin_url: { type: "string" },
+                website: { type: "string" },
+                location: { type: "string" },
+                industry: { type: "string" },
+                notes: { type: "string" }
               }
             }
           }
         }
-      });
+      }
+    });
+    return result?.leads || [];
+  };
 
-      allLeads = result?.leads || [];
+  // Detect FlippingBook
+  const isFlippingBookUrl = (u) => {
+    return u.includes("flippingbook") || u.includes("page-html5-substrates") || u.includes("Directorio-de-Empresas");
+  };
+
+  const handleScrape = async () => {
+    if (!url.trim()) return;
+    setScraping(true);
+    setMessage(null);
+    setExtractedLeads([]);
+    setSelectedLeads([]);
+    setProgressState(null);
+
+    let allLeads = [];
+
+    try {
+      // --- FlippingBook handling ---
+      if (isFlippingBookUrl(url)) {
+        setMessage({ type: "info", text: "FlippingBook detected. Scanning pages with AI vision..." });
+
+        const detectResult = await base44.integrations.Core.InvokeLLM({
+          prompt: `Fetch this FlippingBook URL: ${url}. Tell me: how many total pages does it have? (look for "pages:/N" pattern). What is the exact base URL? Is there a "uni=" hash parameter?`,
+          add_context_from_internet: true,
+          response_json_schema: {
+            type: "object",
+            properties: {
+              total_pages: { type: "number" },
+              base_url: { type: "string" },
+              hash_param: { type: "string" }
+            }
+          }
+        });
+
+        const totalPages = detectResult?.total_pages || 10;
+        const baseUrl = (detectResult?.base_url || url).replace(/\/$/, "") + "/";
+        const hashParam = detectResult?.hash_param || "";
+
+        const pageUrls = [];
+        for (let i = 1; i <= totalPages; i++) {
+          const pageNum = String(i).padStart(4, "0");
+          let imgUrl = `${baseUrl}files/assets/common/page-html5-substrates/page${pageNum}_2.jpg`;
+          if (hashParam) imgUrl += `?uni=${hashParam}`;
+          pageUrls.push(imgUrl);
+        }
+
+        const batchSize = 3;
+        for (let i = 0; i < pageUrls.length; i += batchSize) {
+          const batch = pageUrls.slice(i, i + batchSize);
+          setProgressState({ current: i + 1, total: pageUrls.length, label: `Scanning pages ${i + 1}–${Math.min(i + batchSize, pageUrls.length)} of ${pageUrls.length}...` });
+
+          const batchResults = await Promise.all(batch.map(imgUrl =>
+            base44.integrations.Core.InvokeLLM({
+              prompt: `Look at this page image from a business directory. Extract ALL companies and contacts visible. Get: company name, website, phone, email, contact person, location, industry.`,
+              file_urls: [imgUrl],
+              response_json_schema: {
+                type: "object",
+                properties: {
+                  leads: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        first_name: { type: "string" },
+                        last_name: { type: "string" },
+                        job_title: { type: "string" },
+                        company_name: { type: "string" },
+                        email: { type: "string" },
+                        phone: { type: "string" },
+                        website: { type: "string" },
+                        location: { type: "string" },
+                        industry: { type: "string" },
+                        notes: { type: "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }).catch(() => ({ leads: [] }))
+          ));
+
+          for (const r of batchResults) {
+            allLeads = [...allLeads, ...(r?.leads || [])];
+          }
+          setMessage({ type: "info", text: `Scanning pages... Found ${allLeads.length} companies so far.` });
+        }
+
+      } else if (deepCrawl) {
+        // --- Deep crawl mode ---
+        setProgressState({ current: 0, total: 1, label: "Analyzing page structure..." });
+
+        // Discover the page type and links
+        const discovery = await discoverLinks(url);
+
+        if (discovery.is_detail_page || discovery.page_type === "detail") {
+          // It's already a detail page - extract directly
+          setProgressState({ current: 1, total: 1, label: "Extracting from detail page..." });
+          const lead = await extractFromDetailPage(url);
+          if (lead?.company_name || lead?.first_name) allLeads.push(lead);
+
+        } else {
+          // It's a listing page - collect all detail links across all pagination pages
+          let allDetailLinks = [...(discovery.detail_links || [])];
+          const paginationLinks = discovery.pagination_links || [];
+
+          // Fetch pagination pages to get more detail links
+          if (paginationLinks.length > 0) {
+            setProgressState({ current: 0, total: paginationLinks.length, label: `Found ${paginationLinks.length} more pages, collecting all company links...` });
+            
+            const pagResults = await Promise.all(
+              paginationLinks.map(pgUrl =>
+                base44.integrations.Core.InvokeLLM({
+                  prompt: `Fetch this listing page: ${pgUrl}. Return all individual company/profile detail page links found on it (NOT category or nav links).`,
+                  add_context_from_internet: true,
+                  response_json_schema: {
+                    type: "object",
+                    properties: {
+                      detail_links: { type: "array", items: { type: "string" } }
+                    }
+                  }
+                }).catch(() => ({ detail_links: [] }))
+              )
+            );
+
+            for (const r of pagResults) {
+              allDetailLinks = [...allDetailLinks, ...(r?.detail_links || [])];
+            }
+          }
+
+          // Deduplicate links
+          allDetailLinks = [...new Set(allDetailLinks)].filter(l => l && l.startsWith("http"));
+
+          if (allDetailLinks.length === 0) {
+            // Fallback: just extract from the listing page directly
+            setProgressState({ current: 1, total: 1, label: "No detail links found, extracting from listing..." });
+            allLeads = await extractFromListingPage(url);
+          } else {
+            // Visit each detail page and extract data
+            setProgressState({ current: 0, total: allDetailLinks.length, label: `Found ${allDetailLinks.length} company pages. Extracting data...` });
+
+            const batchSize = 5;
+            for (let i = 0; i < allDetailLinks.length; i += batchSize) {
+              const batch = allDetailLinks.slice(i, i + batchSize);
+              setProgressState({ current: i, total: allDetailLinks.length, label: `Scraping company ${i + 1}–${Math.min(i + batchSize, allDetailLinks.length)} of ${allDetailLinks.length}...` });
+
+              const batchResults = await Promise.all(
+                batch.map(detailUrl => extractFromDetailPage(detailUrl).catch(() => null))
+              );
+
+              for (const lead of batchResults) {
+                if (lead && (lead.company_name || lead.first_name)) {
+                  allLeads.push(lead);
+                }
+              }
+
+              setMessage({ type: "info", text: `Extracted ${allLeads.length} leads so far...` });
+            }
+          }
+        }
+
+      } else {
+        // --- Simple mode (no deep crawl) ---
+        setProgressState({ current: 1, total: 1, label: "Extracting leads from page..." });
+        allLeads = await extractFromListingPage(url);
+      }
+
+    } catch (err) {
+      setMessage({ type: "error", text: `Error: ${err.message}` });
+      setScraping(false);
+      setProgressState(null);
+      return;
     }
 
-    setProgress(null);
+    setProgressState(null);
 
-    if (allLeads.length === 0) {
-      setMessage({ type: "error", text: "No leads found. Try a team page, directory, or contact page." });
+    // Deduplicate
+    const seen = new Set();
+    const unique = allLeads.filter(l => {
+      const key = ((l.company_name || l.first_name || "") + (l.email || "")).toLowerCase().trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    if (unique.length === 0) {
+      setMessage({ type: "error", text: "No leads found. Try enabling Deep Crawl or check the URL." });
     } else {
-      // Deduplicate by company name
-      const seen = new Set();
-      const unique = allLeads.filter(l => {
-        const key = (l.company_name || l.first_name || "").toLowerCase().trim();
-        if (!key || seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
       setExtractedLeads(unique);
       setSelectedLeads(unique.map((_, i) => i));
-      setMessage({ type: "success", text: `Found ${unique.length} lead${unique.length !== 1 ? "s" : ""} extracted from the page.` });
+      setMessage({ type: "success", text: `Found ${unique.length} lead${unique.length !== 1 ? "s" : ""} extracted.` });
     }
 
     setScraping(false);
@@ -233,7 +337,6 @@ Return ALL people you find.`,
         phone: lead.phone || "",
         job_title: lead.job_title || "",
         company_name: lead.company_name || "",
-        linkedin_url: lead.linkedin_url || "",
         website: lead.website || "",
         location: lead.location || "",
         industry: lead.industry || "",
@@ -249,11 +352,10 @@ Return ALL people you find.`,
     setSelectedLeads([]);
     setUrl("");
     setImporting(false);
-
     if (onImportComplete) onImportComplete();
   };
 
-  const progressPct = progress ? Math.round((progress.current / progress.total) * 100) : 0;
+  const progressPct = progressState ? Math.round((progressState.current / Math.max(progressState.total, 1)) * 100) : 0;
 
   return (
     <div className="space-y-4">
@@ -265,7 +367,7 @@ Return ALL people you find.`,
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !scraping && handleScrape()}
-            placeholder="https://company.com/team or FlippingBook/PDF directory URL..."
+            placeholder="https://directory.com/companies/ or any company/contact page..."
             className="pl-10"
             disabled={scraping}
           />
@@ -278,16 +380,29 @@ Return ALL people you find.`,
           {scraping ? (
             <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Scanning...</>
           ) : (
-            <><Search className="w-4 h-4 mr-2" />Extract Leads</>
+            <><Search className="w-4 h-4 mr-2" />Extract</>
           )}
         </Button>
       </div>
 
+      {/* Deep crawl toggle */}
+      <div className="flex items-center gap-2 px-1">
+        <Checkbox
+          id="deepCrawl"
+          checked={deepCrawl}
+          onCheckedChange={setDeepCrawl}
+          disabled={scraping}
+        />
+        <label htmlFor="deepCrawl" className="text-sm text-slate-600 cursor-pointer select-none">
+          <span className="font-medium">Deep crawl</span> — follow links to individual company pages for complete contact data
+        </label>
+      </div>
+
       {/* Progress */}
-      {progress && (
-        <div className="space-y-2">
+      {progressState && (
+        <div className="space-y-1">
           <Progress value={progressPct} className="h-2" />
-          <p className="text-xs text-slate-500 text-center">{progress.label}</p>
+          <p className="text-xs text-slate-500 text-center">{progressState.label}</p>
         </div>
       )}
 
@@ -346,12 +461,12 @@ Return ALL people you find.`,
                       {lead.company_name || [lead.first_name, lead.last_name].filter(Boolean).join(" ") || "Unknown"}
                     </p>
                     <p className="text-xs text-slate-500 truncate">
-                      {[lead.job_title, lead.first_name && lead.last_name ? `${lead.first_name} ${lead.last_name}` : null].filter(Boolean).join(" · ") || lead.industry || "No details"}
+                      {[lead.first_name && lead.company_name ? `${lead.first_name} ${lead.last_name || ""}`.trim() : null, lead.industry].filter(Boolean).join(" · ") || "No details"}
                     </p>
                   </div>
                   <div className="text-right shrink-0 hidden sm:block">
-                    {(lead.phone || lead.email) && (
-                      <p className="text-xs text-slate-500 truncate max-w-[160px]">{lead.phone || lead.email}</p>
+                    {(lead.email || lead.phone) && (
+                      <p className="text-xs text-slate-500 truncate max-w-[160px]">{lead.email || lead.phone}</p>
                     )}
                     {lead.location && (
                       <p className="text-xs text-slate-400 truncate max-w-[160px]">{lead.location}</p>
@@ -378,7 +493,7 @@ Return ALL people you find.`,
       )}
 
       <p className="text-xs text-slate-400 text-center">
-        Supports websites, team directories, FlippingBooks, and image-based catalogs
+        Deep crawl visits each company's detail page for complete contact info · Also supports FlippingBooks & image directories
       </p>
     </div>
   );
