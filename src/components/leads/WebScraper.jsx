@@ -316,9 +316,10 @@ Be thorough — extract EVERY single entry, do not stop early.`,
           allDetailLinks = [...new Set(allDetailLinks)].filter(l => l && l.startsWith("http"));
 
           if (allDetailLinks.length === 0) {
-            // Fallback: just extract from the listing page directly
-            setProgressState({ current: 1, total: 1, label: "No detail links found, extracting from listing..." });
-            allLeads = await extractFromListingPage(url);
+            // No detail links — this is likely a flat table/list page (like aciplast.org)
+            // Use batched table extraction to get ALL rows
+            setProgressState({ current: 1, total: 1, label: "Detected table/list format. Extracting all rows in batches..." });
+            allLeads = await extractFromTablePage(url);
           } else {
             // Visit each detail page and extract data
             setProgressState({ current: 0, total: allDetailLinks.length, label: `Found ${allDetailLinks.length} company pages. Extracting data...` });
