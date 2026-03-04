@@ -76,7 +76,7 @@ export default function LeadDetails({
   return (
     <>
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto bg-white">
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto bg-white p-4 sm:p-6">
         <SheetHeader className="pb-6 border-b pr-8">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
