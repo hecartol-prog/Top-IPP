@@ -319,7 +319,7 @@ export default function LeadDetails({
     </Sheet>
 
     {/* Research Panel - rendered in a portal to escape Sheet's event handling */}
-    {showResearch && createPortal(
+    {showResearch && ReactDOM.createPortal(
       <div className="fixed inset-0 z-[9999] flex">
         <div className="absolute inset-0 bg-black/40" onClick={() => setShowResearch(false)} />
         <div className="relative ml-auto w-full sm:max-w-lg h-full bg-white shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
