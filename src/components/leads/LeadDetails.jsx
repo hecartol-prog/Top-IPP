@@ -150,7 +150,9 @@ function AddActivityForm({ leadId, onActivityCreate, onClose }) {
 export default function LeadDetails({ open, onClose, lead, activities = [], onEdit, onDelete, onActivityCreate, onUpdateLead }) {
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [researchLoading, setResearchLoading] = useState(false);
-  const [researchResult, setResearchResult] = useState(null);
+  const [enrichedFields, setEnrichedFields] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   if (!lead) return null;
 
@@ -164,33 +166,84 @@ export default function LeadDetails({ open, onClose, lead, activities = [], onEd
     }
   };
 
+  // Fields that can be enriched and their display labels
+  const enrichableFields = [
+    { key: 'industry', label: 'Industry' },
+    { key: 'company_size', label: 'Company Size', enum: ["1-10","11-50","51-200","201-500","501-1000","1000+"] },
+    { key: 'location', label: 'Location' },
+    { key: 'website', label: 'Website' },
+    { key: 'linkedin_url', label: 'LinkedIn URL' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'email', label: 'Email' },
+    { key: 'job_title', label: 'Job Title' },
+    { key: 'notes', label: 'Notes / Summary' },
+  ];
+
+  const missingFields = enrichableFields.filter(f => !lead[f.key]);
+
   const handleResearch = async () => {
     setResearchLoading(true);
-    setResearchResult(null);
+    setEnrichedFields(null);
+    setSaved(false);
     try {
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `Research this lead and provide a comprehensive sales intelligence brief:
-Name: ${lead.first_name} ${lead.last_name}
-Job Title: ${lead.job_title || 'Unknown'}
-Company: ${lead.company_name}
-Website: ${lead.website || 'Unknown'}
-LinkedIn: ${lead.linkedin_url || 'Unknown'}
-Industry: ${lead.industry || 'Unknown'}
+        prompt: `You are a B2B lead research assistant for a plastic injection mold manufacturing company.
 
-Please provide:
-1. Company overview and recent news
-2. Potential plastic injection mold / manufacturing needs
-3. Key talking points for outreach
-4. Recommended approach
+Research this lead and fill in the missing information fields as accurately as possible.
 
-Keep it concise and actionable.`,
-        add_context_from_internet: true
+Lead info:
+- Name: ${lead.first_name} ${lead.last_name}
+- Job Title: ${lead.job_title || 'Unknown'}
+- Company: ${lead.company_name}
+- Website: ${lead.website || 'Unknown'}
+- LinkedIn: ${lead.linkedin_url || 'Unknown'}
+- Industry: ${lead.industry || 'Unknown'}
+- Location: ${lead.location || 'Unknown'}
+- Email: ${lead.email || 'Unknown'}
+- Phone: ${lead.phone || 'Unknown'}
+- Company Size: ${lead.company_size || 'Unknown'}
+
+Missing fields to research and fill in: ${missingFields.map(f => f.key).join(', ')}
+
+Return ONLY valid JSON with the fields you could find. Only include fields you are reasonably confident about. Use null for fields you cannot determine.
+For company_size, use only one of: "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+".
+For notes, write a brief 2-3 sentence summary about the company and their potential manufacturing needs.`,
+        add_context_from_internet: true,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            industry: { type: "string" },
+            company_size: { type: "string" },
+            location: { type: "string" },
+            website: { type: "string" },
+            linkedin_url: { type: "string" },
+            phone: { type: "string" },
+            email: { type: "string" },
+            job_title: { type: "string" },
+            notes: { type: "string" },
+          }
+        }
       });
-      setResearchResult(result);
+
+      // Filter out null/empty values and only show missing fields
+      const found = {};
+      missingFields.forEach(f => {
+        if (result[f.key]) found[f.key] = result[f.key];
+      });
+      setEnrichedFields(found);
     } catch (e) {
-      setResearchResult("Could not fetch research data. Please try again.");
+      setEnrichedFields({});
     }
     setResearchLoading(false);
+  };
+
+  const handleApplyEnrichment = async () => {
+    if (!enrichedFields || !onUpdateLead) return;
+    setSaving(true);
+    await onUpdateLead({ ...lead, ...enrichedFields });
+    setSaving(false);
+    setSaved(true);
+    setEnrichedFields(null);
   };
 
   return (
