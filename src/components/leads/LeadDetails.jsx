@@ -557,6 +557,14 @@ For notes, write a brief 2-3 sentence summary about the company and their potent
           </TabsContent>
         </Tabs>
       </SheetContent>
+      {lead && (
+        <AIEditDialog
+          open={showAIEdit}
+          onClose={() => setShowAIEdit(false)}
+          lead={lead}
+          onUpdateLead={onUpdateLead}
+        />
+      )}
     </Sheet>
   );
 }
