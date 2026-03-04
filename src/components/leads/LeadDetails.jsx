@@ -77,7 +77,7 @@ export default function LeadDetails({
     <>
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto bg-white">
-        <SheetHeader className="pb-6 border-b">
+        <SheetHeader className="pb-6 border-b pr-8">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <Avatar className="w-16 h-16 bg-gradient-to-br from-slate-700 to-slate-900">
@@ -104,7 +104,7 @@ export default function LeadDetails({
             <Button variant="outline" size="sm" className="text-rose-600 hover:bg-rose-50" onClick={() => onDelete(lead)}>
               <Trash2 className="w-4 h-4 mr-1" /> Delete
             </Button>
-            <Button variant="outline" size="sm" className="text-teal-600 hover:bg-teal-50 border-teal-200" onClick={() => setShowResearch(true)}>
+            <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white" onClick={() => setShowResearch(true)}>
               <Search className="w-4 h-4 mr-1" /> AI Research
             </Button>
           </div>
