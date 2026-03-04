@@ -86,6 +86,7 @@ export default function LeadResearchPanel({ lead, onUpdateLead }) {
   const handleApplyField = async (field, value) => {
     if (!value || value === "N/A" || value === "unknown") return;
     await onUpdateLead({ ...lead, [field]: value });
+    setAppliedFields(prev => ({ ...prev, [field]: value }));
     setCopied(field);
     setTimeout(() => setCopied(null), 2000);
   };
