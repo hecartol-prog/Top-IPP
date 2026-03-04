@@ -72,10 +72,10 @@ export default function Leads() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Lead.update(id, data),
-    onSuccess: (_, { closeDetails }) => {
+    onSuccess: (updatedLead, { keepDetailsOpen }) => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       setEditingLead(null);
-      if (closeDetails !== false) setSelectedLead(null);
+      if (!keepDetailsOpen) setSelectedLead(null);
     }
   });
 
