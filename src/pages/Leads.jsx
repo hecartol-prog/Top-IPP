@@ -223,7 +223,7 @@ export default function Leads() {
             </div>
             <div className="flex gap-2 flex-wrap items-center">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-36">
+                <SelectTrigger className="w-32 sm:w-36">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
