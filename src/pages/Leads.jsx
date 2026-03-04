@@ -395,7 +395,7 @@ export default function Leads() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onActivityCreate={(data) => createActivityMutation.mutate(data)}
-        onUpdateLead={(updatedLead) => updateMutation.mutate({ id: updatedLead.id, data: updatedLead, closeDetails: false })}
+        onUpdateLead={(updatedLead) => updateMutation.mutate({ id: updatedLead.id, data: updatedLead, keepDetailsOpen: true })}
       />
 
       {/* Delete Confirmation */}
