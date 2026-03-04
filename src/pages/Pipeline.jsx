@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import PipelineBoard from "../components/pipeline/PipelineBoard";
-import LeadDetails from "../components/leads/LeadDetails";
+import LeadDetails from "@/components/leads/LeadDetails.jsx";
 import LeadForm from "../components/leads/LeadForm";
 import {
   AlertDialog,
