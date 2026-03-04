@@ -116,14 +116,14 @@ export default function Pipeline() {
               Drag and drop leads to update their status
             </motion.p>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 sm:gap-6">
             <div className="text-right">
-              <p className="text-sm text-slate-500">Active Deals</p>
-              <p className="text-2xl font-bold text-slate-900">{activeDeals}</p>
+              <p className="text-xs sm:text-sm text-slate-500">Active Deals</p>
+              <p className="text-xl sm:text-2xl font-bold text-slate-900">{activeDeals}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-slate-500">Total Pipeline</p>
-              <p className="text-2xl font-bold text-emerald-600">${totalValue.toLocaleString()}</p>
+              <p className="text-xs sm:text-sm text-slate-500">Total Pipeline</p>
+              <p className="text-xl sm:text-2xl font-bold text-emerald-600">${totalValue.toLocaleString()}</p>
             </div>
           </div>
         </div>
