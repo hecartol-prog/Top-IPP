@@ -66,7 +66,7 @@ export default function Layout({ children, currentPageName }) {
                 <span className="text-white font-bold text-sm">PM</span>
               </div>
               <div>
-                <span className="font-bold text-slate-900 text-lg tracking-tight">PlastiCRM</span>
+                <span className="font-bold text-slate-900 text-lg tracking-tight">Moldwise CRM</span>
                 <p className="text-[10px] text-slate-400 -mt-0.5">Lead Management</p>
               </div>
             </Link>
