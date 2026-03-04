@@ -158,7 +158,7 @@ export default function Layout({ children, currentPageName }) {
             </button>
 
             <div className="flex-1 flex items-center justify-end gap-4">
-              <span className="text-sm text-slate-500 hidden sm:block">
+              <span className="text-xs sm:text-sm text-slate-500 hidden sm:block truncate max-w-xs">
                 Plastic Injection Mold Manufacturing CRM
               </span>
             </div>
