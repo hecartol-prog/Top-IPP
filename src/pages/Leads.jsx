@@ -176,26 +176,29 @@ export default function Leads() {
               Manage and track your prospective clients
             </motion.p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button 
               onClick={() => setShowScraper(true)}
               variant="outline"
+              size="sm"
             >
-              <Globe className="w-4 h-4 mr-2" />
-              Scrape Website
+              <Globe className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Scrape Website</span>
             </Button>
             <Button 
               onClick={() => setShowImport(true)}
               variant="outline"
+              size="sm"
             >
-              <Upload className="w-4 h-4 mr-2" />
-              Import CSV
+              <Upload className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Import CSV</span>
             </Button>
             <Button 
               onClick={() => { setEditingLead(null); setShowForm(true); }}
               className="bg-slate-900 hover:bg-slate-800"
+              size="sm"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4 mr-1 sm:mr-2" />
               Add Lead
             </Button>
           </div>
