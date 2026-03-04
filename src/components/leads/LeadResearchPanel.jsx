@@ -172,9 +172,9 @@ export default function LeadResearchPanel({ lead, onUpdateLead }) {
 
           {/* Fields comparison */}
           <Card className="p-4 bg-white border-slate-200">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Company Data</h3>
-              <Badge className="bg-amber-100 text-amber-700 text-xs">Highlighted = differs from current</Badge>
+              <Badge className="bg-amber-100 text-amber-700 text-xs">Highlighted = differs</Badge>
             </div>
             <FieldRow label="Website" field="website" value={result.website} icon={Globe} />
             <FieldRow label="Email" field="email" value={result.email} icon={Mail} />
