@@ -90,7 +90,7 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Left Column - Chart & Recent Leads */}
           <div className="lg:col-span-2 space-y-6">
             <PipelineChart leads={leads} />
