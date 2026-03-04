@@ -55,13 +55,12 @@ export default function RecentLeads({ leads, onViewAll, onLeadClick }) {
                   </Avatar>
                   
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 text-sm">
+                    <p className="font-bold text-slate-900 text-sm uppercase tracking-wide truncate">
+                      {lead.company_name}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
                       {lead.first_name} {lead.last_name}
                     </p>
-                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                      <Building2 className="w-3 h-3" />
-                      <span className="truncate">{lead.company_name}</span>
-                    </div>
                   </div>
                   
                   <div className="text-right">
