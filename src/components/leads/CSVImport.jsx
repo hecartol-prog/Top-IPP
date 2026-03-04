@@ -158,9 +158,13 @@ export default function LeadCSVImport({ onImportComplete }) {
     if (leads.length === 0) {
       setProgress("Using AI to parse file...");
       const aiResult = await base44.integrations.Core.InvokeLLM({
-        prompt: `Extract ALL company/contact records from this file as leads. 
+        prompt: `Extract ALL company/contact records from this file as leads.
+IMPORTANT: Carefully distinguish between COMPANY NAME and CONTACT PERSON NAME:
+- company_name = the actual business/company name (required)
+- first_name + last_name = the actual person's name IF it exists separately. Only extract person names that are clearly different from the company name. Leave first_name/last_name empty if no contact person is identified.
+
 Return a JSON object with a "leads" array. Each lead must have:
-company_name, phone, email, location (city + state), industry, company_size (use: "1-10","11-50","51-200","201-500","501-1000","1000+"), notes (address).
+company_name (required), first_name (person only, if exists), last_name (person only, if exists), phone, email, location (city + state), industry, company_size (use: "1-10","11-50","51-200","201-500","501-1000","1000+"), notes (address).
 Skip rows with no company name. Clean "sin dato" values to empty string.`,
         file_urls: [file_url],
         response_json_schema: {
