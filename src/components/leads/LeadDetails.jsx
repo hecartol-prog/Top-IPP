@@ -96,12 +96,15 @@ export default function LeadDetails({
             </div>
           </div>
           
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-4 flex-wrap">
             <Button variant="outline" size="sm" onClick={() => onEdit(lead)}>
               <Edit2 className="w-4 h-4 mr-1" /> Edit
             </Button>
             <Button variant="outline" size="sm" className="text-rose-600 hover:bg-rose-50" onClick={() => onDelete(lead)}>
               <Trash2 className="w-4 h-4 mr-1" /> Delete
+            </Button>
+            <Button variant="outline" size="sm" className="text-teal-600 hover:bg-teal-50 border-teal-200" onClick={() => setShowResearch(true)}>
+              <Search className="w-4 h-4 mr-1" /> AI Research
             </Button>
           </div>
         </SheetHeader>
