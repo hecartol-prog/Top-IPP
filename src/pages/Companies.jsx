@@ -162,19 +162,21 @@ export default function Companies() {
               Track and manage target companies for plastic injection mold opportunities
             </motion.p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button 
               onClick={() => setShowImport(true)}
               variant="outline"
+              size="sm"
             >
-              <Upload className="w-4 h-4 mr-2" />
-              Import CSV
+              <Upload className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Import CSV</span>
             </Button>
             <Button 
               onClick={() => { setEditingCompany(null); resetForm(); setShowForm(true); }}
               className="bg-slate-900 hover:bg-slate-800"
+              size="sm"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4 mr-1" />
               Add Company
             </Button>
           </div>
