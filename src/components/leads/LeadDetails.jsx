@@ -74,6 +74,7 @@ export default function LeadDetails({
   const leadActivities = activities.filter(a => a.lead_id === lead.id);
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto bg-white">
         <SheetHeader className="pb-6 border-b">
