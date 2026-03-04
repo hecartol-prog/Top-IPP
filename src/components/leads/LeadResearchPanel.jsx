@@ -150,6 +150,16 @@ export default function LeadResearchPanel({ lead, onUpdateLead }) {
         </Button>
       </div>
 
+      {!loading && !result && (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-400">
+          <Search className="w-10 h-10 opacity-30" />
+          <p className="text-sm">Click "Search" to research this company</p>
+          <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={runResearch}>
+            <Search className="w-4 h-4 mr-2" /> Start Research
+          </Button>
+        </div>
+      )}
+
       {loading && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500">
           <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
