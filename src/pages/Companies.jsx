@@ -307,7 +307,7 @@ export default function Companies() {
 
       {/* Company Form Modal */}
       <Dialog open={showForm} onOpenChange={(open) => { if (!open) { setShowForm(false); setEditingCompany(null); resetForm(); } }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-white">
+        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto bg-white">
           <DialogHeader>
             <DialogTitle>
               {editingCompany ? "Edit Company" : "Add New Company"}
