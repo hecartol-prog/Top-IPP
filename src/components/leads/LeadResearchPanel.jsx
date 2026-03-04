@@ -154,7 +154,7 @@ export default function LeadResearchPanel({ lead, onUpdateLead }) {
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-400">
           <Search className="w-10 h-10 opacity-30" />
           <p className="text-sm">Click "Search" to research this company</p>
-          <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={runResearch}>
+          <Button className="bg-teal-600 hover:bg-teal-700 text-white" onClick={(e) => { e.stopPropagation(); runResearch(); }}>
             <Search className="w-4 h-4 mr-2" /> Start Research
           </Button>
         </div>
