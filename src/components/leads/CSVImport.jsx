@@ -49,6 +49,17 @@ function rowToLead(row) {
   const company = getCol(row, "COMPANY ", "COMPANY", "EMPRESA", "RAZON SOCIAL", "NOMBRE", "NAME");
   if (!company) return null;
 
+  // Try to find actual contact person name (separate from company name)
+  const contactName = getCol(row, "CONTACT", "CONTACTO", "PERSON", "PERSONA", "REPRESENTATIVE", "REPRESENTANTE", "CONTACT PERSON");
+  let firstName = "", lastName = "";
+  
+  if (contactName && contactName !== company) {
+    // Only split into first/last if it's actually different from company name
+    const parts = contactName.split(" ");
+    firstName = parts[0] || "";
+    lastName = parts.slice(1).join(" ") || "";
+  }
+
   const phone = getCol(row, "PHONE", "TELEFONO", "TEL", "CELULAR", "MOBILE");
   const email = getCol(row, "EMAIL", "CORREO", "E-MAIL", "MAIL");
   const state = getCol(row, "STATE", "ESTADO");
@@ -61,8 +72,8 @@ function rowToLead(row) {
   const notes = [address, town].filter(Boolean).join(", ");
 
   return {
-    first_name: company.split(" ")[0] || "Unknown",
-    last_name: "",
+    first_name: firstName,
+    last_name: lastName,
     email: email.includes("@") ? email : "",
     phone: /\d{5,}/.test(phone) ? phone : "",
     job_title: "",
