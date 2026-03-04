@@ -150,6 +150,7 @@ function AddActivityForm({ leadId, onActivityCreate, onClose }) {
 
 export default function LeadDetails({ open, onClose, lead, activities = [], onEdit, onDelete, onActivityCreate, onUpdateLead }) {
   const [showAddActivity, setShowAddActivity] = useState(false);
+  const [showAIEdit, setShowAIEdit] = useState(false);
   const [researchLoading, setResearchLoading] = useState(false);
   const [enrichedFields, setEnrichedFields] = useState(null);
   const [saving, setSaving] = useState(false);
