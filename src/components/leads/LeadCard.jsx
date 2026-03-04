@@ -57,10 +57,11 @@ export default function LeadCard({ lead, onClick }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="font-semibold text-slate-900 group-hover:text-teal-600 transition-colors">
-                  {lead.first_name} {lead.last_name}
+                <h3 className="font-bold text-slate-900 uppercase tracking-wide group-hover:text-teal-600 transition-colors">
+                  {lead.company_name}
                 </h3>
-                <p className="text-sm text-slate-500">{lead.job_title}</p>
+                <p className="text-sm text-slate-600 font-medium">{lead.first_name} {lead.last_name}</p>
+                {lead.job_title && <p className="text-xs text-slate-400">{lead.job_title}</p>}
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-lg">{sourceIcons[lead.source] || '📋'}</span>
