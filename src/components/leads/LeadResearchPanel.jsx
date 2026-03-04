@@ -8,8 +8,7 @@ import { Loader2, Search, Globe, Mail, Phone, MapPin, Building2, Users, External
 export default function LeadResearchPanel({ lead, onUpdateLead }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [copied, setCopied] = useState(null);
-  const [appliedFields, setAppliedFields] = useState({});
+  const [applied, setApplied] = useState({});
 
   const searchQuery = [lead.company_name, lead.location, "plastic injection mold"].filter(Boolean).join(" ");
 
@@ -86,9 +85,7 @@ export default function LeadResearchPanel({ lead, onUpdateLead }) {
   const handleApplyField = async (field, value) => {
     if (!value || value === "N/A" || value === "unknown") return;
     await onUpdateLead({ ...lead, [field]: value });
-    setAppliedFields(prev => ({ ...prev, [field]: value }));
-    setCopied(field);
-    setTimeout(() => setCopied(null), 2000);
+    setApplied(prev => ({ ...prev, [field]: value }));
   };
 
   const isValidEmail = (val) => val && !val.toLowerCase().includes("email protected") && !val.toLowerCase().includes("[email") && val.includes("@") && val.includes(".");
@@ -102,29 +99,26 @@ export default function LeadResearchPanel({ lead, onUpdateLead }) {
 
   const FieldRow = ({ label, field, value: rawValue, icon: Icon }) => {
     const value = sanitize(field, rawValue);
-    const currentValue = appliedFields[field] ?? lead[field];
-    const isApplied = field in appliedFields;
-    const isDifferent = !isApplied && value && value !== currentValue && value !== "N/A" && value !== "unknown";
+    // use locally applied value or the lead's current value for comparison
+    const effectiveCurrentValue = applied[field] !== undefined ? applied[field] : lead[field];
+    const isDifferent = value && value !== effectiveCurrentValue && value !== "N/A" && value !== "unknown";
+    const wasApplied = applied[field] === value;
 
     return (
-      <div className={`flex items-start justify-between gap-3 py-2.5 border-b border-slate-100 last:border-0 ${isDifferent ? "bg-amber-50/40 -mx-3 px-3 rounded" : ""}`}>
+      <div className={`flex items-start justify-between gap-3 py-2.5 border-b border-slate-100 last:border-0 ${isDifferent ? "bg-amber-50/40 -mx-3 px-3 rounded" : wasApplied ? "bg-emerald-50/40 -mx-3 px-3 rounded" : ""}`}>
         <div className="flex items-start gap-2 min-w-0 flex-1">
           {Icon && <Icon className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />}
           <div className="min-w-0">
             <span className="text-xs text-slate-400 block">{label}</span>
-            <span className={`text-sm font-medium break-all ${isDifferent ? "text-amber-700" : "text-slate-700"}`}>
+            <span className={`text-sm font-medium break-all ${isDifferent ? "text-amber-700" : wasApplied ? "text-emerald-700" : "text-slate-700"}`}>
               {value || <span className="text-slate-300 italic">not found</span>}
             </span>
-            {isDifferent && currentValue && (
-              <span className="text-xs text-slate-400 line-through block">was: {currentValue}</span>
+            {isDifferent && effectiveCurrentValue && (
+              <span className="text-xs text-slate-400 line-through block">was: {effectiveCurrentValue}</span>
             )}
           </div>
         </div>
-        {isApplied ? (
-          <span className="shrink-0 text-xs text-emerald-600 flex items-center gap-1 font-medium">
-            <Check className="w-3 h-3" /> Applied
-          </span>
-        ) : isDifferent && (
+        {isDifferent && (
           <Button
             size="sm"
             variant="outline"
@@ -133,6 +127,9 @@ export default function LeadResearchPanel({ lead, onUpdateLead }) {
           >
             Apply
           </Button>
+        )}
+        {wasApplied && (
+          <Check className="w-4 h-4 text-emerald-500 shrink-0" />
         )}
       </div>
     );
