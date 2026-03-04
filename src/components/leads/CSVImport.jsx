@@ -191,7 +191,7 @@ Skip rows with no company name. Clean "sin dato" values to empty string.`,
         }
       });
       leads = (aiResult?.leads || []).map(l => ({
-        first_name: cleanValue(l.first_name) || (l.company_name || "").split(" ")[0] || "Unknown",
+        first_name: cleanValue(l.first_name) || "",
         last_name: cleanValue(l.last_name) || "",
         email: cleanValue(l.email),
         phone: cleanValue(l.phone),
