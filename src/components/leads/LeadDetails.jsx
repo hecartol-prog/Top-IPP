@@ -319,9 +319,7 @@ export default function LeadDetails({
     {/* Research Panel - separate window */}
     {showResearch && (
       <div className="fixed inset-0 z-[60] flex">
-        {/* Dimmed backdrop */}
         <div className="absolute inset-0 bg-black/40" onClick={() => setShowResearch(false)} />
-        {/* Panel slides in from right */}
         <div className="relative ml-auto w-full max-w-lg h-full bg-white shadow-2xl flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white">
             <h2 className="font-semibold text-slate-900 text-sm">AI Research — {lead.company_name}</h2>
@@ -335,5 +333,6 @@ export default function LeadDetails({
         </div>
       </div>
     )}
+    </>
   );
 }
