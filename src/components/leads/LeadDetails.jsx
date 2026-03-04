@@ -11,6 +11,7 @@ import {
   Pencil, Trash2, Plus, CheckCircle2, Circle, Clock, MessageSquare, 
   PhoneCall, Users, FileText, Send, Search, Sparkles, Check, RefreshCw
 } from "lucide-react";
+import AIEditDialog from "./AIEditDialog";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 
