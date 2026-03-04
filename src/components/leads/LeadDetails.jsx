@@ -44,7 +44,8 @@ export default function LeadDetails({
   onEdit, 
   onDelete,
   onActivityCreate,
-  onRefresh
+  onRefresh,
+  onUpdateLead
 }) {
   const [activityForm, setActivityForm] = useState({
     type: "note",
@@ -52,6 +53,7 @@ export default function LeadDetails({
     description: ""
   });
   const [isAddingActivity, setIsAddingActivity] = useState(false);
+  const [showResearch, setShowResearch] = useState(false);
 
   if (!lead) return null;
 
