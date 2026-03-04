@@ -26,73 +26,64 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
   const allSelected = leads.length > 0 && selectedIds.length === leads.length;
   const someSelected = selectedIds.length > 0 && selectedIds.length < leads.length;
 
-  // Drag selection state
+  // Drag-to-select state
   const isDragging = useRef(false);
-  const dragStartIndex = useRef(null);
-  const dragMode = useRef(null); // "select" | "deselect"
-  const [dragRange, setDragRange] = useState(null); // { start, end }
+  const dragStartId = useRef(null);
+  const dragMode = useRef("select"); // "select" | "deselect"
+  const [draggingIds, setDraggingIds] = useState(new Set());
 
-  const getRange = (a, b) => {
-    const min = Math.min(a, b);
-    const max = Math.max(a, b);
-    return { start: min, end: max };
-  };
+  const getLeadIndex = (id) => leads.findIndex(l => l.id === id);
 
-  const handleRowMouseDown = useCallback((e, index, leadId) => {
-    // Only trigger on left mouse button, not on interactive elements
+  const handleMouseDown = useCallback((e, leadId) => {
+    // Only trigger on left click, not on buttons/checkboxes
     if (e.button !== 0) return;
-    if (e.target.closest("a, button, input, [data-no-drag]")) return;
+    if (e.target.closest("button") || e.target.closest('[role="checkbox"]') || e.target.closest("a")) return;
 
     e.preventDefault();
     isDragging.current = true;
-    dragStartIndex.current = index;
+    dragStartId.current = leadId;
     dragMode.current = selectedIds.includes(leadId) ? "deselect" : "select";
-    setDragRange({ start: index, end: index });
+    setDraggingIds(new Set([leadId]));
+  }, [selectedIds]);
 
-    // Apply to the start row immediately
-    onToggleSelect(leadId);
-  }, [selectedIds, onToggleSelect]);
-
-  const handleRowMouseEnter = useCallback((e, index) => {
+  const handleMouseEnter = useCallback((leadId) => {
     if (!isDragging.current) return;
-    setDragRange(getRange(dragStartIndex.current, index));
 
-    // Select/deselect everything in the current drag range
-    const { start, end } = getRange(dragStartIndex.current, index);
-    for (let i = start; i <= end; i++) {
-      const id = leads[i]?.id;
-      if (!id) continue;
-      const isSelected = selectedIds.includes(id);
-      if (dragMode.current === "select" && !isSelected) onToggleSelect(id);
-      if (dragMode.current === "deselect" && isSelected) onToggleSelect(id);
-    }
-  }, [leads, selectedIds, onToggleSelect]);
+    const startIdx = getLeadIndex(dragStartId.current);
+    const endIdx = getLeadIndex(leadId);
+    const min = Math.min(startIdx, endIdx);
+    const max = Math.max(startIdx, endIdx);
+    const range = new Set(leads.slice(min, max + 1).map(l => l.id));
+    setDraggingIds(range);
+  }, [leads]);
 
   const handleMouseUp = useCallback(() => {
+    if (!isDragging.current) return;
     isDragging.current = false;
-    dragStartIndex.current = null;
-    dragMode.current = null;
-    setDragRange(null);
-  }, []);
+
+    if (draggingIds.size > 0) {
+      draggingIds.forEach(id => {
+        const alreadySelected = selectedIds.includes(id);
+        if (dragMode.current === "select" && !alreadySelected) onToggleSelect(id);
+        if (dragMode.current === "deselect" && alreadySelected) onToggleSelect(id);
+      });
+    }
+
+    setDraggingIds(new Set());
+    dragStartId.current = null;
+  }, [draggingIds, selectedIds, onToggleSelect]);
 
   return (
     <div
       className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden select-none"
-      onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onMouseUp={handleMouseUp}
     >
-      {/* Drag hint */}
-      <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 text-xs text-slate-400 flex items-center gap-1.5">
-        <span>💡 Tip: Click & drag rows to select multiple leads</span>
-      </div>
-
-      {/* Scrollable table wrapper */}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[800px] text-sm">
-          {/* Header */}
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="w-10 px-4 py-3 text-left" data-no-drag>
+              <th className="w-10 px-4 py-3 text-left">
                 <Checkbox
                   checked={allSelected}
                   ref={el => { if (el) el.indeterminate = someSelected; }}
@@ -111,35 +102,26 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
             </tr>
           </thead>
 
-          {/* Body */}
           <tbody className="divide-y divide-slate-100">
-            {leads.map((lead, index) => {
+            {leads.map((lead) => {
               const isSelected = selectedIds.includes(lead.id);
-              const isInDragRange = dragRange && index >= dragRange.start && index <= dragRange.end;
-
+              const isDragHighlighted = draggingIds.has(lead.id);
               return (
                 <tr
                   key={lead.id}
-                  className={`group transition-colors cursor-pointer ${
-                    isSelected
-                      ? "bg-teal-50/60 border-l-2 border-l-teal-400"
-                      : isInDragRange
-                      ? "bg-teal-50/30"
-                      : "hover:bg-slate-50"
-                  }`}
-                  onMouseDown={(e) => handleRowMouseDown(e, index, lead.id)}
-                  onMouseEnter={(e) => handleRowMouseEnter(e, index)}
+                  className={`group transition-colors cursor-pointer
+                    ${isDragHighlighted ? "bg-teal-100/60 outline outline-1 outline-teal-300" : ""}
+                    ${isSelected && !isDragHighlighted ? "bg-teal-50/40" : ""}
+                    ${!isSelected && !isDragHighlighted ? "hover:bg-slate-50" : ""}
+                  `}
+                  onMouseDown={(e) => handleMouseDown(e, lead.id)}
+                  onMouseEnter={() => handleMouseEnter(lead.id)}
                 >
-                  {/* Checkbox */}
-                  <td className="px-4 py-3" data-no-drag onClick={(e) => { e.stopPropagation(); onToggleSelect(lead.id); }}>
+                  <td className="px-4 py-3" onClick={(e) => { e.stopPropagation(); onToggleSelect(lead.id); }}>
                     <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelect(lead.id)} />
                   </td>
 
-                  {/* Name / Company */}
-                  <td
-                    className="px-3 py-3 min-w-[160px]"
-                    onClick={() => onRowClick(lead)}
-                  >
+                  <td className="px-3 py-3 min-w-[160px]" onClick={() => onRowClick(lead)}>
                     <p className="font-semibold text-slate-900 truncate group-hover:text-teal-600 transition-colors max-w-[180px]">
                       {lead.first_name} {lead.last_name}
                     </p>
@@ -151,35 +133,24 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
                     )}
                   </td>
 
-                  {/* Email */}
                   <td className="px-3 py-3 min-w-[160px]">
                     {lead.email ? (
-                      <a
-                        href={`mailto:${lead.email}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-teal-600 transition-colors max-w-[200px]"
-                      >
+                      <a href={`mailto:${lead.email}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 text-xs text-slate-500 hover:text-teal-600 transition-colors max-w-[200px]">
                         <Mail className="w-3 h-3 shrink-0 text-slate-400" />
                         <span className="truncate">{lead.email}</span>
                       </a>
                     ) : <span className="text-xs text-slate-300">—</span>}
                   </td>
 
-                  {/* Phone */}
                   <td className="px-3 py-3 min-w-[130px]">
                     {lead.phone ? (
-                      <a
-                        href={`tel:${lead.phone}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-teal-600 transition-colors"
-                      >
+                      <a href={`tel:${lead.phone}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 text-xs text-slate-500 hover:text-teal-600 transition-colors">
                         <Phone className="w-3 h-3 shrink-0 text-slate-400" />
                         <span className="truncate">{lead.phone}</span>
                       </a>
                     ) : <span className="text-xs text-slate-300">—</span>}
                   </td>
 
-                  {/* Location */}
                   <td className="px-3 py-3 min-w-[130px]">
                     {lead.location ? (
                       <div className="flex items-center gap-1 text-xs text-slate-500">
@@ -189,37 +160,27 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
                     ) : <span className="text-xs text-slate-300">—</span>}
                   </td>
 
-                  {/* Website */}
                   <td className="px-3 py-3 min-w-[130px]">
                     {lead.website ? (
-                      <a
-                        href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-teal-600 transition-colors"
-                      >
+                      <a href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 text-xs text-slate-500 hover:text-teal-600 transition-colors">
                         <Globe className="w-3 h-3 shrink-0 text-slate-400" />
                         <span className="truncate max-w-[130px]">{lead.website.replace(/^https?:\/\//, "")}</span>
                       </a>
                     ) : <span className="text-xs text-slate-300">—</span>}
                   </td>
 
-                  {/* Status */}
                   <td className="px-3 py-3 whitespace-nowrap">
                     <Badge className={`${statusColors[lead.status] || statusColors.new} border text-xs font-medium`}>
                       {lead.status?.replace("_", " ") || "new"}
                     </Badge>
                   </td>
 
-                  {/* Priority */}
                   <td className="px-3 py-3 whitespace-nowrap">
                     <Badge className={`${priorityColors[lead.priority] || priorityColors.medium} border-0 text-xs font-medium`}>
                       {lead.priority || "medium"}
                     </Badge>
                   </td>
 
-                  {/* Follow Up */}
                   <td className="px-3 py-3 whitespace-nowrap">
                     {lead.next_follow_up ? (
                       <div className="flex items-center gap-1 text-xs text-slate-500">
@@ -229,8 +190,7 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
                     ) : <span className="text-xs text-slate-300">—</span>}
                   </td>
 
-                  {/* Actions */}
-                  <td className="px-3 py-3" data-no-drag onClick={(e) => e.stopPropagation()}>
+                  <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-700" onClick={() => onEdit(lead)}>
                         <Pencil className="w-3.5 h-3.5" />
