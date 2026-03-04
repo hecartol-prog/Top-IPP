@@ -254,7 +254,7 @@ export default function Leads() {
               </Select>
               {/* Sort */}
               <Select value={sortField} onValueChange={setSortField}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-36 sm:w-40">
                   <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
