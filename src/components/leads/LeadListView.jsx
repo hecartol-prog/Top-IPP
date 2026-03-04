@@ -2,7 +2,7 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Pencil, Trash2, Building2, MapPin, Mail, Phone } from "lucide-react";
+import { Pencil, Trash2, Building2, MapPin, Mail, Phone, Globe, Calendar } from "lucide-react";
 import { format } from "date-fns";
 
 const statusColors = {
@@ -28,119 +28,178 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-      {/* Table Header */}
-      <div className="grid grid-cols-[40px_2fr_2fr_1.2fr_1fr_1fr_120px] gap-3 px-4 py-3 bg-slate-50 border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-        <div className="flex items-center">
-          <Checkbox
-            checked={allSelected}
-            ref={el => { if (el) el.indeterminate = someSelected; }}
-            onCheckedChange={onToggleAll}
-          />
-        </div>
-        <div>Name / Company</div>
-        <div>Contact</div>
-        <div>Status</div>
-        <div>Priority</div>
-        <div>Follow Up</div>
-        <div className="text-right">Actions</div>
-      </div>
-
-      {/* Rows */}
-      <div className="divide-y divide-slate-50">
-        {leads.map((lead) => {
-          const isSelected = selectedIds.includes(lead.id);
-          return (
-            <div
-              key={lead.id}
-              className={`grid grid-cols-[40px_2fr_2fr_1.2fr_1fr_1fr_120px] gap-3 px-4 py-3 items-center hover:bg-slate-50 transition-colors group ${isSelected ? "bg-teal-50/40" : ""}`}
-            >
-              {/* Checkbox */}
-              <div onClick={(e) => e.stopPropagation()}>
+      {/* Scrollable table wrapper */}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[800px] text-sm">
+          {/* Header */}
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="w-10 px-4 py-3 text-left">
                 <Checkbox
-                  checked={isSelected}
-                  onCheckedChange={() => onToggleSelect(lead.id)}
+                  checked={allSelected}
+                  ref={el => { if (el) el.indeterminate = someSelected; }}
+                  onCheckedChange={onToggleAll}
                 />
-              </div>
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Name / Company</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Email</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Phone</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Location</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Website</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Status</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Priority</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Follow Up</th>
+              <th className="px-3 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Actions</th>
+            </tr>
+          </thead>
 
-              {/* Name / Company */}
-              <div
-                className="cursor-pointer min-w-0"
-                onClick={() => onRowClick(lead)}
-              >
-                <p className="font-semibold text-slate-900 text-sm truncate group-hover:text-teal-600 transition-colors">
-                  {lead.first_name} {lead.last_name}
-                </p>
-                <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
-                  <Building2 className="w-3 h-3 shrink-0" />
-                  <span className="truncate">{lead.company_name || "—"}</span>
-                </div>
-              </div>
-
-              {/* Contact */}
-              <div className="min-w-0 space-y-0.5">
-                {lead.email && (
-                  <div className="flex items-center gap-1 text-xs text-slate-500 truncate">
-                    <Mail className="w-3 h-3 shrink-0 text-slate-400" />
-                    <span className="truncate">{lead.email}</span>
-                  </div>
-                )}
-                {lead.phone && (
-                  <div className="flex items-center gap-1 text-xs text-slate-500 truncate">
-                    <Phone className="w-3 h-3 shrink-0 text-slate-400" />
-                    <span className="truncate">{lead.phone}</span>
-                  </div>
-                )}
-                {lead.location && !lead.email && !lead.phone && (
-                  <div className="flex items-center gap-1 text-xs text-slate-500 truncate">
-                    <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
-                    <span className="truncate">{lead.location}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Status */}
-              <div>
-                <Badge className={`${statusColors[lead.status]} border text-xs font-medium`}>
-                  {lead.status?.replace("_", " ") || "new"}
-                </Badge>
-              </div>
-
-              {/* Priority */}
-              <div>
-                <Badge className={`${priorityColors[lead.priority] || priorityColors.medium} border-0 text-xs font-medium`}>
-                  {lead.priority || "medium"}
-                </Badge>
-              </div>
-
-              {/* Follow Up */}
-              <div className="text-xs text-slate-400">
-                {lead.next_follow_up
-                  ? format(new Date(lead.next_follow_up), "MMM d, yyyy")
-                  : "—"}
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-slate-400 hover:text-slate-700"
-                  onClick={() => onEdit(lead)}
+          {/* Body */}
+          <tbody className="divide-y divide-slate-100">
+            {leads.map((lead) => {
+              const isSelected = selectedIds.includes(lead.id);
+              return (
+                <tr
+                  key={lead.id}
+                  className={`group hover:bg-slate-50 transition-colors ${isSelected ? "bg-teal-50/40" : ""}`}
                 >
-                  <Pencil className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-slate-400 hover:text-rose-600"
-                  onClick={() => onDelete(lead)}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            </div>
-          );
-        })}
+                  {/* Checkbox */}
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => onToggleSelect(lead.id)}
+                    />
+                  </td>
+
+                  {/* Name / Company */}
+                  <td
+                    className="px-3 py-3 cursor-pointer min-w-[160px]"
+                    onClick={() => onRowClick(lead)}
+                  >
+                    <p className="font-semibold text-slate-900 truncate group-hover:text-teal-600 transition-colors max-w-[180px]">
+                      {lead.first_name} {lead.last_name}
+                    </p>
+                    {lead.company_name && (
+                      <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
+                        <Building2 className="w-3 h-3 shrink-0" />
+                        <span className="truncate max-w-[160px]">{lead.company_name}</span>
+                      </div>
+                    )}
+                  </td>
+
+                  {/* Email */}
+                  <td className="px-3 py-3 min-w-[160px]">
+                    {lead.email ? (
+                      <a
+                        href={`mailto:${lead.email}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-teal-600 transition-colors max-w-[200px]"
+                      >
+                        <Mail className="w-3 h-3 shrink-0 text-slate-400" />
+                        <span className="truncate">{lead.email}</span>
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-300">—</span>
+                    )}
+                  </td>
+
+                  {/* Phone */}
+                  <td className="px-3 py-3 min-w-[130px]">
+                    {lead.phone ? (
+                      <a
+                        href={`tel:${lead.phone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-teal-600 transition-colors"
+                      >
+                        <Phone className="w-3 h-3 shrink-0 text-slate-400" />
+                        <span className="truncate">{lead.phone}</span>
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-300">—</span>
+                    )}
+                  </td>
+
+                  {/* Location */}
+                  <td className="px-3 py-3 min-w-[130px]">
+                    {lead.location ? (
+                      <div className="flex items-center gap-1 text-xs text-slate-500">
+                        <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
+                        <span className="truncate max-w-[140px]">{lead.location}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-300">—</span>
+                    )}
+                  </td>
+
+                  {/* Website */}
+                  <td className="px-3 py-3 min-w-[130px]">
+                    {lead.website ? (
+                      <a
+                        href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-teal-600 transition-colors"
+                      >
+                        <Globe className="w-3 h-3 shrink-0 text-slate-400" />
+                        <span className="truncate max-w-[130px]">{lead.website.replace(/^https?:\/\//, "")}</span>
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-300">—</span>
+                    )}
+                  </td>
+
+                  {/* Status */}
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    <Badge className={`${statusColors[lead.status] || statusColors.new} border text-xs font-medium`}>
+                      {lead.status?.replace("_", " ") || "new"}
+                    </Badge>
+                  </td>
+
+                  {/* Priority */}
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    <Badge className={`${priorityColors[lead.priority] || priorityColors.medium} border-0 text-xs font-medium`}>
+                      {lead.priority || "medium"}
+                    </Badge>
+                  </td>
+
+                  {/* Follow Up */}
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    {lead.next_follow_up ? (
+                      <div className="flex items-center gap-1 text-xs text-slate-500">
+                        <Calendar className="w-3 h-3 shrink-0 text-slate-400" />
+                        {format(new Date(lead.next_follow_up), "MMM d, yyyy")}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-300">—</span>
+                    )}
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-slate-700"
+                        onClick={() => onEdit(lead)}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-rose-600"
+                        onClick={() => onDelete(lead)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
