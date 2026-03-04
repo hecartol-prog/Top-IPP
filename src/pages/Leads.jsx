@@ -9,7 +9,7 @@ import { Plus, Search, LayoutGrid, List, Upload, Globe, ArrowUpDown, Trash2, Che
 import { motion, AnimatePresence } from "framer-motion";
 import LeadCard from "../components/leads/LeadCard";
 import LeadForm from "../components/leads/LeadForm";
-import LeadDetails from "../components/leads/LeadDetails.jsx";
+import LeadDetails from "@/components/leads/LeadDetails.jsx";
 import LeadCSVImport from "../components/leads/CSVImport";
 import WebScraper from "../components/leads/WebScraper";
 import LeadListView from "../components/leads/LeadListView";
