@@ -318,9 +318,9 @@ export default function LeadDetails({
       </SheetContent>
     </Sheet>
 
-    {/* Research Panel - separate window */}
-    {showResearch && (
-      <div className="fixed inset-0 z-[200] flex" onMouseDown={(e) => e.stopPropagation()}>
+    {/* Research Panel - rendered in a portal to escape Sheet's event handling */}
+    {showResearch && createPortal(
+      <div className="fixed inset-0 z-[9999] flex">
         <div className="absolute inset-0 bg-black/40" onClick={() => setShowResearch(false)} />
         <div className="relative ml-auto w-full sm:max-w-lg h-full bg-white shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white">
@@ -333,7 +333,8 @@ export default function LeadDetails({
             <LeadResearchPanel lead={lead} onUpdateLead={onUpdateLead} />
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     )}
     </>
   );
