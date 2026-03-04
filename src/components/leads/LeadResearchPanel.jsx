@@ -8,8 +8,7 @@ import { Loader2, Search, Globe, Mail, Phone, MapPin, Building2, Users, External
 export default function LeadResearchPanel({ lead, onUpdateLead }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [copied, setCopied] = useState(null);
-  const [appliedFields, setAppliedFields] = useState({});
+  const [applied, setApplied] = useState({});
 
   const searchQuery = [lead.company_name, lead.location, "plastic injection mold"].filter(Boolean).join(" ");
 
@@ -86,9 +85,7 @@ export default function LeadResearchPanel({ lead, onUpdateLead }) {
   const handleApplyField = async (field, value) => {
     if (!value || value === "N/A" || value === "unknown") return;
     await onUpdateLead({ ...lead, [field]: value });
-    setAppliedFields(prev => ({ ...prev, [field]: value }));
-    setCopied(field);
-    setTimeout(() => setCopied(null), 2000);
+    setApplied(prev => ({ ...prev, [field]: value }));
   };
 
   const isValidEmail = (val) => val && !val.toLowerCase().includes("email protected") && !val.toLowerCase().includes("[email") && val.includes("@") && val.includes(".");
@@ -102,9 +99,8 @@ export default function LeadResearchPanel({ lead, onUpdateLead }) {
 
   const FieldRow = ({ label, field, value: rawValue, icon: Icon }) => {
     const value = sanitize(field, rawValue);
-    const currentValue = appliedFields[field] ?? lead[field];
-    const isApplied = field in appliedFields;
-    const isDifferent = !isApplied && value && value !== currentValue && value !== "N/A" && value !== "unknown";
+    const currentValue = lead[field];
+    const isDifferent = value && value !== currentValue && value !== "N/A" && value !== "unknown";
 
     return (
       <div className={`flex items-start justify-between gap-3 py-2.5 border-b border-slate-100 last:border-0 ${isDifferent ? "bg-amber-50/40 -mx-3 px-3 rounded" : ""}`}>
