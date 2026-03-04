@@ -459,17 +459,39 @@ For notes, write a brief 2-3 sentence summary about the company and their potent
           {/* AI Research Tab */}
           <TabsContent value="research" className="p-4 mt-0">
             <div className="mb-4">
-              <h3 className="text-sm font-semibold text-slate-700 mb-1">AI Sales Intelligence</h3>
-              <p className="text-xs text-slate-500">Get an AI-powered research brief on this lead and company.</p>
+              <h3 className="text-sm font-semibold text-slate-700 mb-1">AI Lead Enrichment</h3>
+              <p className="text-xs text-slate-500">
+                AI will research missing fields online and suggest values to fill in the lead profile.
+              </p>
             </div>
+
+            {/* Missing fields summary */}
+            {missingFields.length === 0 ? (
+              <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 rounded-lg p-3 mb-4">
+                <Check className="w-4 h-4" />
+                All fields are already filled in for this lead.
+              </div>
+            ) : (
+              <div className="mb-4 p-3 bg-amber-50 rounded-lg">
+                <p className="text-xs font-semibold text-amber-700 mb-1.5">Missing fields ({missingFields.length}):</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {missingFields.map(f => (
+                    <span key={f.key} className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{f.label}</span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <Button
               onClick={handleResearch}
-              disabled={researchLoading}
+              disabled={researchLoading || missingFields.length === 0}
               className="w-full bg-slate-900 hover:bg-slate-800 mb-4"
             >
-              <Search className="w-4 h-4 mr-2" />
-              {researchLoading ? "Researching..." : "Research This Lead"}
+              {researchLoading ? (
+                <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Researching online...</>
+              ) : (
+                <><Sparkles className="w-4 h-4 mr-2" /> Enrich Lead Data</>
+              )}
             </Button>
 
             {researchLoading && (
@@ -481,9 +503,49 @@ For notes, write a brief 2-3 sentence summary about the company and their potent
               </div>
             )}
 
-            {researchResult && !researchLoading && (
-              <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
-                {researchResult}
+            {saved && (
+              <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 rounded-lg p-3 mb-4">
+                <Check className="w-4 h-4" />
+                Lead data has been updated successfully.
+              </div>
+            )}
+
+            {enrichedFields && !researchLoading && (
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-slate-700">
+                  {Object.keys(enrichedFields).length > 0
+                    ? `Found ${Object.keys(enrichedFields).length} field(s) to fill in:`
+                    : "No additional information could be found for this lead."}
+                </h4>
+
+                {Object.keys(enrichedFields).length > 0 && (
+                  <>
+                    <div className="space-y-2">
+                      {enrichableFields
+                        .filter(f => enrichedFields[f.key])
+                        .map(f => (
+                          <div key={f.key} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{f.label}</p>
+                              <p className="text-sm text-slate-800 mt-0.5 break-words">{enrichedFields[f.key]}</p>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+
+                    <Button
+                      onClick={handleApplyEnrichment}
+                      disabled={saving}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      {saving ? (
+                        <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                      ) : (
+                        <><Check className="w-4 h-4 mr-2" /> Apply to Lead Profile</>
+                      )}
+                    </Button>
+                  </>
+                )}
               </div>
             )}
           </TabsContent>
