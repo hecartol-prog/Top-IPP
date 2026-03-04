@@ -267,6 +267,10 @@ For notes, write a brief 2-3 sentence summary about the company and their potent
               </div>
             </div>
             <div className="flex gap-2">
+              <Button size="sm" variant="ghost" className="text-violet-300 hover:bg-white/10 gap-1.5" onClick={() => setShowAIEdit(true)}>
+                <Sparkles className="w-4 h-4" />
+                <span className="text-xs hidden sm:inline">AI Edit</span>
+              </Button>
               <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => onEdit(lead)}>
                 <Pencil className="w-4 h-4" />
               </Button>
