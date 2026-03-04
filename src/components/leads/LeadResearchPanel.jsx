@@ -21,13 +21,17 @@ export default function LeadResearchPanel({ lead, onUpdateLead }) {
       
       Find and return accurate, up-to-date information about this company. Focus on:
       - Company full legal name and any aliases
-      - Contact details: website, email, phone
+      - Contact details: website, real email address (e.g. info@company.com or contact@company.com), phone
       - Physical address / location
-      - Key contacts / decision makers (names, job titles, emails if public)
+      - Key contacts / decision makers (names, job titles, real emails if public)
       - Industry and what they manufacture or do
       - Company size (employees)
       - LinkedIn page URL
       - Any relevant notes about their plastic injection molding or manufacturing activities
+      
+      IMPORTANT: For email addresses, only return real, complete email addresses like "info@company.com". 
+      NEVER return "[email protected]", "[email protected]", "email protected", or any obfuscated/placeholder email. 
+      If you cannot find a real, complete email address, return an empty string "".
       
       Current data we have (may be inaccurate or incomplete):
       - Name: ${lead.first_name} ${lead.last_name}
