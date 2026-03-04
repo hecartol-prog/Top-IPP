@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Building2, MapPin, DollarSign, Calendar, Mail, Phone, Linkedin, Globe,
   Pencil, Trash2, Plus, CheckCircle2, Circle, Clock, MessageSquare, 
-  PhoneCall, Users, FileText, Send, Search
+  PhoneCall, Users, FileText, Send, Search, Sparkles, Check, RefreshCw
 } from "lucide-react";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
