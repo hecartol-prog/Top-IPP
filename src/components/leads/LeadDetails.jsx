@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Mail, Phone, Linkedin, Globe, Building2, MapPin, Calendar, 
   DollarSign, Edit2, Trash2, MessageSquare, PhoneCall, Video,
-  FileText, Send, Clock, CheckCircle2, X
+  FileText, Send, Clock, CheckCircle2, X, Search
 } from "lucide-react";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
+import LeadResearchPanel from "./LeadResearchPanel";
 
 const statusColors = {
   new: "bg-blue-100 text-blue-700",
