@@ -89,7 +89,17 @@ export default function LeadResearchPanel({ lead, onUpdateLead }) {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const FieldRow = ({ label, field, value, icon: Icon }) => {
+  const isValidEmail = (val) => val && !val.toLowerCase().includes("email protected") && !val.toLowerCase().includes("[email") && val.includes("@") && val.includes(".");
+
+  const sanitize = (field, val) => {
+    if (!val) return val;
+    if (field === "email" && !isValidEmail(val)) return "";
+    // filter obfuscated emails in key_contacts too
+    return val;
+  };
+
+  const FieldRow = ({ label, field, value: rawValue, icon: Icon }) => {
+    const value = sanitize(field, rawValue);
     const currentValue = lead[field];
     const isDifferent = value && value !== currentValue && value !== "N/A" && value !== "unknown";
 
