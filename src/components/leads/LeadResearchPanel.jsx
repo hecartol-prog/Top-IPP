@@ -78,9 +78,7 @@ export default function LeadResearchPanel({ lead, onUpdateLead }) {
     setLoading(false);
   };
 
-  useEffect(() => {
-    runResearch();
-  }, []);
+
 
   const handleApplyField = async (field, value) => {
     if (!value || value === "N/A" || value === "unknown") return;
