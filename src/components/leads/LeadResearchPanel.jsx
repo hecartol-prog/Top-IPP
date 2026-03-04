@@ -8,8 +8,7 @@ import { Loader2, Search, Globe, Mail, Phone, MapPin, Building2, Users, External
 export default function LeadResearchPanel({ lead, onUpdateLead }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [copied, setCopied] = useState(null);
-  const [appliedFields, setAppliedFields] = useState({});
+  const [applied, setApplied] = useState({});
 
   const searchQuery = [lead.company_name, lead.location, "plastic injection mold"].filter(Boolean).join(" ");
 
@@ -86,7 +85,6 @@ export default function LeadResearchPanel({ lead, onUpdateLead }) {
   const handleApplyField = async (field, value) => {
     if (!value || value === "N/A" || value === "unknown") return;
     await onUpdateLead({ ...lead, [field]: value });
-    setAppliedFields(prev => ({ ...prev, [field]: value }));
     setCopied(field);
     setTimeout(() => setCopied(null), 2000);
   };
