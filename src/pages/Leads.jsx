@@ -238,7 +238,7 @@ export default function Leads() {
                 </SelectContent>
               </Select>
               <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger className="w-36">
+                <SelectTrigger className="w-32 sm:w-36">
                   <SelectValue placeholder="Source" />
                 </SelectTrigger>
                 <SelectContent>
