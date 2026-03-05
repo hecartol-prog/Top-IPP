@@ -244,15 +244,15 @@ export default function LeadCSVImport({ onImportComplete }) {
     setSelectedIds(selectedIds.size === previewLeads.length ? new Set() : new Set(previewLeads.map(l => l._id)));
 
   const handleConfirmImport = async () => {
-    const toImport = previewLeads.filter(l => selectedIds.has(l._id));
+    const toImport = previewLeads.filter(l => selectedIds.has(l._id)).map(({ _id, ...data }) => data);
     setStep("importing");
     let imported = 0;
-    const batchSize = 20;
+    const batchSize = 50;
     for (let i = 0; i < toImport.length; i += batchSize) {
       const batch = toImport.slice(i, i + batchSize);
-      await Promise.all(batch.map(({ _id, ...data }) => base44.entities.Lead.create(data)));
+      setProgress(`Importing... ${Math.min(i + batchSize, toImport.length)}/${toImport.length}`);
+      await base44.entities.Lead.bulkCreate(batch);
       imported += batch.length;
-      setProgress(`Importing... ${imported}/${toImport.length}`);
     }
     setStep("done");
     setMessage({ type: "success", text: `Successfully imported ${imported} lead${imported !== 1 ? "s" : ""}!` });
