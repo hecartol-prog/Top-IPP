@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Upload, Loader2, CheckCircle2, FileText, AlertCircle, Check, X } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, FileText, AlertCircle, Check, X, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
