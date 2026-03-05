@@ -359,13 +359,33 @@ export default function LeadCSVImport({ onImportComplete }) {
             <Button
               variant="outline"
               onClick={handleEnrichWebsites}
-              disabled={enriching}
+              disabled={enriching || enrichingContacts}
               className="w-full text-blue-700 border-blue-200 hover:bg-blue-50"
             >
               {enriching ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Searching websites...</>
               ) : (
-                <><Search className="w-4 h-4 mr-2" />Enrich Websites via Apify (optional)</>
+                <><Search className="w-4 h-4 mr-2" />Step 1: Find Websites via Apify</>
+              )}
+            </Button>
+
+            {enrichContactProgress && (
+              <div className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 ${enrichingContacts ? "bg-purple-50 text-purple-700" : "bg-slate-50 text-slate-600"}`}>
+                {enrichingContacts && <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />}
+                {enrichContactProgress}
+              </div>
+            )}
+
+            <Button
+              variant="outline"
+              onClick={handleEnrichContacts}
+              disabled={enriching || enrichingContacts}
+              className="w-full text-purple-700 border-purple-200 hover:bg-purple-50"
+            >
+              {enrichingContacts ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Scraping contact info...</>
+              ) : (
+                <><Search className="w-4 h-4 mr-2" />Step 2: Scrape Emails & Phones from Websites</>
               )}
             </Button>
 
