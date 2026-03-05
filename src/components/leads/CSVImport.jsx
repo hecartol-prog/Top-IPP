@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import * as XLSX from "xlsx";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Upload, Loader2, CheckCircle2, FileText, AlertCircle, Check, X } from "
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
-const ACCEPTED_TYPES = ".csv,.xlsx,.xls,.pdf,.doc,.docx,.json,.txt,.html,.htm";
+const ACCEPTED_TYPES = ".csv,.xlsx,.xls";
 
 const COMPANY_SIZE_MAP = [
   ["0 a 10", "1-10"], ["1 a 10", "1-10"], ["1-10", "1-10"], ["0-10", "1-10"],
@@ -34,28 +35,35 @@ function cleanValue(val) {
   return s;
 }
 
-// Try to find a column value using multiple possible header names
 function getCol(row, ...keys) {
   for (const k of keys) {
-    if (row[k] !== undefined && row[k] !== null) return cleanValue(row[k]);
-    // also try trimmed key
-    const trimmed = k.trim();
-    if (row[trimmed] !== undefined && row[trimmed] !== null) return cleanValue(row[trimmed]);
+    if (row[k] !== undefined && row[k] !== null) {
+      const v = cleanValue(row[k]);
+      if (v) return v;
+    }
+    // try trimmed
+    const t = k.trim();
+    if (row[t] !== undefined && row[t] !== null) {
+      const v = cleanValue(row[t]);
+      if (v) return v;
+    }
   }
   return "";
 }
 
 function rowToLead(row) {
-  const company = getCol(row, "COMPANY ", "COMPANY", "EMPRESA", "RAZON SOCIAL", "NOMBRE", "NAME");
+  const company = getCol(row,
+    "COMPANY ", "COMPANY", "EMPRESA", "RAZON SOCIAL", "NOMBRE", "NAME", "COMPANY NAME"
+  );
   if (!company) return null;
 
-  // Try to find actual contact person name (separate from company name)
-  const contactName = getCol(row, "CONTACT", "CONTACTO", "PERSON", "PERSONA", "REPRESENTATIVE", "REPRESENTANTE", "CONTACT PERSON");
+  // Only use dedicated contact columns for person name — never split company name
+  const contactName = getCol(row,
+    "CONTACT", "CONTACTO", "PERSON", "PERSONA", "REPRESENTATIVE", "REPRESENTANTE", "CONTACT PERSON", "NOMBRE CONTACTO"
+  );
   let firstName = "", lastName = "";
-  
-  if (contactName && contactName !== company) {
-    // Only split into first/last if it's actually different from company name
-    const parts = contactName.split(" ");
+  if (contactName && contactName.toLowerCase() !== company.toLowerCase()) {
+    const parts = contactName.split(" ").filter(Boolean);
     firstName = parts[0] || "";
     lastName = parts.slice(1).join(" ") || "";
   }
@@ -66,7 +74,9 @@ function rowToLead(row) {
   const city = getCol(row, "CITY", "CIUDAD");
   const location = [city, state].filter(Boolean).join(", ");
   const industry = getCol(row, "FIELD", "GIRO", "ACTIVIDAD", "SECTOR", "INDUSTRIA", "RAMO");
-  const empRaw = getCol(row, "No. OF EMPLOYEEES", "No. OF EMPLOYEES", "EMPLEADOS", "TRABAJADORES", "EMPLOYEES");
+  const empRaw = getCol(row,
+    "No. OF EMPLOYEEES", "No. OF EMPLOYEES", "EMPLEADOS", "TRABAJADORES", "EMPLOYEES", "No. OF EMPLOYEEES"
+  );
   const address = getCol(row, "ADDRESS", "DOMICILIO", "CALLE", "DIRECCION");
   const town = getCol(row, "TOWN", "COLONIA", "MUNICIPIO");
   const notes = [address, town].filter(Boolean).join(", ");
@@ -88,6 +98,26 @@ function rowToLead(row) {
   };
 }
 
+function parseFileToRows(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        resolve(rows);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
 export default function LeadCSVImport({ onImportComplete }) {
   const [file, setFile] = useState(null);
   const [step, setStep] = useState("idle");
@@ -104,112 +134,18 @@ export default function LeadCSVImport({ onImportComplete }) {
   const handleExtract = async () => {
     if (!file) return;
     setStep("extracting");
-    setProgress("Uploading file...");
+    setProgress("Reading file...");
     setMessage(null);
 
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    setProgress("Extracting data...");
+    const rows = await parseFileToRows(file);
+    setProgress(`Mapping ${rows.length} rows...`);
 
-    const ext = file.name.split(".").pop().toLowerCase();
-    let leads = [];
-
-    if (["xlsx", "xls", "csv"].includes(ext)) {
-      // Direct structured extraction — fast and reliable for tabular files
-      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url,
-        json_schema: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              "No.": { type: "number" },
-              "COMPANY ": { type: "string" },
-              "COMPANY": { type: "string" },
-              "STATE": { type: "string" },
-              "CITY": { type: "string" },
-              "ADDRESS": { type: "string" },
-              "TOWN": { type: "string" },
-              "ZP": { type: "string" },
-              "PHONE": { type: "string" },
-              "EMAIL": { type: "string" },
-              "FIELD": { type: "string" },
-              "No. OF EMPLOYEEES": { type: "string" },
-              "No. OF EMPLOYEES": { type: "string" },
-              "REGISTRY AT": { type: "string" },
-              // Spanish variants
-              "EMPRESA": { type: "string" },
-              "ESTADO": { type: "string" },
-              "CIUDAD": { type: "string" },
-              "TELEFONO": { type: "string" },
-              "CORREO": { type: "string" },
-              "GIRO": { type: "string" },
-              "EMPLEADOS": { type: "string" },
-            }
-          }
-        }
-      });
-
-      if (result.status === "success" && Array.isArray(result.output)) {
-        leads = result.output.map(rowToLead).filter(Boolean);
-      }
-    }
-
-    // Fallback: AI-based extraction for non-tabular or if direct extraction returned nothing
-    if (leads.length === 0) {
-      setProgress("Using AI to parse file...");
-      const aiResult = await base44.integrations.Core.InvokeLLM({
-        prompt: `Extract ALL company/contact records from this file as leads.
-IMPORTANT: Carefully distinguish between COMPANY NAME and CONTACT PERSON NAME:
-- company_name = the actual business/company name (required)
-- first_name + last_name = the actual person's name IF it exists separately. Only extract person names that are clearly different from the company name. Leave first_name/last_name empty if no contact person is identified.
-
-Return a JSON object with a "leads" array. Each lead must have:
-company_name (required), first_name (person only, if exists), last_name (person only, if exists), phone, email, location (city + state), industry, company_size (use: "1-10","11-50","51-200","201-500","501-1000","1000+"), notes (address).
-Skip rows with no company name. Clean "sin dato" values to empty string.`,
-        file_urls: [file_url],
-        response_json_schema: {
-          type: "object",
-          properties: {
-            leads: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  first_name: { type: "string" },
-                  last_name: { type: "string" },
-                  email: { type: "string" },
-                  phone: { type: "string" },
-                  company_name: { type: "string" },
-                  company_size: { type: "string" },
-                  industry: { type: "string" },
-                  location: { type: "string" },
-                  notes: { type: "string" },
-                }
-              }
-            }
-          }
-        }
-      });
-      leads = (aiResult?.leads || []).map(l => ({
-        first_name: cleanValue(l.first_name) || "",
-        last_name: cleanValue(l.last_name) || "",
-        email: cleanValue(l.email),
-        phone: cleanValue(l.phone),
-        job_title: "",
-        company_name: cleanValue(l.company_name),
-        company_size: normalizeCompanySize(l.company_size) || cleanValue(l.company_size),
-        industry: cleanValue(l.industry),
-        website: "",
-        location: cleanValue(l.location),
-        notes: cleanValue(l.notes),
-        status: "new",
-        source: "other",
-      })).filter(l => l.company_name);
-    }
+    const leads = rows.map(rowToLead).filter(Boolean);
 
     if (leads.length === 0) {
-      setMessage({ type: "error", text: "No leads found. Please check the file content." });
+      setMessage({ type: "error", text: "No leads found. Please check the file format." });
       setStep("idle");
+      setProgress("");
       return;
     }
 
@@ -258,7 +194,9 @@ Skip rows with no company name. Clean "sin dato" values to empty string.`,
       <CardContent className="space-y-4">
         {message && (
           <Alert className={message.type === "success" ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}>
-            {message.type === "success" ? <CheckCircle2 className="w-4 h-4 inline mr-2 text-emerald-600" /> : <AlertCircle className="w-4 h-4 inline mr-2 text-red-600" />}
+            {message.type === "success"
+              ? <CheckCircle2 className="w-4 h-4 inline mr-2 text-emerald-600" />
+              : <AlertCircle className="w-4 h-4 inline mr-2 text-red-600" />}
             <AlertDescription className={message.type === "success" ? "text-emerald-800" : "text-red-800"}>
               {message.text}
             </AlertDescription>
@@ -283,16 +221,12 @@ Skip rows with no company name. Clean "sin dato" values to empty string.`,
             )}
             <Button onClick={handleExtract} disabled={!file || step === "extracting"} className="w-full">
               {step === "extracting" ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Extracting leads...</>
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Reading file...</>
               ) : (
                 <><Upload className="w-4 h-4 mr-2" />Extract & Preview Leads</>
               )}
             </Button>
-            {step === "idle" && (
-              <p className="text-xs text-slate-400">
-                Supports: CSV, Excel (XLSX/XLS), PDF, Word, HTML, TXT, JSON
-              </p>
-            )}
+            <p className="text-xs text-slate-400">Supports: CSV, Excel (XLSX/XLS)</p>
           </div>
         )}
 
