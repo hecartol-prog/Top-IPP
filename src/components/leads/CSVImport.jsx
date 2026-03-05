@@ -158,6 +158,38 @@ export default function LeadCSVImport({ onImportComplete }) {
     setProgress("");
   };
 
+  const handleEnrichWebsites = async () => {
+    const companiesWithoutWebsite = previewLeads
+      .filter(l => selectedIds.has(l._id) && !l.website)
+      .map(l => l.company_name);
+
+    if (companiesWithoutWebsite.length === 0) return;
+
+    setEnriching(true);
+    setEnrichProgress(`Searching websites for ${companiesWithoutWebsite.length} companies...`);
+
+    try {
+      // Process in batches of 10 to avoid timeouts
+      const batchSize = 10;
+      const allResults = {};
+      for (let i = 0; i < companiesWithoutWebsite.length; i += batchSize) {
+        const batch = companiesWithoutWebsite.slice(i, i + batchSize);
+        setEnrichProgress(`Searching websites... ${Math.min(i + batchSize, companiesWithoutWebsite.length)}/${companiesWithoutWebsite.length}`);
+        const res = await base44.functions.invoke("apifyWebsiteSearch", { companies: batch });
+        Object.assign(allResults, res.data?.results || {});
+      }
+
+      setPreviewLeads(prev => prev.map(l => ({
+        ...l,
+        website: allResults[l.company_name] || l.website || "",
+      })));
+      setEnrichProgress(`Done! Found websites for ${Object.values(allResults).filter(Boolean).length} companies.`);
+    } catch (e) {
+      setEnrichProgress(`Website search failed: ${e.message}`);
+    }
+    setEnriching(false);
+  };
+
   const toggleSelect = (id) => setSelectedIds(prev => {
     const next = new Set(prev);
     next.has(id) ? next.delete(id) : next.add(id);
