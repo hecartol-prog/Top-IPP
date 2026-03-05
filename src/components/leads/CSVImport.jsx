@@ -192,6 +192,48 @@ export default function LeadCSVImport({ onImportComplete }) {
     setEnriching(false);
   };
 
+  const handleEnrichContacts = async () => {
+    const leadsWithWebsite = previewLeads.filter(
+      l => selectedIds.has(l._id) && l.website && (!l.email || !l.phone)
+    );
+
+    if (leadsWithWebsite.length === 0) {
+      setEnrichContactProgress("No leads with websites to enrich. Run website search first.");
+      return;
+    }
+
+    setEnrichingContacts(true);
+    setEnrichContactProgress(`Scraping ${leadsWithWebsite.length} company websites for contacts...`);
+
+    let found = 0;
+    for (let i = 0; i < leadsWithWebsite.length; i++) {
+      const lead = leadsWithWebsite[i];
+      setEnrichContactProgress(`Scraping websites... ${i + 1}/${leadsWithWebsite.length}: ${lead.company_name}`);
+      try {
+        const res = await base44.functions.invoke("apifyEnrichCompany", {
+          company: lead.company_name,
+          website: lead.website,
+        });
+        const enriched = res.data?.enriched;
+        if (enriched) {
+          const gotSomething = (enriched.email && !lead.email) || (enriched.phone && !lead.phone);
+          if (gotSomething) found++;
+          setPreviewLeads(prev => prev.map(l => l._id === lead._id ? {
+            ...l,
+            email: l.email || enriched.email || "",
+            phone: l.phone || enriched.phone || "",
+            notes: l.notes || (enriched.description ? enriched.description.slice(0, 200) : ""),
+          } : l));
+        }
+      } catch (e) {
+        // skip failed
+      }
+    }
+
+    setEnrichContactProgress(`Done! Enriched contact data for ${found} companies.`);
+    setEnrichingContacts(false);
+  };
+
   const toggleSelect = (id) => setSelectedIds(prev => {
     const next = new Set(prev);
     next.has(id) ? next.delete(id) : next.add(id);
