@@ -125,6 +125,8 @@ export default function LeadCSVImport({ onImportComplete }) {
   const [previewLeads, setPreviewLeads] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [progress, setProgress] = useState("");
+  const [enriching, setEnriching] = useState(false);
+  const [enrichProgress, setEnrichProgress] = useState("");
 
   const handleFileChange = (e) => {
     const f = e.target.files?.[0];
