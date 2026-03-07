@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Globe, Search, UserPlus, CheckCircle2, AlertCircle, BookOpen, Link } from "lucide-react";
+import { Loader2, Globe, Search, UserPlus, CheckCircle2, AlertCircle, BookOpen, Link, LayoutGrid } from "lucide-react";
 
 export default function WebScraper({ onImportComplete }) {
   const [url, setUrl] = useState("");
