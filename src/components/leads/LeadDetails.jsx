@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Building2, MapPin, DollarSign, Calendar, Mail, Phone, Linkedin, Globe,
   Pencil, Trash2, Plus, CheckCircle2, Circle, Clock, MessageSquare, 
-  PhoneCall, Users, FileText, Send, Search, Sparkles, Check, RefreshCw
+  PhoneCall, Users, FileText, Send, Search, Sparkles, Check, RefreshCw, UserSearch
 } from "lucide-react";
 import AIEditDialog from "./AIEditDialog";
 import { format } from "date-fns";
@@ -155,6 +155,10 @@ export default function LeadDetails({ open, onClose, lead, activities = [], onEd
   const [enrichedFields, setEnrichedFields] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [contactSearchLoading, setContactSearchLoading] = useState(false);
+  const [contactSearchResult, setContactSearchResult] = useState(null);
+  const [contactSaving, setContactSaving] = useState(false);
+  const [contactSaved, setContactSaved] = useState(false);
 
   if (!lead) return null;
 
