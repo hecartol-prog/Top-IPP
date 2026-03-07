@@ -198,50 +198,11 @@ Be thorough — extract EVERY single entry, do not stop early.`,
     return result?.leads || [];
   };
 
-  // Step: Extract all card/logo links by fetching raw HTML via a CORS proxy and parsing <a> tags
+  // Step: Extract all card/logo links via backend function (avoids CORS)
   const extractLogoGridLinks = async (startUrl) => {
-    setProgressState({ current: 0, total: 1, label: "Fetching directory HTML..." });
-
-    // Use allorigins.win as CORS proxy to get raw HTML
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(startUrl)}`;
-    const resp = await fetch(proxyUrl);
-    const data = await resp.json();
-    const html = data?.contents || "";
-
-    const baseOrigin = new URL(startUrl).origin;
-    const basePath = new URL(startUrl).pathname.replace(/\/$/, ""); // e.g. "/socios"
-    const baseHostname = new URL(startUrl).hostname;
-
-    // Extract all hrefs from anchor tags
-    const hrefRegex = /href=["']([^"'#]+)["']/gi;
-    const allHrefs = [];
-    let match;
-    while ((match = hrefRegex.exec(html)) !== null) {
-      allHrefs.push(match[1]);
-    }
-
-    // Filter to only sub-paths of the directory (e.g. /socios/company-name/)
-    const detailLinks = [...new Set(
-      allHrefs
-        .map(href => {
-          if (href.startsWith("http")) return href.split("?")[0].replace(/\/$/, "") + "/";
-          if (href.startsWith("/")) return baseOrigin + href.split("?")[0].replace(/\/$/, "") + "/";
-          return null;
-        })
-        .filter(href => {
-          if (!href) return false;
-          try {
-            const u = new URL(href);
-            const slug = u.pathname.replace(basePath + "/", "").replace(/\/$/, "");
-            return u.hostname === baseHostname
-              && u.pathname.startsWith(basePath + "/")
-              && slug.length > 0
-              && !slug.includes("/"); // only direct children, not nested
-          } catch { return false; }
-        })
-    )];
-
-    return detailLinks;
+    setProgressState({ current: 0, total: 1, label: "Fetching directory links..." });
+    const result = await base44.functions.invoke('fetchPageLinks', { url: startUrl });
+    return result?.data?.links || [];
   };
 
   // Detect FlippingBook
