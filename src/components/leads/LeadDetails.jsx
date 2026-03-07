@@ -327,12 +327,12 @@ For the best contact found, provide:
     if (!contactSearchResult || !onUpdateLead) return;
     setContactSaving(true);
     const updates = {};
-    if (contactSearchResult.first_name && !lead.first_name) updates.first_name = contactSearchResult.first_name;
-    if (contactSearchResult.last_name && !lead.last_name) updates.last_name = contactSearchResult.last_name;
-    if (contactSearchResult.job_title && !lead.job_title) updates.job_title = contactSearchResult.job_title;
-    if (contactSearchResult.email && !lead.email) updates.email = contactSearchResult.email;
-    if (contactSearchResult.phone && !lead.phone) updates.phone = contactSearchResult.phone;
-    if (contactSearchResult.linkedin_url && !lead.linkedin_url) updates.linkedin_url = contactSearchResult.linkedin_url;
+    if (contactSearchResult.first_name) updates.first_name = contactSearchResult.first_name;
+    if (contactSearchResult.last_name) updates.last_name = contactSearchResult.last_name;
+    if (contactSearchResult.job_title) updates.job_title = contactSearchResult.job_title;
+    if (contactSearchResult.email) updates.email = contactSearchResult.email;
+    if (contactSearchResult.phone) updates.phone = contactSearchResult.phone;
+    if (contactSearchResult.linkedin_url) updates.linkedin_url = contactSearchResult.linkedin_url;
     if (contactSearchResult.outreach_notes) updates.notes = (lead.notes ? lead.notes + '\n\n' : '') + contactSearchResult.outreach_notes;
     await onUpdateLead({ ...lead, ...updates });
     setContactSaving(false);
