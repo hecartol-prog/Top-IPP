@@ -118,6 +118,142 @@ function parseFileToRows(file) {
   });
 }
 
+// Detect if the file uses a multi-row-per-company format
+// (e.g. Uruguay: company name, then Contacto:, Dirección:, Tel:, etc. on successive rows)
+function isMultiRowFormat(rows) {
+  if (!rows || rows.length < 3) return false;
+  const col = Object.keys(rows[0] || {})[1] || Object.keys(rows[0] || {})[0];
+  let multiRowCount = 0;
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const val = String(rows[i][col] || "").toLowerCase().trim();
+    if (val.startsWith("contacto:") || val.startsWith("tel.:") || val.startsWith("tel:") ||
+        val.startsWith("dirección:") || val.startsWith("direccion:") || val.startsWith("fax:") ||
+        val.startsWith("e-mail:") || val.startsWith("email:") || val.startsWith("web:") ||
+        val.startsWith("www.") || val.startsWith("sitio")) {
+      multiRowCount++;
+    }
+  }
+  return multiRowCount >= 2;
+}
+
+// Parse multi-row format: group rows into company blocks then extract fields from each block
+function parseMultiRowFormat(rows) {
+  const companies = [];
+  const mainCol = Object.keys(rows[0] || {})[1] || Object.keys(rows[0] || {})[0];
+  const prodCol = Object.keys(rows[0] || {})[2];
+  const procCol = Object.keys(rows[0] || {})[3];
+
+  let currentBlock = null;
+
+  const saveBlock = (block) => {
+    if (!block || !block.company_name) return;
+    companies.push(block);
+  };
+
+  for (const row of rows) {
+    const val = String(row[mainCol] || "").trim();
+    const prodVal = String(row[prodCol] || "").trim();
+    const procVal = String(row[procCol] || "").trim();
+    if (!val && !prodVal && !procVal) continue;
+
+    const lower = val.toLowerCase();
+
+    // New company starts when there's a number in col_0 or the value doesn't start with known prefixes
+    const isNewCompany = (row["col_0"] && !isNaN(Number(row["col_0"]))) ||
+      (!lower.startsWith("contacto:") && !lower.startsWith("contact:") &&
+       !lower.startsWith("tel.:") && !lower.startsWith("tel:") &&
+       !lower.startsWith("dirección:") && !lower.startsWith("direccion:") &&
+       !lower.startsWith("fax:") && !lower.startsWith("e-mail:") &&
+       !lower.startsWith("email:") && !lower.startsWith("web:") &&
+       !lower.startsWith("www.") && !lower.startsWith("sitio") &&
+       !lower.startsWith("ciudad:") && !lower.startsWith("localidad:") &&
+       !lower.startsWith("departamento:") && !lower.startsWith("rut:") &&
+       val.length > 3 && !currentBlock);
+
+    if (isNewCompany && !currentBlock) {
+      currentBlock = {
+        company_name: val,
+        contact_name: "",
+        address: "",
+        phone: "",
+        fax: "",
+        email: "",
+        website: "",
+        location: "",
+        products: prodVal,
+        processes: procVal,
+      };
+    } else if (isNewCompany && currentBlock) {
+      saveBlock(currentBlock);
+      currentBlock = {
+        company_name: val,
+        contact_name: "",
+        address: "",
+        phone: "",
+        fax: "",
+        email: "",
+        website: "",
+        location: "",
+        products: prodVal || currentBlock.products,
+        processes: procVal || currentBlock.processes,
+      };
+    } else if (currentBlock) {
+      // Parse sub-row fields
+      if (lower.startsWith("contacto:") || lower.startsWith("contact:")) {
+        currentBlock.contact_name = val.replace(/^contacto:\s*/i, "").replace(/^contact:\s*/i, "").trim();
+        // Handle "Contacto: Name / Other Name" format
+        if (currentBlock.contact_name.includes("/")) {
+          currentBlock.contact_name = currentBlock.contact_name.split("/")[0].trim();
+        }
+      } else if (lower.startsWith("tel.:") || lower.startsWith("tel:") || lower.startsWith("teléfono:") || lower.startsWith("telefono:")) {
+        currentBlock.phone = val.replace(/^tel[eéf\.]+:\s*/i, "").trim();
+      } else if (lower.startsWith("fax:")) {
+        currentBlock.fax = val.replace(/^fax:\s*/i, "").trim();
+      } else if (lower.startsWith("e-mail:") || lower.startsWith("email:") || lower.startsWith("correo:")) {
+        currentBlock.email = val.replace(/^(e-mail|email|correo):\s*/i, "").trim();
+      } else if (lower.startsWith("web:") || lower.startsWith("www.") || lower.startsWith("sitio")) {
+        currentBlock.website = val.replace(/^(web|sitio web|sitio):\s*/i, "").trim();
+        if (!currentBlock.website.startsWith("http") && currentBlock.website.startsWith("www")) {
+          currentBlock.website = "https://" + currentBlock.website;
+        }
+      } else if (lower.startsWith("dirección:") || lower.startsWith("direccion:") || lower.startsWith("domicilio:")) {
+        currentBlock.address = val.replace(/^(dirección|direccion|domicilio):\s*/i, "").trim();
+      } else if (lower.startsWith("ciudad:") || lower.startsWith("localidad:") || lower.startsWith("departamento:")) {
+        currentBlock.location = val.replace(/^(ciudad|localidad|departamento):\s*/i, "").trim();
+      } else if (prodVal) {
+        if (!currentBlock.products) currentBlock.products = prodVal;
+      }
+
+      // Supplement products/processes from other columns if present
+      if (prodVal && !currentBlock.products) currentBlock.products = prodVal;
+      if (procVal && !currentBlock.processes) currentBlock.processes = procVal;
+    }
+  }
+
+  if (currentBlock) saveBlock(currentBlock);
+  return companies;
+}
+
+function multiRowBlockToLead(block) {
+  if (!block.company_name) return null;
+  const contactParts = (block.contact_name || "").split(" ").filter(Boolean);
+  return {
+    first_name: contactParts[0] || "",
+    last_name: contactParts.slice(1).join(" ") || "",
+    email: (block.email || "").includes("@") ? block.email : "",
+    phone: /\d{4,}/.test(block.phone) ? block.phone : "",
+    job_title: "",
+    company_name: block.company_name.replace(/\s+/g, " ").trim(),
+    website: block.website || "",
+    location: block.location || block.address || "",
+    notes: [block.address, block.products, block.processes].filter(Boolean).join(" | ").slice(0, 300),
+    industry: block.processes || "",
+    status: "new",
+    source: "other",
+    company_size: "",
+  };
+}
+
 export default function LeadCSVImport({ onImportComplete }) {
   const [file, setFile] = useState(null);
   const [step, setStep] = useState("idle");
