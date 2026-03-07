@@ -198,6 +198,28 @@ Be thorough — extract EVERY single entry, do not stop early.`,
     return result?.leads || [];
   };
 
+  // Step: Extract all clickable card/logo links from a grid directory page
+  const extractLogoGridLinks = async (pageUrl) => {
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `Fetch this URL: ${pageUrl}
+
+This is a directory page showing company logos or image cards in a grid layout. Each card has a company logo/image and a clickable link (often "Ver más", "More", or the logo itself links to a detail page).
+
+Extract ALL absolute URLs that link to individual company detail/profile pages. These are the href values of the clickable cards or "Ver más" / "Read more" links.
+
+Return every single link found — do not skip any.`,
+      add_context_from_internet: true,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          detail_links: { type: "array", items: { type: "string" } },
+          total_cards_found: { type: "number" }
+        }
+      }
+    });
+    return result?.detail_links || [];
+  };
+
   // Detect FlippingBook
   const isFlippingBookUrl = (u) => {
     return u.includes("flippingbook") || u.includes("page-html5-substrates") || u.includes("Directorio-de-Empresas");
