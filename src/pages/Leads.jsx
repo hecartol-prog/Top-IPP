@@ -130,8 +130,20 @@ export default function Leads() {
     else { setSortField(field); setSortDir("asc"); }
   };
 
-  const toggleSelectId = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  const toggleSelectAll = () => setSelectedIds(selectedIds.length === filteredLeads.length ? [] : filteredLeads.map(l => l.id));
+  const toggleSelectId = (id) => setSelectedIds(prev =>
+    prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+  );
+  const toggleSelectAll = () => {
+    const filteredIds = filteredLeads.map(l => l.id);
+    const allFilteredSelected = filteredIds.every(id => selectedIds.includes(id));
+    if (allFilteredSelected) {
+      // Deselect only the filtered ones (keep any outside the filter selected)
+      setSelectedIds(prev => prev.filter(id => !filteredIds.includes(id)));
+    } else {
+      // Select all filtered leads (merge with existing)
+      setSelectedIds(prev => [...new Set([...prev, ...filteredIds])]);
+    }
+  };
 
   // Filter leads
   const filteredLeads = leads
