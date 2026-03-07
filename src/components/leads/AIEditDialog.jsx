@@ -180,6 +180,76 @@ Be conservative — only include fields you actually found evidence for.`,
     setAccepted({});
   };
 
+  const handleContactSearch = async () => {
+    setContactLoading(true);
+    setContactResult(null);
+    setContactSavedOk(false);
+
+    const hasContact = lead.first_name || lead.last_name;
+
+    const prompt = hasContact
+      ? `You are a B2B sales intelligence assistant. Research the contact person at this company and find detailed outreach information.
+
+Company: ${lead.company_name}
+Contact Person: ${lead.first_name} ${lead.last_name}
+Job Title: ${lead.job_title || 'Unknown'}
+Website: ${lead.website || 'Unknown'}
+Location: ${lead.location || 'Unknown'}
+
+Search the web and find:
+1. Verified email address for this person
+2. Phone number (direct or company)
+3. LinkedIn profile URL
+4. Exact job title / role
+5. Best outreach notes: preferred channel, professional background, any relevant context to build rapport`
+      : `You are a B2B sales intelligence assistant. This company has no known contact person. Search for the best decision maker for plastic injection mold manufacturing procurement.
+
+Company: ${lead.company_name}
+Industry: ${lead.industry || 'Unknown'}
+Website: ${lead.website || 'Unknown'}
+Location: ${lead.location || 'Unknown'}
+
+Find the top decision maker: Director General, CEO, General Manager, Purchasing/Procurement Manager, or Operations Director. Provide their full name, title, email, phone, LinkedIn, and why they are the best contact.`;
+
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt,
+      add_context_from_internet: true,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          first_name: { type: "string" },
+          last_name: { type: "string" },
+          job_title: { type: "string" },
+          email: { type: "string" },
+          phone: { type: "string" },
+          linkedin_url: { type: "string" },
+          outreach_notes: { type: "string" },
+          confidence: { type: "string" }
+        }
+      }
+    });
+
+    setContactResult(result);
+    setContactLoading(false);
+  };
+
+  const handleApplyContact = async () => {
+    if (!contactResult) return;
+    setContactSaving(true);
+    const updates = {};
+    if (contactResult.first_name && !lead.first_name) updates.first_name = contactResult.first_name;
+    if (contactResult.last_name && !lead.last_name) updates.last_name = contactResult.last_name;
+    if (contactResult.job_title && !lead.job_title) updates.job_title = contactResult.job_title;
+    if (contactResult.email && !lead.email) updates.email = contactResult.email;
+    if (contactResult.phone && !lead.phone) updates.phone = contactResult.phone;
+    if (contactResult.linkedin_url && !lead.linkedin_url) updates.linkedin_url = contactResult.linkedin_url;
+    if (contactResult.outreach_notes) updates.notes = (lead.notes ? lead.notes + '\n\n' : '') + contactResult.outreach_notes;
+    await onUpdateLead({ ...lead, ...updates });
+    setContactSaving(false);
+    setContactSavedOk(true);
+    setContactResult(null);
+  };
+
   const confidenceBadge = (confidence) => {
     if (confidence === 'high') return <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">High confidence</Badge>;
     if (confidence === 'medium') return <Badge className="bg-amber-100 text-amber-700 border-0 text-xs">Medium confidence</Badge>;
