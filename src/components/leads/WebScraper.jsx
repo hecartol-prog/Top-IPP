@@ -306,27 +306,59 @@ Return every single link found — do not skip any.`,
           setMessage({ type: "info", text: `Scanning pages... Found ${allLeads.length} companies so far.` });
         }
 
-      } else if (deepCrawl) {
+      } else if (scrapeMode === "logo_grid") {
+        // --- Logo/Image Grid mode ---
+        setProgressState({ current: 0, total: 1, label: "Scanning logo grid for company links..." });
+        setMessage({ type: "info", text: "Detected logo/image grid. Collecting company page links..." });
+
+        let allDetailLinks = await extractLogoGridLinks(url);
+        allDetailLinks = [...new Set(allDetailLinks)].filter(l => l && l.startsWith("http"));
+
+        if (allDetailLinks.length === 0) {
+          setMessage({ type: "error", text: "No company links found in the grid. Try Deep Crawl mode instead." });
+          setScraping(false);
+          setProgressState(null);
+          return;
+        }
+
+        setProgressState({ current: 0, total: allDetailLinks.length, label: `Found ${allDetailLinks.length} companies. Extracting details...` });
+        setMessage({ type: "info", text: `Found ${allDetailLinks.length} company cards. Now visiting each page...` });
+
+        const batchSize = 5;
+        for (let i = 0; i < allDetailLinks.length; i += batchSize) {
+          const batch = allDetailLinks.slice(i, i + batchSize);
+          setProgressState({ current: i, total: allDetailLinks.length, label: `Scraping companies ${i + 1}–${Math.min(i + batchSize, allDetailLinks.length)} of ${allDetailLinks.length}...` });
+
+          const batchResults = await Promise.all(
+            batch.map(detailUrl => extractFromDetailPage(detailUrl).catch(() => null))
+          );
+
+          for (const lead of batchResults) {
+            if (lead && (lead.company_name || lead.first_name)) {
+              allLeads.push(lead);
+            }
+          }
+
+          setMessage({ type: "info", text: `Extracted ${allLeads.length} leads so far...` });
+        }
+
+      } else if (scrapeMode === "deep") {
         // --- Deep crawl mode ---
         setProgressState({ current: 0, total: 1, label: "Analyzing page structure..." });
 
         const analysis = await analyzeStartPage(url);
 
         if (analysis.is_detail_page) {
-          // It's already a single detail page
           setProgressState({ current: 1, total: 1, label: "Extracting from detail page..." });
           const lead = await extractFromDetailPage(url);
           if (lead?.company_name || lead?.first_name) allLeads.push(lead);
 
         } else {
-          // It's a listing page — gather all detail links from all pages
           let allDetailLinks = [...(analysis.detail_links || [])];
           const paginationUrls = (analysis.all_pagination_urls || []).filter(l => l && l.startsWith("http") && l !== url);
 
           if (paginationUrls.length > 0) {
             setProgressState({ current: 0, total: paginationUrls.length, label: `Found ${paginationUrls.length} more listing pages, collecting links...` });
-
-            // Fetch all pagination pages in parallel to get their detail links
             const pagResults = await Promise.all(
               paginationUrls.map(pgUrl => getDetailLinksFromPage(pgUrl).catch(() => []))
             );
@@ -335,13 +367,10 @@ Return every single link found — do not skip any.`,
             }
           }
 
-          // Deduplicate
           allDetailLinks = [...new Set(allDetailLinks)].filter(l => l && l.startsWith("http"));
 
           if (allDetailLinks.length === 0) {
-            // Flat table/list page — use batched row extraction
             setProgressState({ current: 1, total: 1, label: "Counting entries..." });
-            // Also gather from all pagination pages if any
             const allPageUrls = [url, ...paginationUrls];
             for (const pageUrl of allPageUrls) {
               const pageLeads = await extractFromTablePage(pageUrl, (i, total, start, end) => {
@@ -351,7 +380,6 @@ Return every single link found — do not skip any.`,
               setMessage({ type: "info", text: `Extracted ${allLeads.length} leads so far...` });
             }
           } else {
-            // Visit each detail page
             setProgressState({ current: 0, total: allDetailLinks.length, label: `Found ${allDetailLinks.length} company pages. Extracting data...` });
 
             const batchSize = 5;
@@ -375,8 +403,7 @@ Return every single link found — do not skip any.`,
         }
 
       } else {
-        // --- Simple mode (no deep crawl) ---
-        // Use batched extraction to avoid JSON overflow with large directories
+        // --- Simple mode ---
         setProgressState({ current: 1, total: 1, label: "Counting entries..." });
         allLeads = await extractFromTablePage(url, (i, total, start, end) => {
           setProgressState({ current: i, total, label: `Extracting rows ${start}–${end} of ~${total * 10}...` });
