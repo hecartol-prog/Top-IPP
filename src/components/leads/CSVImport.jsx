@@ -137,100 +137,90 @@ function isMultiRowFormat(rows) {
 }
 
 // Parse multi-row format: group rows into company blocks then extract fields from each block
+// A new company block starts when col_0 has a number value
 function parseMultiRowFormat(rows) {
   const companies = [];
-  const mainCol = Object.keys(rows[0] || {})[1] || Object.keys(rows[0] || {})[0];
-  const prodCol = Object.keys(rows[0] || {})[2];
-  const procCol = Object.keys(rows[0] || {})[3];
+  // Column names from this file format
+  const col0 = Object.keys(rows[0] || {})[0]; // e.g. "col_0" or ""
+  const mainCol = Object.keys(rows[0] || {})[1]; // EMPRESA
+  const prodCol = Object.keys(rows[0] || {})[2]; // PRODUCTOS QUE FABRICA
+  const procCol = Object.keys(rows[0] || {})[3]; // PROCESOS DE FABRICACIÓN
 
   let currentBlock = null;
 
   const saveBlock = (block) => {
-    if (!block || !block.company_name) return;
-    companies.push(block);
+    if (block && block.company_name) companies.push(block);
   };
 
   for (const row of rows) {
+    const idVal = row[col0];
     const val = String(row[mainCol] || "").trim();
     const prodVal = String(row[prodCol] || "").trim();
     const procVal = String(row[procCol] || "").trim();
-    if (!val && !prodVal && !procVal) continue;
 
-    const lower = val.toLowerCase();
+    // A new company starts when the first column has a numeric value
+    const isNewCompany = idVal !== "" && idVal !== null && idVal !== undefined && !isNaN(Number(idVal));
 
-    // New company starts when there's a number in col_0 or the value doesn't start with known prefixes
-    const isNewCompany = (row["col_0"] && !isNaN(Number(row["col_0"]))) ||
-      (!lower.startsWith("contacto:") && !lower.startsWith("contact:") &&
-       !lower.startsWith("tel.:") && !lower.startsWith("tel:") &&
-       !lower.startsWith("dirección:") && !lower.startsWith("direccion:") &&
-       !lower.startsWith("fax:") && !lower.startsWith("e-mail:") &&
-       !lower.startsWith("email:") && !lower.startsWith("web:") &&
-       !lower.startsWith("www.") && !lower.startsWith("sitio") &&
-       !lower.startsWith("ciudad:") && !lower.startsWith("localidad:") &&
-       !lower.startsWith("departamento:") && !lower.startsWith("rut:") &&
-       val.length > 3 && !currentBlock);
-
-    if (isNewCompany && !currentBlock) {
-      currentBlock = {
-        company_name: val,
-        contact_name: "",
-        address: "",
-        phone: "",
-        fax: "",
-        email: "",
-        website: "",
-        location: "",
-        products: prodVal,
-        processes: procVal,
-      };
-    } else if (isNewCompany && currentBlock) {
+    if (isNewCompany) {
       saveBlock(currentBlock);
       currentBlock = {
         company_name: val,
         contact_name: "",
         address: "",
         phone: "",
-        fax: "",
         email: "",
         website: "",
-        location: "",
-        products: prodVal || currentBlock.products,
-        processes: procVal || currentBlock.processes,
+        products: prodVal,
+        processes: procVal,
       };
-    } else if (currentBlock) {
-      // Parse sub-row fields
-      if (lower.startsWith("contacto:") || lower.startsWith("contact:")) {
-        currentBlock.contact_name = val.replace(/^contacto:\s*/i, "").replace(/^contact:\s*/i, "").trim();
-        // Handle "Contacto: Name / Other Name" format
-        if (currentBlock.contact_name.includes("/")) {
-          currentBlock.contact_name = currentBlock.contact_name.split("/")[0].trim();
-        }
-      } else if (lower.startsWith("tel.:") || lower.startsWith("tel:") || lower.startsWith("teléfono:") || lower.startsWith("telefono:")) {
-        currentBlock.phone = val.replace(/^tel[eéf\.]+:\s*/i, "").trim();
-      } else if (lower.startsWith("fax:")) {
-        currentBlock.fax = val.replace(/^fax:\s*/i, "").trim();
-      } else if (lower.startsWith("e-mail:") || lower.startsWith("email:") || lower.startsWith("correo:")) {
-        currentBlock.email = val.replace(/^(e-mail|email|correo):\s*/i, "").trim();
-      } else if (lower.startsWith("web:") || lower.startsWith("www.") || lower.startsWith("sitio")) {
-        currentBlock.website = val.replace(/^(web|sitio web|sitio):\s*/i, "").trim();
-        if (!currentBlock.website.startsWith("http") && currentBlock.website.startsWith("www")) {
-          currentBlock.website = "https://" + currentBlock.website;
-        }
-      } else if (lower.startsWith("dirección:") || lower.startsWith("direccion:") || lower.startsWith("domicilio:")) {
-        currentBlock.address = val.replace(/^(dirección|direccion|domicilio):\s*/i, "").trim();
-      } else if (lower.startsWith("ciudad:") || lower.startsWith("localidad:") || lower.startsWith("departamento:")) {
-        currentBlock.location = val.replace(/^(ciudad|localidad|departamento):\s*/i, "").trim();
-      } else if (prodVal) {
-        if (!currentBlock.products) currentBlock.products = prodVal;
-      }
-
-      // Supplement products/processes from other columns if present
-      if (prodVal && !currentBlock.products) currentBlock.products = prodVal;
-      if (procVal && !currentBlock.processes) currentBlock.processes = procVal;
+      continue;
     }
+
+    if (!currentBlock) continue;
+
+    // Parse sub-row: detect field by prefix in the EMPRESA column
+    const lower = val.toLowerCase();
+
+    if (lower.startsWith("contacto:") || lower.startsWith("contact:")) {
+      let name = val.replace(/^contacto:\s*/i, "").replace(/^contact:\s*/i, "").trim();
+      if (name.includes("/")) name = name.split("/")[0].trim();
+      currentBlock.contact_name = name;
+
+    } else if (lower.startsWith("tel.:") || lower.startsWith("tel:") || lower.startsWith("teléfono:") || lower.startsWith("telefono:")) {
+      currentBlock.phone = val.replace(/^tel[eéfon\.y ]+:\s*/i, "").trim();
+
+    } else if (lower.startsWith("fax:")) {
+      // ignore fax
+
+    } else if (lower.startsWith("mail:") || lower.startsWith("e-mail:") || lower.startsWith("email:") || lower.startsWith("correo:")) {
+      // Extract email — may contain multiple emails and a web inline
+      let rest = val.replace(/^(mail|e-mail|email|correo):\s*/i, "").trim();
+      // Sometimes "Web: ..." is appended inline
+      const webInline = rest.match(/web:\s*([\w.\-/]+)/i);
+      if (webInline && !currentBlock.website) {
+        currentBlock.website = webInline[1].trim();
+        rest = rest.replace(/web:\s*[\w.\-/]+/i, "").trim();
+      }
+      // Take first email address
+      const emailMatch = rest.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i);
+      if (emailMatch) currentBlock.email = emailMatch[0];
+
+    } else if (lower.startsWith("web:") || lower.startsWith("www.")) {
+      currentBlock.website = val.replace(/^web:\s*/i, "").trim();
+
+    } else if (lower.startsWith("dirección:") || lower.startsWith("direccion:") || lower.startsWith("domicilio:")) {
+      currentBlock.address = val.replace(/^(dirección|direccion|domicilio):\s*/i, "").trim();
+    }
+
+    // Accumulate products/processes from other columns
+    if (prodVal && !currentBlock.products) currentBlock.products = prodVal;
+    else if (prodVal && currentBlock.products && !currentBlock.products.includes(prodVal)) {
+      currentBlock.products += " | " + prodVal;
+    }
+    if (procVal && !currentBlock.processes) currentBlock.processes = procVal;
   }
 
-  if (currentBlock) saveBlock(currentBlock);
+  saveBlock(currentBlock);
   return companies;
 }
 
