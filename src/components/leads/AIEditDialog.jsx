@@ -237,12 +237,12 @@ Find the top decision maker: Director General, CEO, General Manager, Purchasing/
     if (!contactResult) return;
     setContactSaving(true);
     const updates = {};
-    if (contactResult.first_name && !lead.first_name) updates.first_name = contactResult.first_name;
-    if (contactResult.last_name && !lead.last_name) updates.last_name = contactResult.last_name;
-    if (contactResult.job_title && !lead.job_title) updates.job_title = contactResult.job_title;
-    if (contactResult.email && !lead.email) updates.email = contactResult.email;
-    if (contactResult.phone && !lead.phone) updates.phone = contactResult.phone;
-    if (contactResult.linkedin_url && !lead.linkedin_url) updates.linkedin_url = contactResult.linkedin_url;
+    if (contactResult.first_name) updates.first_name = contactResult.first_name;
+    if (contactResult.last_name) updates.last_name = contactResult.last_name;
+    if (contactResult.job_title) updates.job_title = contactResult.job_title;
+    if (contactResult.email) updates.email = contactResult.email;
+    if (contactResult.phone) updates.phone = contactResult.phone;
+    if (contactResult.linkedin_url) updates.linkedin_url = contactResult.linkedin_url;
     if (contactResult.outreach_notes) updates.notes = (lead.notes ? lead.notes + '\n\n' : '') + contactResult.outreach_notes;
     await onUpdateLead({ ...lead, ...updates });
     setContactSaving(false);
