@@ -302,6 +302,82 @@ Find the top decision maker: Director General, CEO, General Manager, Purchasing/
           </div>
         )}
 
+        {/* Contact Person Search Section */}
+        <div className="border-t border-slate-100 pt-4 mt-2">
+          <p className="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-2">
+            <UserSearch className="w-4 h-4 text-indigo-500" />
+            {(lead?.first_name || lead?.last_name) ? "Find Contact Person Details" : "Find Decision Maker"}
+          </p>
+          <p className="text-xs text-slate-400 mb-3">
+            {(lead?.first_name || lead?.last_name)
+              ? `Search for direct contact info and outreach tips for ${lead.first_name} ${lead.last_name}.`
+              : `No contact identified. AI will find the best decision maker at ${lead?.company_name}.`
+            }
+          </p>
+
+          {!contactResult && !contactLoading && !contactSavedOk && (
+            <Button onClick={handleContactSearch} className="w-full bg-indigo-600 hover:bg-indigo-700">
+              <UserSearch className="w-4 h-4 mr-2" />
+              {(lead?.first_name || lead?.last_name) ? "Search Contact Details" : "Find Decision Maker"}
+            </Button>
+          )}
+
+          {contactLoading && (
+            <div className="py-4 text-center space-y-2">
+              <RefreshCw className="w-6 h-6 mx-auto text-indigo-500 animate-spin" />
+              <p className="text-xs text-slate-400">Searching online for contact information...</p>
+            </div>
+          )}
+
+          {contactSavedOk && (
+            <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 rounded-lg p-3">
+              <Check className="w-4 h-4" /> Contact info applied!
+              <button className="ml-auto text-xs text-slate-400 hover:text-slate-600 underline" onClick={() => setContactSavedOk(false)}>Search again</button>
+            </div>
+          )}
+
+          {contactResult && !contactLoading && (
+            <div className="space-y-3">
+              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 space-y-2">
+                {(contactResult.first_name || contactResult.last_name) && (
+                  <div className="flex gap-2"><span className="text-xs font-semibold text-indigo-400 w-16 uppercase">Name</span><span className="text-sm font-semibold text-slate-800">{contactResult.first_name} {contactResult.last_name}</span></div>
+                )}
+                {contactResult.job_title && (
+                  <div className="flex gap-2"><span className="text-xs font-semibold text-indigo-400 w-16 uppercase">Title</span><span className="text-sm text-slate-700">{contactResult.job_title}</span></div>
+                )}
+                {contactResult.email && (
+                  <div className="flex gap-2"><span className="text-xs font-semibold text-indigo-400 w-16 uppercase">Email</span><span className="text-sm text-slate-700 break-all">{contactResult.email}</span></div>
+                )}
+                {contactResult.phone && (
+                  <div className="flex gap-2"><span className="text-xs font-semibold text-indigo-400 w-16 uppercase">Phone</span><span className="text-sm text-slate-700">{contactResult.phone}</span></div>
+                )}
+                {contactResult.linkedin_url && (
+                  <div className="flex gap-2"><span className="text-xs font-semibold text-indigo-400 w-16 uppercase">LinkedIn</span><a href={contactResult.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-600 hover:underline break-all">{contactResult.linkedin_url}</a></div>
+                )}
+                {contactResult.outreach_notes && (
+                  <div className="pt-2 border-t border-indigo-100">
+                    <p className="text-xs font-semibold text-indigo-400 uppercase mb-1">Outreach Notes</p>
+                    <p className="text-xs text-slate-600 whitespace-pre-wrap">{contactResult.outreach_notes}</p>
+                  </div>
+                )}
+                {contactResult.confidence && (
+                  <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-1 ${
+                    contactResult.confidence === 'high' ? 'bg-emerald-100 text-emerald-700' :
+                    contactResult.confidence === 'medium' ? 'bg-amber-100 text-amber-700' :
+                    'bg-slate-100 text-slate-600'
+                  }`}>{contactResult.confidence} confidence</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleApplyContact} disabled={contactSaving} className="flex-1 bg-indigo-600 hover:bg-indigo-700">
+                  {contactSaving ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Saving...</> : <><Check className="w-4 h-4 mr-2" />Apply to Lead</>}
+                </Button>
+                <Button variant="outline" onClick={() => setContactResult(null)}>Reset</Button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {suggestions && !loading && !savedOk && (
           <div className="space-y-4 mt-2">
             {suggestionKeys.length === 0 ? (
