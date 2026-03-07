@@ -11,7 +11,7 @@ import { Loader2, Globe, Search, UserPlus, CheckCircle2, AlertCircle, BookOpen, 
 
 export default function WebScraper({ onImportComplete }) {
   const [url, setUrl] = useState("");
-  const [deepCrawl, setDeepCrawl] = useState(true);
+  const [scrapeMode, setScrapeMode] = useState("deep"); // "deep" | "logo_grid" | "simple"
   const [scraping, setScraping] = useState(false);
   const [importing, setImporting] = useState(false);
   const [extractedLeads, setExtractedLeads] = useState([]);
