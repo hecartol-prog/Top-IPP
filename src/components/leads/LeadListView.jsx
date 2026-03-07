@@ -105,20 +105,25 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
           <tbody className="divide-y divide-slate-100">
             {leads.map((lead) => {
               const isSelected = selectedIds.includes(lead.id);
-              const isDragHighlighted = draggingIds.has(lead.id);
               return (
                 <tr
                   key={lead.id}
                   className={`group transition-colors cursor-pointer
-                    ${isDragHighlighted ? "bg-teal-100/60 outline outline-1 outline-teal-300" : ""}
-                    ${isSelected && !isDragHighlighted ? "bg-teal-50/40" : ""}
-                    ${!isSelected && !isDragHighlighted ? "hover:bg-slate-50" : ""}
+                    ${isSelected ? "bg-teal-50/40" : "hover:bg-slate-50"}
                   `}
                   onMouseDown={(e) => handleMouseDown(e, lead.id)}
                   onMouseEnter={() => handleMouseEnter(lead.id)}
                 >
-                  <td className="px-4 py-3" onClick={(e) => { e.stopPropagation(); onToggleSelect(lead.id); }}>
-                    <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelect(lead.id)} />
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={(checked) => {
+                        // Prevent double-firing: only toggle if state actually needs to change
+                        if ((checked && !isSelected) || (!checked && isSelected)) {
+                          onToggleSelect(lead.id);
+                        }
+                      }}
+                    />
                   </td>
 
                   <td className="px-3 py-3 min-w-[160px]" onClick={() => onRowClick(lead)}>
