@@ -631,7 +631,7 @@ Return every single link found — do not skip any.`,
       )}
 
       <p className="text-xs text-slate-400 text-center">
-        Deep crawl visits each company's detail page for complete contact info · Also supports FlippingBooks & image directories
+        Logo Grid: best for image/icon card directories (e.g. aseplas.ec/socios) · Deep Crawl: auto-detect any listing · Also supports FlippingBooks
       </p>
     </div>
   );
