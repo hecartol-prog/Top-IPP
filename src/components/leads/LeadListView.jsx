@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,55 +23,54 @@ const priorityColors = {
 };
 
 export default function LeadListView({ leads, selectedIds, onToggleSelect, onToggleAll, onEdit, onDelete, onRowClick }) {
-  const allSelected = leads.length > 0 && selectedIds.length === leads.length;
-  const someSelected = selectedIds.length > 0 && selectedIds.length < leads.length;
+  const allSelected = leads.length > 0 && leads.every(l => selectedIds.includes(l.id));
+  const someSelected = leads.some(l => selectedIds.includes(l.id)) && !allSelected;
 
-  // Drag-to-select state
+  // Use refs to avoid stale closures in drag logic
   const isDragging = useRef(false);
   const dragStartId = useRef(null);
-  const dragMode = useRef("select"); // "select" | "deselect"
-  const [draggingIds, setDraggingIds] = useState(new Set());
+  const dragMode = useRef("select");
+  const dragRangeRef = useRef(new Set());
+  const leadsRef = useRef(leads);
+  const selectedIdsRef = useRef(selectedIds);
+  leadsRef.current = leads;
+  selectedIdsRef.current = selectedIds;
 
-  const getLeadIndex = (id) => leads.findIndex(l => l.id === id);
+  const getLeadIndex = (id) => leadsRef.current.findIndex(l => l.id === id);
 
   const handleMouseDown = useCallback((e, leadId) => {
-    // Only trigger on left click, not on buttons/checkboxes
     if (e.button !== 0) return;
     if (e.target.closest("button") || e.target.closest('[role="checkbox"]') || e.target.closest("a")) return;
 
     e.preventDefault();
     isDragging.current = true;
     dragStartId.current = leadId;
-    dragMode.current = selectedIds.includes(leadId) ? "deselect" : "select";
-    setDraggingIds(new Set([leadId]));
-  }, [selectedIds]);
+    dragMode.current = selectedIdsRef.current.includes(leadId) ? "deselect" : "select";
+    dragRangeRef.current = new Set([leadId]);
+  }, []);
 
   const handleMouseEnter = useCallback((leadId) => {
     if (!isDragging.current) return;
-
     const startIdx = getLeadIndex(dragStartId.current);
     const endIdx = getLeadIndex(leadId);
     const min = Math.min(startIdx, endIdx);
     const max = Math.max(startIdx, endIdx);
-    const range = new Set(leads.slice(min, max + 1).map(l => l.id));
-    setDraggingIds(range);
-  }, [leads]);
+    dragRangeRef.current = new Set(leadsRef.current.slice(min, max + 1).map(l => l.id));
+  }, []);
 
   const handleMouseUp = useCallback(() => {
     if (!isDragging.current) return;
     isDragging.current = false;
 
-    if (draggingIds.size > 0) {
-      draggingIds.forEach(id => {
-        const alreadySelected = selectedIds.includes(id);
-        if (dragMode.current === "select" && !alreadySelected) onToggleSelect(id);
-        if (dragMode.current === "deselect" && alreadySelected) onToggleSelect(id);
-      });
-    }
+    dragRangeRef.current.forEach(id => {
+      const alreadySelected = selectedIdsRef.current.includes(id);
+      if (dragMode.current === "select" && !alreadySelected) onToggleSelect(id);
+      if (dragMode.current === "deselect" && alreadySelected) onToggleSelect(id);
+    });
 
-    setDraggingIds(new Set());
+    dragRangeRef.current = new Set();
     dragStartId.current = null;
-  }, [draggingIds, selectedIds, onToggleSelect]);
+  }, [onToggleSelect]);
 
   return (
     <div
