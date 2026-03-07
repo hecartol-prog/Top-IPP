@@ -77,6 +77,7 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
       className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden select-none"
       onMouseLeave={handleMouseUp}
       onMouseUp={handleMouseUp}
+      onMouseMove={(e) => { if (isDragging.current && e.target.closest("tr")) { /* handled by onMouseEnter on rows */ } }}
     >
       <div className="overflow-x-auto">
         <table className="w-full min-w-[800px] text-sm">
