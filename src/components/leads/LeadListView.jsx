@@ -26,8 +26,9 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
   const allSelected = leads.length > 0 && leads.every(l => selectedIds.includes(l.id));
   const someSelected = leads.some(l => selectedIds.includes(l.id)) && !allSelected;
 
-  // Use refs to avoid stale closures in drag logic
+  // Drag-to-select using refs to avoid stale closure issues
   const isDragging = useRef(false);
+  const hasMoved = useRef(false); // only commit drag if mouse actually moved across rows
   const dragStartId = useRef(null);
   const dragMode = useRef("select");
   const dragRangeRef = useRef(new Set());
@@ -38,19 +39,23 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
 
   const getLeadIndex = (id) => leadsRef.current.findIndex(l => l.id === id);
 
-  const handleMouseDown = useCallback((e, leadId) => {
+  const handleRowMouseDown = useCallback((e, leadId) => {
+    // Only left-click, and only on the row itself (not checkbox td, buttons, or links)
     if (e.button !== 0) return;
-    if (e.target.closest("button") || e.target.closest('[role="checkbox"]') || e.target.closest("a")) return;
+    if (e.target.closest('[data-no-drag]')) return;
+    if (e.target.closest("button") || e.target.closest("a")) return;
 
     e.preventDefault();
     isDragging.current = true;
+    hasMoved.current = false;
     dragStartId.current = leadId;
     dragMode.current = selectedIdsRef.current.includes(leadId) ? "deselect" : "select";
     dragRangeRef.current = new Set([leadId]);
   }, []);
 
-  const handleMouseEnter = useCallback((leadId) => {
+  const handleRowMouseEnter = useCallback((leadId) => {
     if (!isDragging.current) return;
+    hasMoved.current = true; // mouse entered a different row = actual drag
     const startIdx = getLeadIndex(dragStartId.current);
     const endIdx = getLeadIndex(leadId);
     const min = Math.min(startIdx, endIdx);
@@ -62,22 +67,25 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
     if (!isDragging.current) return;
     isDragging.current = false;
 
-    dragRangeRef.current.forEach(id => {
-      const alreadySelected = selectedIdsRef.current.includes(id);
-      if (dragMode.current === "select" && !alreadySelected) onToggleSelect(id);
-      if (dragMode.current === "deselect" && alreadySelected) onToggleSelect(id);
-    });
+    // Only apply drag selection if the mouse actually moved across multiple rows
+    if (hasMoved.current && dragRangeRef.current.size > 0) {
+      dragRangeRef.current.forEach(id => {
+        const alreadySelected = selectedIdsRef.current.includes(id);
+        if (dragMode.current === "select" && !alreadySelected) onToggleSelect(id);
+        if (dragMode.current === "deselect" && alreadySelected) onToggleSelect(id);
+      });
+    }
 
     dragRangeRef.current = new Set();
     dragStartId.current = null;
+    hasMoved.current = false;
   }, [onToggleSelect]);
 
   return (
     <div
       className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden select-none"
-      onMouseLeave={handleMouseUp}
       onMouseUp={handleMouseUp}
-      onMouseMove={(e) => { if (isDragging.current && e.target.closest("tr")) { /* handled by onMouseEnter on rows */ } }}
+      onMouseLeave={handleMouseUp}
     >
       <div className="overflow-x-auto">
         <table className="w-full min-w-[800px] text-sm">
@@ -86,7 +94,6 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
               <th className="w-10 px-4 py-3 text-left">
                 <Checkbox
                   checked={allSelected}
-                  ref={el => { if (el) el.indeterminate = someSelected; }}
                   onCheckedChange={onToggleAll}
                 />
               </th>
@@ -108,21 +115,15 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
               return (
                 <tr
                   key={lead.id}
-                  className={`group transition-colors cursor-pointer
-                    ${isSelected ? "bg-teal-50/40" : "hover:bg-slate-50"}
-                  `}
-                  onMouseDown={(e) => handleMouseDown(e, lead.id)}
-                  onMouseEnter={() => handleMouseEnter(lead.id)}
+                  className={`group transition-colors cursor-pointer ${isSelected ? "bg-teal-50/40" : "hover:bg-slate-50"}`}
+                  onMouseDown={(e) => handleRowMouseDown(e, lead.id)}
+                  onMouseEnter={() => handleRowMouseEnter(lead.id)}
                 >
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                  {/* data-no-drag prevents drag-select from starting on the checkbox cell */}
+                  <td className="px-4 py-3" data-no-drag="true" onMouseDown={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={isSelected}
-                      onCheckedChange={(checked) => {
-                        // Prevent double-firing: only toggle if state actually needs to change
-                        if ((checked && !isSelected) || (!checked && isSelected)) {
-                          onToggleSelect(lead.id);
-                        }
-                      }}
+                      onCheckedChange={() => onToggleSelect(lead.id)}
                     />
                   </td>
 
@@ -195,7 +196,7 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
                     ) : <span className="text-xs text-slate-300">—</span>}
                   </td>
 
-                  <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-3 py-3" onMouseDown={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-700" onClick={() => onEdit(lead)}>
                         <Pencil className="w-3.5 h-3.5" />
