@@ -198,61 +198,59 @@ Be thorough — extract EVERY single entry, do not stop early.`,
     return result?.leads || [];
   };
 
-  // Step: Extract all clickable card/logo links from a grid directory page (with pagination support)
+  // Step: Extract all card/logo links by fetching the raw HTML and parsing <a> tags directly
   const extractLogoGridLinks = async (startUrl) => {
-    // First, analyze the start page and get ALL pagination URLs at once
-    const pageAnalysis = await base44.integrations.Core.InvokeLLM({
-      prompt: `Fetch this URL: ${startUrl}
+    setProgressState({ current: 0, total: 1, label: "Fetching directory HTML..." });
 
-This is a member/company directory page with logo cards in a grid. Each card links to a company detail page (via "Ver más", "Más información", or the logo/card itself).
+    // Fetch the raw HTML via LLM (it can retrieve the page source)
+    const htmlResult = await base44.integrations.Core.InvokeLLM({
+      prompt: `Fetch the raw HTML source of this URL and return it as-is in the html_source field: ${startUrl}
 
-Please return:
-1. detail_links: ALL absolute URLs of individual company/member detail pages visible on THIS page (every single "Ver más" or card link href).
-2. pagination_urls: ALL pagination page URLs (page 2, page 3, etc.) found anywhere on this page. Include every page link in the pagination nav — not just "next".
-
-Do not skip any links.`,
+IMPORTANT: Return the complete raw HTML, not a summary. I need to parse the href attributes from <a> tags myself.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
         properties: {
-          detail_links: { type: "array", items: { type: "string" } },
-          pagination_urls: { type: "array", items: { type: "string" } }
+          html_source: { type: "string" }
         }
       }
     });
 
-    let allLinks = [...(pageAnalysis?.detail_links || [])];
-    const paginationUrls = (pageAnalysis?.pagination_urls || [])
-      .filter(l => l && l.startsWith("http") && l !== startUrl);
+    // Parse all <a href> values from the HTML that match the directory pattern
+    const html = htmlResult?.html_source || "";
+    const baseOrigin = new URL(startUrl).origin;
+    const basePath = new URL(startUrl).pathname.replace(/\/$/, ""); // e.g. "/socios"
 
-    // If there are more pages, fetch detail links from each in parallel
-    if (paginationUrls.length > 0) {
-      setProgressState({ current: 0, total: paginationUrls.length, label: `Found ${paginationUrls.length} more pages of members, scanning all...` });
-      setMessage({ type: "info", text: `Found ${paginationUrls.length} pagination pages — collecting all member links...` });
-
-      const pagResults = await Promise.all(
-        paginationUrls.map(pgUrl =>
-          base44.integrations.Core.InvokeLLM({
-            prompt: `Fetch this directory page: ${pgUrl}
-
-Extract ALL absolute URLs that link to individual company/member detail pages (the href of "Ver más", "Más información", or card links). Return every single one.`,
-            add_context_from_internet: true,
-            response_json_schema: {
-              type: "object",
-              properties: {
-                detail_links: { type: "array", items: { type: "string" } }
-              }
-            }
-          }).catch(() => ({ detail_links: [] }))
-        )
-      );
-
-      for (const r of pagResults) {
-        allLinks = [...allLinks, ...(r?.detail_links || [])];
-      }
+    // Extract all hrefs from anchor tags
+    const hrefRegex = /href=["']([^"']+)["']/gi;
+    const allHrefs = [];
+    let match;
+    while ((match = hrefRegex.exec(html)) !== null) {
+      allHrefs.push(match[1]);
     }
 
-    return allLinks;
+    // Filter to only sub-paths of the directory (e.g. /socios/company-name/)
+    const detailLinks = [...new Set(
+      allHrefs
+        .map(href => {
+          if (href.startsWith("http")) return href;
+          if (href.startsWith("/")) return baseOrigin + href;
+          return null;
+        })
+        .filter(href => {
+          if (!href) return false;
+          try {
+            const u = new URL(href);
+            // Must be same domain, must start with the base path, must have an extra segment
+            return u.hostname === new URL(startUrl).hostname
+              && u.pathname.startsWith(basePath + "/")
+              && u.pathname.replace(basePath + "/", "").replace(/\/$/, "").length > 0
+              && !u.pathname.endsWith("/page/");
+          } catch { return false; }
+        })
+    )];
+
+    return detailLinks;
   };
 
   // Detect FlippingBook
