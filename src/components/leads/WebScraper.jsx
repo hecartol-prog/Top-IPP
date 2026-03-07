@@ -512,17 +512,28 @@ Return every single link found — do not skip any.`,
         </Button>
       </div>
 
-      {/* Deep crawl toggle */}
-      <div className="flex items-center gap-2 px-1">
-        <Checkbox
-          id="deepCrawl"
-          checked={deepCrawl}
-          onCheckedChange={setDeepCrawl}
-          disabled={scraping}
-        />
-        <label htmlFor="deepCrawl" className="text-sm text-slate-600 cursor-pointer select-none">
-          <span className="font-medium">Deep crawl</span> — follow links to individual company pages for complete contact data
-        </label>
+      {/* Mode selector */}
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { value: "logo_grid", icon: LayoutGrid, label: "Logo Grid", desc: "Cards/icons with 'Ver más' links" },
+          { value: "deep", icon: Link, label: "Deep Crawl", desc: "Auto-detect & follow profile links" },
+          { value: "simple", icon: BookOpen, label: "Simple", desc: "Extract from table/list on one page" },
+        ].map(({ value, icon: Icon, label, desc }) => (
+          <button
+            key={value}
+            onClick={() => setScrapeMode(value)}
+            disabled={scraping}
+            className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 text-center transition-all ${
+              scrapeMode === value
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            <span className="text-xs font-semibold">{label}</span>
+            <span className={`text-[10px] leading-tight ${scrapeMode === value ? "text-slate-300" : "text-slate-400"}`}>{desc}</span>
+          </button>
+        ))}
       </div>
 
       {/* Progress */}
