@@ -198,31 +198,22 @@ Be thorough — extract EVERY single entry, do not stop early.`,
     return result?.leads || [];
   };
 
-  // Step: Extract all card/logo links by fetching the raw HTML and parsing <a> tags directly
+  // Step: Extract all card/logo links by fetching raw HTML via a CORS proxy and parsing <a> tags
   const extractLogoGridLinks = async (startUrl) => {
     setProgressState({ current: 0, total: 1, label: "Fetching directory HTML..." });
 
-    // Fetch the raw HTML via LLM (it can retrieve the page source)
-    const htmlResult = await base44.integrations.Core.InvokeLLM({
-      prompt: `Fetch the raw HTML source of this URL and return it as-is in the html_source field: ${startUrl}
+    // Use allorigins.win as CORS proxy to get raw HTML
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(startUrl)}`;
+    const resp = await fetch(proxyUrl);
+    const data = await resp.json();
+    const html = data?.contents || "";
 
-IMPORTANT: Return the complete raw HTML, not a summary. I need to parse the href attributes from <a> tags myself.`,
-      add_context_from_internet: true,
-      response_json_schema: {
-        type: "object",
-        properties: {
-          html_source: { type: "string" }
-        }
-      }
-    });
-
-    // Parse all <a href> values from the HTML that match the directory pattern
-    const html = htmlResult?.html_source || "";
     const baseOrigin = new URL(startUrl).origin;
     const basePath = new URL(startUrl).pathname.replace(/\/$/, ""); // e.g. "/socios"
+    const baseHostname = new URL(startUrl).hostname;
 
     // Extract all hrefs from anchor tags
-    const hrefRegex = /href=["']([^"']+)["']/gi;
+    const hrefRegex = /href=["']([^"'#]+)["']/gi;
     const allHrefs = [];
     let match;
     while ((match = hrefRegex.exec(html)) !== null) {
@@ -233,19 +224,19 @@ IMPORTANT: Return the complete raw HTML, not a summary. I need to parse the href
     const detailLinks = [...new Set(
       allHrefs
         .map(href => {
-          if (href.startsWith("http")) return href;
-          if (href.startsWith("/")) return baseOrigin + href;
+          if (href.startsWith("http")) return href.split("?")[0].replace(/\/$/, "") + "/";
+          if (href.startsWith("/")) return baseOrigin + href.split("?")[0].replace(/\/$/, "") + "/";
           return null;
         })
         .filter(href => {
           if (!href) return false;
           try {
             const u = new URL(href);
-            // Must be same domain, must start with the base path, must have an extra segment
-            return u.hostname === new URL(startUrl).hostname
+            const slug = u.pathname.replace(basePath + "/", "").replace(/\/$/, "");
+            return u.hostname === baseHostname
               && u.pathname.startsWith(basePath + "/")
-              && u.pathname.replace(basePath + "/", "").replace(/\/$/, "").length > 0
-              && !u.pathname.endsWith("/page/");
+              && slug.length > 0
+              && !slug.includes("/"); // only direct children, not nested
           } catch { return false; }
         })
     )];
