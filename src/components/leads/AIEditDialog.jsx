@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { base44 } from "@/api/base44Client";
-import { Sparkles, RefreshCw, Check, X, Mail, Phone, Linkedin, Globe, User, Building2, MapPin, Briefcase, AlertCircle } from "lucide-react";
+import { Sparkles, RefreshCw, Check, X, Mail, Phone, Linkedin, Globe, User, Building2, MapPin, Briefcase, AlertCircle, UserSearch } from "lucide-react";
 
 const fieldIcons = {
   email: Mail,
@@ -31,11 +31,15 @@ const fieldLabels = {
 
 export default function AIEditDialog({ open, onClose, lead, onUpdateLead }) {
   const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState(null); // { field: { suggested, current, confidence, reason } }
+  const [suggestions, setSuggestions] = useState(null);
   const [accepted, setAccepted] = useState({});
   const [rejected, setRejected] = useState({});
   const [saving, setSaving] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
+  const [contactLoading, setContactLoading] = useState(false);
+  const [contactResult, setContactResult] = useState(null);
+  const [contactSaving, setContactSaving] = useState(false);
+  const [contactSavedOk, setContactSavedOk] = useState(false);
 
   const handleRunAI = async () => {
     setLoading(true);
