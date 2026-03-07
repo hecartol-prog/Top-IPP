@@ -646,6 +646,112 @@ For the best contact found, provide:
                 )}
               </div>
             )}
+
+            {/* Contact Person Search */}
+            <div className="border-t border-slate-100 pt-4 mt-2">
+              <h3 className="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-2">
+                <UserSearch className="w-4 h-4 text-indigo-500" />
+                {(lead.first_name || lead.last_name) ? "Find Contact Person Details" : "Find Key Decision Maker"}
+              </h3>
+              <p className="text-xs text-slate-500 mb-3">
+                {(lead.first_name || lead.last_name)
+                  ? `Search for direct contact info and outreach tips for ${lead.first_name} ${lead.last_name} at ${lead.company_name}.`
+                  : `No contact person found. AI will search for the Director, GM, CEO, or Procurement Manager at ${lead.company_name}.`
+                }
+              </p>
+
+              <Button
+                onClick={handleContactSearch}
+                disabled={contactSearchLoading}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 mb-3"
+              >
+                {contactSearchLoading ? (
+                  <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Searching for contact...</>
+                ) : (
+                  <><UserSearch className="w-4 h-4 mr-2" />
+                    {(lead.first_name || lead.last_name) ? "Search Contact Details" : "Find Decision Maker"}
+                  </>
+                )}
+              </Button>
+
+              {contactSearchLoading && (
+                <div className="space-y-2 animate-pulse">
+                  <div className="h-3 bg-slate-100 rounded w-3/4" />
+                  <div className="h-3 bg-slate-100 rounded w-full" />
+                  <div className="h-3 bg-slate-100 rounded w-2/3" />
+                </div>
+              )}
+
+              {contactSaved && (
+                <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 rounded-lg p-3 mb-3">
+                  <Check className="w-4 h-4" /> Contact information applied to lead profile.
+                </div>
+              )}
+
+              {contactSearchResult && !contactSearchLoading && (
+                <div className="space-y-3">
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 space-y-2">
+                    {(contactSearchResult.first_name || contactSearchResult.last_name) && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-indigo-400 uppercase w-20">Name</span>
+                        <span className="text-sm font-semibold text-slate-800">{contactSearchResult.first_name} {contactSearchResult.last_name}</span>
+                      </div>
+                    )}
+                    {contactSearchResult.job_title && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-indigo-400 uppercase w-20">Title</span>
+                        <span className="text-sm text-slate-700">{contactSearchResult.job_title}</span>
+                      </div>
+                    )}
+                    {contactSearchResult.email && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-indigo-400 uppercase w-20">Email</span>
+                        <span className="text-sm text-slate-700 break-all">{contactSearchResult.email}</span>
+                      </div>
+                    )}
+                    {contactSearchResult.phone && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-indigo-400 uppercase w-20">Phone</span>
+                        <span className="text-sm text-slate-700">{contactSearchResult.phone}</span>
+                      </div>
+                    )}
+                    {contactSearchResult.linkedin_url && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-indigo-400 uppercase w-20">LinkedIn</span>
+                        <a href={contactSearchResult.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-600 hover:underline break-all">{contactSearchResult.linkedin_url}</a>
+                      </div>
+                    )}
+                    {contactSearchResult.outreach_notes && (
+                      <div className="pt-2 border-t border-indigo-100">
+                        <p className="text-xs font-semibold text-indigo-400 uppercase mb-1">Outreach Notes</p>
+                        <p className="text-sm text-slate-600 whitespace-pre-wrap">{contactSearchResult.outreach_notes}</p>
+                      </div>
+                    )}
+                    {contactSearchResult.confidence && (
+                      <div className="pt-1">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          contactSearchResult.confidence === 'high' ? 'bg-emerald-100 text-emerald-700' :
+                          contactSearchResult.confidence === 'medium' ? 'bg-amber-100 text-amber-700' :
+                          'bg-slate-100 text-slate-600'
+                        }`}>{contactSearchResult.confidence} confidence</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={handleApplyContactResult}
+                    disabled={contactSaving}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    {contactSaving ? (
+                      <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                    ) : (
+                      <><Check className="w-4 h-4 mr-2" /> Apply Contact Info to Lead</>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </SheetContent>
