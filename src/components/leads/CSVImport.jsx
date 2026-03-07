@@ -280,7 +280,14 @@ export default function LeadCSVImport({ onImportComplete }) {
     const rows = await parseFileToRows(file);
     setProgress(`Mapping ${rows.length} rows...`);
 
-    const leads = rows.map(rowToLead).filter(Boolean);
+    let leads;
+    if (isMultiRowFormat(rows)) {
+      setProgress("Detected multi-row company format. Parsing blocks...");
+      const blocks = parseMultiRowFormat(rows);
+      leads = blocks.map(multiRowBlockToLead).filter(Boolean);
+    } else {
+      leads = rows.map(rowToLead).filter(Boolean);
+    }
 
     if (leads.length === 0) {
       setMessage({ type: "error", text: "No leads found. Please check the file format." });
