@@ -425,6 +425,34 @@ export default function LeadCSVImport({ onImportComplete }) {
         {(step === "idle" || step === "extracting") && (
           <div className="space-y-3">
             <Input type="file" accept={ACCEPTED_TYPES} onChange={handleFileChange} disabled={step === "extracting"} />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-600">Country</Label>
+                <Input
+                  placeholder="e.g. Uruguay, USA"
+                  value={country}
+                  onChange={e => setCountry(e.target.value)}
+                  disabled={step === "extracting"}
+                  className="text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-600">Language</Label>
+                <Select value={language} onValueChange={setLanguage} disabled={step === "extracting"}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="english">English</SelectItem>
+                    <SelectItem value="spanish">Spanish</SelectItem>
+                    <SelectItem value="portuguese">Portuguese</SelectItem>
+                    <SelectItem value="french">French</SelectItem>
+                    <SelectItem value="german">German</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             {file && (
               <div className="text-sm text-slate-600 flex items-center gap-2">
                 <FileText className="w-4 h-4" />
