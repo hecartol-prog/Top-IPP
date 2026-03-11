@@ -228,7 +228,7 @@ function parseMultiRowFormat(rows) {
   return companies;
 }
 
-function multiRowBlockToLead(block) {
+function multiRowBlockToLead(block, country = "", language = "spanish") {
   if (!block.company_name) return null;
   const contactParts = (block.contact_name || "").split(" ").filter(Boolean);
   return {
@@ -245,6 +245,8 @@ function multiRowBlockToLead(block) {
     status: "new",
     source: "other",
     company_size: "",
+    country,
+    language,
   };
 }
 
