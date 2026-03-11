@@ -282,9 +282,9 @@ export default function LeadCSVImport({ onImportComplete }) {
     if (isMultiRowFormat(rows)) {
       setProgress("Detected multi-row company format. Parsing blocks...");
       const blocks = parseMultiRowFormat(rows);
-      leads = blocks.map(multiRowBlockToLead).filter(Boolean);
+      leads = blocks.map(b => multiRowBlockToLead(b, country, language)).filter(Boolean);
     } else {
-      leads = rows.map(rowToLead).filter(Boolean);
+      leads = rows.map(rowToLead).filter(Boolean).map(l => ({ ...l, country, language }));
     }
 
     if (leads.length === 0) {
