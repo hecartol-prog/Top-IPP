@@ -97,6 +97,8 @@ function rowToLead(row) {
     notes,
     status: "new",
     source: "other",
+    country: "",
+    language: "english",
   };
 }
 
