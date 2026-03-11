@@ -512,7 +512,8 @@ export default function LeadCSVImport({ onImportComplete }) {
                       <td className="px-2 py-1.5 font-medium text-slate-800 max-w-[140px] truncate">{lead.company_name}</td>
                       <td className="px-2 py-1.5 text-slate-500">{lead.phone || <span className="text-slate-300">—</span>}</td>
                       <td className="px-2 py-1.5 text-slate-500 max-w-[130px] truncate">{lead.email || <span className="text-slate-300">—</span>}</td>
-                      <td className="px-2 py-1.5 text-slate-500 max-w-[100px] truncate">{lead.location || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-2 py-1.5 text-slate-500 max-w-[80px] truncate">{lead.country || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-2 py-1.5 text-slate-500">{lead.language || <span className="text-slate-300">—</span>}</td>
                     </tr>
                   ))}
                 </tbody>
