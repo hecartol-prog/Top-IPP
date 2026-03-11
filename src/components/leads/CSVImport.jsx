@@ -257,6 +257,8 @@ export default function LeadCSVImport({ onImportComplete }) {
   const [previewLeads, setPreviewLeads] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [progress, setProgress] = useState("");
+  const [country, setCountry] = useState("");
+  const [language, setLanguage] = useState("english");
   const [enriching, setEnriching] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState("");
   const [enrichingContacts, setEnrichingContacts] = useState(false);
