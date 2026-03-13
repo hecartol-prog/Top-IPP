@@ -112,6 +112,9 @@ export default function Tasks() {
           </Button>
         </div>
 
+        {/* Add Task Form */}
+        {showAddForm && <AddTaskForm onClose={() => setShowAddForm(false)} />}
+
         {/* Filter Tabs */}
         <div className="flex gap-2 flex-wrap mb-6">
           {FILTERS.map((f) => (
