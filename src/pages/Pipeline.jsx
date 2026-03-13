@@ -59,6 +59,19 @@ export default function Pipeline() {
     }
   });
 
+  const createTaskMutation = useMutation({
+    mutationFn: (data) => base44.entities.Task.create(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] })
+  });
+
+  const AUTO_TASKS = {
+    contacted: { title: "Send intro email + Mold Spec Sheet", type: "send_document", hoursUntilDue: 24, priority: "high" },
+    qualified: { title: "Schedule discovery call", type: "schedule_meeting", hoursUntilDue: 48, priority: "high" },
+    proposal: { title: "Follow up on quote sent", type: "follow_up", hoursUntilDue: 72, priority: "urgent" },
+    negotiation: { title: "Send revised offer / Terms & Conditions", type: "send_document", hoursUntilDue: 48, priority: "urgent" },
+    won: { title: "Collect deposit & send contract", type: "email", hoursUntilDue: 24, priority: "urgent" },
+  };
+
   const handleStatusChange = (lead, newStatus) => {
     updateMutation.mutate({
       id: lead.id,
@@ -72,6 +85,23 @@ export default function Pipeline() {
       title: `Status changed to ${newStatus}`,
       description: `Lead moved from ${lead.status} to ${newStatus}`
     });
+
+    // Auto-generate next task for the new stage
+    const autoTask = AUTO_TASKS[newStatus];
+    if (autoTask) {
+      const dueDate = new Date();
+      dueDate.setHours(dueDate.getHours() + autoTask.hoursUntilDue);
+      createTaskMutation.mutate({
+        lead_id: lead.id,
+        title: autoTask.title,
+        type: autoTask.type,
+        priority: autoTask.priority,
+        due_date: dueDate.toISOString(),
+        auto_generated: true,
+        stage_trigger: newStatus,
+        completed: false,
+      });
+    }
   };
 
   const handleEdit = (lead) => {
