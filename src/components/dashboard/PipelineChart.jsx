@@ -56,8 +56,8 @@ export default function PipelineChart({ leads }) {
           <CardTitle className="text-lg font-semibold text-slate-900">Pipeline Value by Stage</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64" style={{ minHeight: 256 }}>
+            <ResponsiveContainer width="100%" height="100%" minHeight={256}>
               <BarChart data={stageData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                 <XAxis 
                   dataKey="name" 
