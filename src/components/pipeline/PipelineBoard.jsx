@@ -2,18 +2,19 @@ import React from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { DollarSign, Building2 } from "lucide-react";
+import { DollarSign, Building2, AlertTriangle, TrendingUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { differenceInDays, parseISO } from "date-fns";
 
 const PIPELINE_STAGES = [
-  { id: "new", label: "New", color: "bg-blue-500" },
-  { id: "contacted", label: "Contacted", color: "bg-purple-500" },
-  { id: "qualified", label: "Qualified", color: "bg-amber-500" },
-  { id: "proposal", label: "Proposal", color: "bg-cyan-500" },
-  { id: "negotiation", label: "Negotiation", color: "bg-orange-500" },
-  { id: "won", label: "Won", color: "bg-emerald-500" },
-  { id: "lost", label: "Lost", color: "bg-slate-400" }
+  { id: "new", label: "New Lead", color: "bg-blue-500", prob: 5, stallDays: 3 },
+  { id: "contacted", label: "Contacted", color: "bg-purple-500", prob: 15, stallDays: 3 },
+  { id: "qualified", label: "Qualified", color: "bg-amber-500", prob: 30, stallDays: 5 },
+  { id: "proposal", label: "Proposal Sent", color: "bg-cyan-500", prob: 50, stallDays: 5 },
+  { id: "negotiation", label: "Negotiation", color: "bg-orange-500", prob: 70, stallDays: 7 },
+  { id: "won", label: "Won", color: "bg-emerald-500", prob: 100, stallDays: null },
+  { id: "lost", label: "Lost", color: "bg-slate-400", prob: 0, stallDays: null }
 ];
 
 function LeadPipelineCard({ lead, onClick, index }) {
