@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Building2, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
+import { calculateLeadScore, getScoreLabel } from "@/components/leads/leadScoring";
 
 const statusColors = {
   new: "bg-blue-100 text-blue-700",
@@ -63,13 +64,15 @@ export default function RecentLeads({ leads, onViewAll, onLeadClick }) {
                     </p>
                   </div>
                   
-                  <div className="text-right">
+                  <div className="text-right space-y-1">
                     <Badge className={`${statusColors[lead.status]} text-xs`}>
                       {lead.status}
                     </Badge>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {format(new Date(lead.created_date), 'MMM d')}
-                    </p>
+                    {(() => {
+                      const s = calculateLeadScore(lead);
+                      const { label, color } = getScoreLabel(s);
+                      return <Badge className={`text-[10px] border ${color} block`}>{label} {s}</Badge>;
+                    })()}
                   </div>
                 </div>
               );
