@@ -8,7 +8,6 @@ import { CheckCircle2, Circle, Clock, Flame, Zap, ChevronRight } from "lucide-re
 import { motion, AnimatePresence } from "framer-motion";
 import { formatDistanceToNow, isPast, isToday, parseISO } from "date-fns";
 import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 
 const TASK_TYPE_ICONS = {
   call: "📞",
