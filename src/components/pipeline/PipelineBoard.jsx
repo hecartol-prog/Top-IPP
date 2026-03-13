@@ -6,7 +6,7 @@ import { DollarSign, Building2, AlertTriangle, TrendingUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { differenceInDays, parseISO } from "date-fns";
-import { calculateLeadScore, getScoreLabel } from "./leadScoring";
+import { calculateLeadScore, getScoreLabel } from "@/components/leads/leadScoring";
 
 const PIPELINE_STAGES = [
   { id: "new", label: "New Lead", color: "bg-blue-500", prob: 5, stallDays: 3 },
