@@ -65,7 +65,7 @@ export default function Tasks() {
   const filteredTasks = tasks.filter((t) => {
     if (filter === "pending") return !t.completed;
     if (filter === "today") return !t.completed && t.due_date && isToday(parseISO(t.due_date));
-    if (filter === "overdue") return !t.completed && t.due_date && isPast(parseISO(t.due_date));
+    if (filter === "overdue") return !t.completed && t.due_date && isPast(parseISO(t.due_date)) && !isToday(parseISO(t.due_date));
     if (filter === "completed") return t.completed;
     return true;
   });
@@ -83,7 +83,7 @@ export default function Tasks() {
   const counts = {
     pending: tasks.filter((t) => !t.completed).length,
     today: tasks.filter((t) => !t.completed && t.due_date && isToday(parseISO(t.due_date))).length,
-    overdue: tasks.filter((t) => !t.completed && t.due_date && isPast(parseISO(t.due_date))).length,
+    overdue: tasks.filter((t) => !t.completed && t.due_date && isPast(parseISO(t.due_date)) && !isToday(parseISO(t.due_date))).length,
     completed: tasks.filter((t) => t.completed).length,
     all: tasks.length,
   };
