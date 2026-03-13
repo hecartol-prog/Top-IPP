@@ -121,7 +121,12 @@ export default function Pipeline() {
   };
 
   // Calculate pipeline stats
+  const STAGE_PROBS = { new: 5, contacted: 15, qualified: 30, proposal: 50, negotiation: 70, won: 100, lost: 0 };
   const totalValue = leads.reduce((sum, lead) => sum + (lead.estimated_value || 0), 0);
+  const weightedTotal = leads.reduce((sum, lead) => {
+    const prob = STAGE_PROBS[lead.status] || 0;
+    return sum + Math.round((lead.estimated_value || 0) * prob / 100);
+  }, 0);
   const activeDeals = leads.filter(l => !['won', 'lost'].includes(l.status)).length;
 
   return (
