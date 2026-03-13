@@ -4,7 +4,7 @@ import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { 
   LayoutDashboard, Users, Kanban, Building2, Settings, 
-  Menu, X, LogOut, ChevronDown, Linkedin, Plug
+  Menu, X, LogOut, ChevronDown, Linkedin, Plug, CheckSquare
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
