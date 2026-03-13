@@ -18,6 +18,7 @@ import {
 
 const navigation = [
   { name: "Dashboard", href: "Dashboard", icon: LayoutDashboard },
+  { name: "Tasks", href: "Tasks", icon: CheckSquare },
   { name: "Leads", href: "Leads", icon: Users },
   { name: "Pipeline", href: "Pipeline", icon: Kanban },
   { name: "Companies", href: "Companies", icon: Building2 },
