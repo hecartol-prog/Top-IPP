@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Circle, Clock, Flame, Plus, Filter, Trash2 } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Plus, Trash2 } from "lucide-react";
 import { formatDistanceToNow, isPast, isToday, parseISO, format } from "date-fns";
+import AddTaskForm from "../components/tasks/AddTaskForm";
 
 const TASK_TYPE_ICONS = {
   call: "📞",
