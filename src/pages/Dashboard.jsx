@@ -102,8 +102,9 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Right Column - Upcoming Follow-ups */}
+          {/* Right Column - MITs + Follow-ups */}
           <div className="space-y-6">
+            <MITWidget />
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
