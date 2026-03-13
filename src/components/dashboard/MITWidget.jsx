@@ -198,7 +198,7 @@ export default function MITWidget() {
         )}
 
         <Link
-          to={createPageUrl("Tasks")}
+          to="/Tasks"
           className="block w-full text-center text-xs text-teal-600 hover:text-teal-700 font-medium py-1 mt-1"
         >
           Manage all tasks →
