@@ -27,7 +27,8 @@ const PRIORITY_COLORS = {
 
 export default function Tasks() {
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState("pending"); // pending | today | overdue | completed | all
+  const [filter, setFilter] = useState("pending");
+  const [showAddForm, setShowAddForm] = useState(false);
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ["tasks_all"],
