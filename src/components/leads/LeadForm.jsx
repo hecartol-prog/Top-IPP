@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X, Save, User, Building2, Briefcase, Globe } from "lucide-react";
-import LinkedInImport from "./LinkedInImport";
 
 const STATUS_OPTIONS = [
   { value: "new", label: "New" },
@@ -137,6 +136,7 @@ export default function LeadForm({ open, onClose, lead, onSave, isLoading }) {
             </TabsList>
 
             <TabsContent value="contact" className="space-y-4 mt-4">
+              <LinkedInImport onImport={(fields) => setFormData(prev => ({ ...prev, ...fields }))} />
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="first_name">First Name *</Label>
