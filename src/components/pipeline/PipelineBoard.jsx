@@ -83,77 +83,92 @@ function LeadPipelineCard({ lead, onClick, index, stageProb, stallDays }) {
 }
 
 export default function PipelineBoard({ leads, onLeadClick, onStatusChange }) {
-  const getLeadsByStatus = (status) => {
-    return leads.filter(lead => lead.status === status);
-  };
+  const getLeadsByStatus = (status) => leads.filter(lead => lead.status === status);
 
-  const getStageValue = (status) => {
-    return getLeadsByStatus(status).reduce((sum, lead) => sum + (lead.estimated_value || 0), 0);
+  const getWeightedValue = (stage) => {
+    return getLeadsByStatus(stage.id).reduce((sum, lead) => sum + Math.round((lead.estimated_value || 0) * stage.prob / 100), 0);
   };
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
-    
     const { draggableId, destination } = result;
     const newStatus = destination.droppableId;
-    
     const lead = leads.find(l => l.id === draggableId);
     if (lead && lead.status !== newStatus) {
       onStatusChange(lead, newStatus);
     }
   };
 
-  return (
-    <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="flex gap-4 overflow-x-auto pb-4 min-h-[600px]">
-        {PIPELINE_STAGES.map(stage => (
-          <div 
-            key={stage.id} 
-            className="flex-shrink-0 w-72"
-          >
-            {/* Stage Header */}
-            <div className="flex items-center justify-between mb-3 px-1">
-              <div className="flex items-center gap-2">
-                <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`} />
-                <span className="font-semibold text-sm text-slate-700">{stage.label}</span>
-                <Badge variant="secondary" className="text-xs bg-slate-100">
-                  {getLeadsByStatus(stage.id).length}
-                </Badge>
-              </div>
-              <span className="text-xs font-medium text-slate-500">
-                ${getStageValue(stage.id).toLocaleString()}
-              </span>
-            </div>
+  const totalStalled = leads.filter(lead => {
+    const stage = PIPELINE_STAGES.find(s => s.id === lead.status);
+    if (!stage?.stallDays) return false;
+    const days = differenceInDays(new Date(), parseISO(lead.updated_date || lead.created_date));
+    return days >= stage.stallDays;
+  }).length;
 
-            {/* Stage Content */}
-            <Droppable droppableId={stage.id}>
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className={`space-y-2 p-2 rounded-xl min-h-[500px] transition-colors ${
-                    snapshot.isDraggingOver 
-                      ? 'bg-teal-50 ring-2 ring-teal-200' 
-                      : 'bg-slate-50'
-                  }`}
-                >
-                  <AnimatePresence>
-                    {getLeadsByStatus(stage.id).map((lead, index) => (
-                      <LeadPipelineCard
-                        key={lead.id}
-                        lead={lead}
-                        index={index}
-                        onClick={onLeadClick}
-                      />
-                    ))}
-                  </AnimatePresence>
-                  {provided.placeholder}
+  return (
+    <div>
+      {totalStalled > 0 && (
+        <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          <span><strong>{totalStalled} deal{totalStalled > 1 ? "s" : ""} stalled</strong> — highlighted in red below. Take action now.</span>
+        </div>
+      )}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="flex gap-4 overflow-x-auto pb-4 min-h-[600px]">
+          {PIPELINE_STAGES.map(stage => {
+            const stageLeads = getLeadsByStatus(stage.id);
+            const weighted = getWeightedValue(stage);
+            return (
+              <div key={stage.id} className="flex-shrink-0 w-72">
+                {/* Stage Header */}
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`} />
+                    <span className="font-semibold text-sm text-slate-700">{stage.label}</span>
+                    <Badge variant="secondary" className="text-xs bg-slate-100">
+                      {stageLeads.length}
+                    </Badge>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-medium text-slate-500">${weighted.toLocaleString()}</p>
+                    <p className="text-[10px] text-slate-400">{stage.prob}% prob</p>
+                  </div>
                 </div>
-              )}
-            </Droppable>
-          </div>
-        ))}
-      </div>
-    </DragDropContext>
+
+                {/* Stage Content */}
+                <Droppable droppableId={stage.id}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`space-y-2 p-2 rounded-xl min-h-[500px] transition-colors ${
+                        snapshot.isDraggingOver
+                          ? 'bg-teal-50 ring-2 ring-teal-200'
+                          : 'bg-slate-50'
+                      }`}
+                    >
+                      <AnimatePresence>
+                        {stageLeads.map((lead, index) => (
+                          <LeadPipelineCard
+                            key={lead.id}
+                            lead={lead}
+                            index={index}
+                            onClick={onLeadClick}
+                            stageProb={stage.prob}
+                            stallDays={stage.stallDays}
+                          />
+                        ))}
+                      </AnimatePresence>
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
+            );
+          })}
+        </div>
+      </DragDropContext>
+    </div>
   );
 }
