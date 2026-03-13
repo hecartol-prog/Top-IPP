@@ -99,9 +99,17 @@ export default function Tasks() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-slate-900">Tasks</h1>
-          <p className="text-slate-500 mt-1">Your action queue — auto-generated from pipeline stages</p>
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Tasks</h1>
+            <p className="text-slate-500 mt-1">Your action queue — auto-generated from pipeline stages</p>
+          </div>
+          <Button
+            onClick={() => setShowAddForm(true)}
+            className="bg-slate-900 hover:bg-slate-800 text-white gap-2"
+          >
+            <Plus className="w-4 h-4" /> Add Task
+          </Button>
         </div>
 
         {/* Filter Tabs */}
