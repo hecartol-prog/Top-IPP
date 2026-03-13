@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X, Save, User, Building2, Briefcase, Globe } from "lucide-react";
+import LinkedInImport from "./LinkedInImport";
 
 const STATUS_OPTIONS = [
   { value: "new", label: "New" },
