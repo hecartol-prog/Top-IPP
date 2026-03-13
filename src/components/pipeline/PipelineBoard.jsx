@@ -6,6 +6,7 @@ import { DollarSign, Building2, AlertTriangle, TrendingUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { differenceInDays, parseISO } from "date-fns";
+import { calculateLeadScore, getScoreLabel } from "./leadScoring";
 
 const PIPELINE_STAGES = [
   { id: "new", label: "New Lead", color: "bg-blue-500", prob: 5, stallDays: 3 },
@@ -73,6 +74,16 @@ function LeadPipelineCard({ lead, onClick, index, stageProb, stallDays }) {
                 {isStalled && (
                   <p className="text-xs text-red-500 mt-1">Stalled {daysSinceUpdate}d</p>
                 )}
+                {(() => {
+                  const s = calculateLeadScore(lead);
+                  const { label, color } = getScoreLabel(s);
+                  return (
+                    <div className="flex items-center justify-between mt-1.5">
+                      <Badge className={`text-[10px] px-1.5 py-0 border ${color}`}>{label}</Badge>
+                      <span className="text-[10px] text-slate-400">{s}/100</span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </Card>
