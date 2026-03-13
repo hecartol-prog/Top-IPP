@@ -17,8 +17,13 @@ const PIPELINE_STAGES = [
   { id: "lost", label: "Lost", color: "bg-slate-400", prob: 0, stallDays: null }
 ];
 
-function LeadPipelineCard({ lead, onClick, index }) {
+function LeadPipelineCard({ lead, onClick, index, stageProb, stallDays }) {
   const initials = `${lead.first_name?.[0] || ''}${lead.last_name?.[0] || ''}`.toUpperCase();
+  const daysSinceUpdate = lead.updated_date
+    ? differenceInDays(new Date(), parseISO(lead.updated_date))
+    : differenceInDays(new Date(), parseISO(lead.created_date));
+  const isStalled = stallDays && daysSinceUpdate >= stallDays;
+  const weightedValue = lead.estimated_value ? Math.round(lead.estimated_value * stageProb / 100) : null;
 
   return (
     <Draggable draggableId={lead.id} index={index}>
@@ -29,30 +34,44 @@ function LeadPipelineCard({ lead, onClick, index }) {
           {...provided.dragHandleProps}
         >
           <Card 
-            className={`p-3 bg-white border border-slate-100 cursor-pointer hover:shadow-md transition-all ${
+            className={`p-3 bg-white cursor-pointer hover:shadow-md transition-all ${
               snapshot.isDragging ? 'shadow-lg ring-2 ring-teal-500' : ''
-            }`}
+            } ${isStalled ? 'border-red-300 border' : 'border border-slate-100'}`}
             onClick={() => onClick(lead)}
           >
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-2">
               <Avatar className="w-8 h-8 bg-gradient-to-br from-slate-600 to-slate-800 flex-shrink-0">
                 <AvatarFallback className="bg-gradient-to-br from-slate-600 to-slate-800 text-white text-xs">
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm text-slate-900 truncate">
-                  {lead.first_name} {lead.last_name}
-                </p>
+                <div className="flex items-center justify-between gap-1">
+                  <p className="font-medium text-sm text-slate-900 truncate">
+                    {lead.first_name} {lead.last_name}
+                  </p>
+                  {isStalled && (
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" title="Deal stalled" />
+                  )}
+                </div>
                 <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
                   <Building2 className="w-3 h-3" />
                   <span className="truncate">{lead.company_name}</span>
                 </div>
                 {lead.estimated_value && (
-                  <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium mt-1">
-                    <DollarSign className="w-3 h-3" />
-                    {lead.estimated_value.toLocaleString()}
+                  <div className="flex items-center justify-between mt-1.5">
+                    <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                      <DollarSign className="w-3 h-3" />
+                      {lead.estimated_value.toLocaleString()}
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-slate-400">
+                      <TrendingUp className="w-3 h-3" />
+                      <span>${weightedValue?.toLocaleString()}</span>
+                    </div>
                   </div>
+                )}
+                {isStalled && (
+                  <p className="text-xs text-red-500 mt-1">Stalled {daysSinceUpdate}d</p>
                 )}
               </div>
             </div>
