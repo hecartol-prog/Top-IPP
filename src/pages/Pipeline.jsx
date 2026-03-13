@@ -64,12 +64,23 @@ export default function Pipeline() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks'] })
   });
 
-  const AUTO_TASKS = {
-    contacted: { title: "Send intro email + Mold Spec Sheet", type: "send_document", hoursUntilDue: 24, priority: "high" },
-    qualified: { title: "Schedule discovery call", type: "schedule_meeting", hoursUntilDue: 48, priority: "high" },
-    proposal: { title: "Follow up on quote sent", type: "follow_up", hoursUntilDue: 72, priority: "urgent" },
-    negotiation: { title: "Send revised offer / Terms & Conditions", type: "send_document", hoursUntilDue: 48, priority: "urgent" },
-    won: { title: "Collect deposit & send contract", type: "email", hoursUntilDue: 24, priority: "urgent" },
+  const SPANISH_DOMAINS = ["mx", "ar", "co", "es", "cl", "pe", "ve", "ec", "bo", "py", "uy", "gt", "sv", "hn", "ni", "cr", "do", "cu", "pr"];
+  const isSpanishLead = (lead) => {
+    if (lead.language === "spanish") return true;
+    const emailDomain = (lead.email || "").split("@")[1]?.split(".").pop()?.toLowerCase();
+    return SPANISH_DOMAINS.includes(emailDomain);
+  };
+
+  const getAutoTasks = (lead) => {
+    const es = isSpanishLead(lead);
+    return {
+      contacted: { title: es ? "Enviar email de presentaci\u00f3n + Ficha T\u00e9cnica de Molde" : "Send intro email + Mold Spec Sheet", type: "send_document", hoursUntilDue: 24, priority: "high" },
+      qualified: { title: es ? "Agendar llamada de descubrimiento" : "Schedule discovery call — request mold specs", type: "schedule_meeting", hoursUntilDue: 48, priority: "high" },
+      proposal: { title: es ? "Seguimiento a cotizaci\u00f3n enviada" : "Follow up on quote sent (3-day check-in)", type: "follow_up", hoursUntilDue: 72, priority: "urgent" },
+      negotiation: { title: es ? "Llamada para aclarar objeciones y ajustar oferta" : "Call to clarify concerns & send revised offer", type: "call", hoursUntilDue: 48, priority: "urgent" },
+      won: { title: es ? "Cobrar anticipo y enviar contrato" : "Collect deposit & send signed contract", type: "email", hoursUntilDue: 24, priority: "urgent" },
+      lost: { title: es ? "Registrar motivo de p\u00e9rdida y programar reactivaci\u00f3n" : "Log loss reason & schedule 90-day reactivation", type: "follow_up", hoursUntilDue: 168, priority: "low" },
+    };
   };
 
   const handleStatusChange = (lead, newStatus) => {
@@ -87,7 +98,7 @@ export default function Pipeline() {
     });
 
     // Auto-generate next task for the new stage
-    const autoTask = AUTO_TASKS[newStatus];
+    const autoTask = getAutoTasks(lead)[newStatus];
     if (autoTask) {
       const dueDate = new Date();
       dueDate.setHours(dueDate.getHours() + autoTask.hoursUntilDue);
