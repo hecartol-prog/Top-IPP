@@ -160,6 +160,10 @@ export default function Pipeline() {
               <p className="text-xs sm:text-sm text-slate-500">Total Pipeline</p>
               <p className="text-xl sm:text-2xl font-bold text-emerald-600">${totalValue.toLocaleString()}</p>
             </div>
+            <div className="text-right">
+              <p className="text-xs sm:text-sm text-slate-500">Weighted Value</p>
+              <p className="text-xl sm:text-2xl font-bold text-teal-600">${weightedTotal.toLocaleString()}</p>
+            </div>
           </div>
         </div>
 
