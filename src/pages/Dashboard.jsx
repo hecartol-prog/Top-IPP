@@ -181,6 +181,13 @@ export default function Dashboard() {
                       <span className="text-sm font-medium">Manage Companies</span>
                       <ArrowRight className="w-4 h-4" />
                     </Link>
+                    <Link 
+                      to="/Templates"
+                      className="flex items-center justify-between p-3 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                    >
+                      <span className="text-sm font-medium">Email & Script Templates</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
