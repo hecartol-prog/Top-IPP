@@ -3,8 +3,8 @@ import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { 
-  LayoutDashboard, Users, Kanban, Building2, Settings, 
-  Menu, X, LogOut, ChevronDown, Linkedin, Plug, CheckSquare
+  LayoutDashboard, Users, Kanban, Building2,
+  Menu, X, LogOut, ChevronDown, Linkedin, Plug, CheckSquare, FileText
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ const navigation = [
   { name: "Leads", href: "Leads", icon: Users },
   { name: "Pipeline", href: "Pipeline", icon: Kanban },
   { name: "Companies", href: "Companies", icon: Building2 },
+  { name: "Templates", href: "Templates", icon: FileText },
   { name: "Integrations", href: "Integrations", icon: Plug },
 ];
 
