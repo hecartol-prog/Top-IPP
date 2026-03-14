@@ -39,7 +39,6 @@ export default function Integrations() {
           >
             <LinkedInPanel />
           </motion.div>
-
           {/* HubSpot Integration */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
