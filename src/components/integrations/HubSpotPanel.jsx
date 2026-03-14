@@ -1,133 +1,155 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, RefreshCw, Upload, Download, AlertCircle } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, RefreshCw, CheckCircle, AlertCircle, Building2, Users, TrendingUp } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function HubSpotPanel() {
-  const [status, setStatus] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [syncLog, setSyncLog] = useState(null);
 
-  useEffect(() => {
-    checkStatus();
-  }, []);
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
+    queryKey: ['hubspot-stats'],
+    queryFn: async () => {
+      const res = await base44.functions.invoke('hubspotSync', { action: 'get_stats' });
+      return res.data.stats;
+    },
+    retry: false,
+  });
 
-  const checkStatus = async () => {
-    setLoading(true);
-    setError(null);
-    const res = await base44.functions.invoke('hubspotSync', { action: 'status' });
-    if (res.data?.success) setStatus(res.data);
-    else setError(res.data?.error || 'Could not connect to HubSpot');
-    setLoading(false);
-  };
+  const { data: leads = [] } = useQuery({
+    queryKey: ['leads'],
+    queryFn: () => base44.entities.Lead.list('-created_date'),
+  });
 
-  const handlePush = async () => {
-    setLoading(true);
-    setResult(null);
-    setError(null);
-    const res = await base44.functions.invoke('hubspotSync', { action: 'push' });
-    if (res.data?.success) setResult(res.data);
-    else setError(res.data?.error || 'Push failed');
-    setLoading(false);
-  };
+  const pushMutation = useMutation({
+    mutationFn: async () => {
+      const res = await base44.functions.invoke('hubspotSync', { action: 'push_contacts', leads });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      setSyncLog(data.results);
+      toast({ title: "Pushed to HubSpot", description: `Created: ${data.results.created}, Updated: ${data.results.updated}, Failed: ${data.results.failed}` });
+      refetchStats();
+    },
+    onError: (err) => toast({ title: "Sync failed", description: err.message, variant: "destructive" }),
+  });
 
-  const handlePull = async () => {
-    setLoading(true);
-    setResult(null);
-    setError(null);
-    const res = await base44.functions.invoke('hubspotSync', { action: 'pull' });
-    if (res.data?.success) setResult(res.data);
-    else setError(res.data?.error || 'Pull failed');
-    setLoading(false);
-  };
+  const pullMutation = useMutation({
+    mutationFn: async () => {
+      const res = await base44.functions.invoke('hubspotSync', { action: 'pull_contacts' });
+      return res.data;
+    },
+    onSuccess: async (data) => {
+      const contacts = data.contacts || [];
+      let imported = 0;
+      for (const contact of contacts) {
+        if (contact.first_name || contact.last_name || contact.company_name) {
+          await base44.entities.Lead.create(contact);
+          imported++;
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      setSyncLog({ pulled: contacts.length, imported });
+      toast({ title: "Pulled from HubSpot", description: `Imported ${imported} contacts into Moldwise` });
+    },
+    onError: (err) => toast({ title: "Pull failed", description: err.message, variant: "destructive" }),
+  });
+
+  const isBusy = pushMutation.isPending || pullMutation.isPending;
 
   return (
-    <Card className="bg-white border-0 shadow-sm">
+    <Card className="border-0 shadow-sm">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center">
               <span className="text-white font-bold text-sm">HS</span>
             </div>
             <div>
-              <CardTitle className="text-base font-semibold text-slate-900">HubSpot CRM</CardTitle>
-              <p className="text-xs text-slate-500 mt-0.5">Sync contacts & deals</p>
+              <CardTitle className="text-lg">HubSpot CRM</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Contacts, Deals & Companies</p>
             </div>
           </div>
-          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 border text-xs">
-            <CheckCircle className="w-3 h-3 mr-1" /> Connected
-          </Badge>
+          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">✓ Connected</Badge>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Status */}
-        {status && (
-          <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600">
-            <span className="font-medium">{status.hubspotTotal?.toLocaleString()}</span> contacts in HubSpot
-          </div>
-        )}
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Contacts", value: stats?.contacts, icon: Users },
+            { label: "Companies", value: stats?.companies, icon: Building2 },
+            { label: "Deals", value: stats?.deals, icon: TrendingUp },
+          ].map(({ label, value, icon: Icon }) => (
+            <div key={label} className="bg-slate-50 rounded-lg p-3 text-center">
+              <Icon className="w-4 h-4 text-slate-400 mx-auto mb-1" />
+              <p className="text-lg font-bold text-slate-800">
+                {statsLoading ? '—' : (value ?? '—')}
+              </p>
+              <p className="text-xs text-slate-500">{label}</p>
+            </div>
+          ))}
+        </div>
 
-        {/* Actions */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Sync Actions */}
+        <div className="space-y-2">
           <Button
-            variant="outline"
-            className="w-full gap-2 text-sm"
-            onClick={handlePush}
-            disabled={loading}
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+            onClick={() => pushMutation.mutate()}
+            disabled={isBusy || leads.length === 0}
           >
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            Push to HubSpot
+            {pushMutation.isPending ? (
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <ArrowUpCircle className="w-4 h-4 mr-2" />
+            )}
+            Push {leads.length} Leads → HubSpot
           </Button>
+
           <Button
             variant="outline"
-            className="w-full gap-2 text-sm"
-            onClick={handlePull}
-            disabled={loading}
+            className="w-full"
+            onClick={() => pullMutation.mutate()}
+            disabled={isBusy}
           >
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            Pull from HubSpot
+            {pullMutation.isPending ? (
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <ArrowDownCircle className="w-4 h-4 mr-2" />
+            )}
+            Pull Contacts ← HubSpot
           </Button>
         </div>
 
-        <p className="text-xs text-slate-400 text-center">
-          Push exports your CRM leads to HubSpot · Pull imports HubSpot contacts as new leads
+        {/* Sync Log */}
+        {syncLog && (
+          <div className="bg-slate-50 rounded-lg p-3 text-sm space-y-1">
+            <p className="font-medium text-slate-700 flex items-center gap-1">
+              <CheckCircle className="w-4 h-4 text-emerald-500" /> Last sync result
+            </p>
+            {syncLog.created !== undefined && <p className="text-slate-500">Created: <span className="text-emerald-600 font-medium">{syncLog.created}</span></p>}
+            {syncLog.updated !== undefined && <p className="text-slate-500">Updated: <span className="text-blue-600 font-medium">{syncLog.updated}</span></p>}
+            {syncLog.failed !== undefined && <p className="text-slate-500">Failed: <span className="text-red-500 font-medium">{syncLog.failed}</span></p>}
+            {syncLog.imported !== undefined && <p className="text-slate-500">Imported: <span className="text-emerald-600 font-medium">{syncLog.imported}</span></p>}
+            {syncLog.errors?.length > 0 && (
+              <div className="mt-1">
+                {syncLog.errors.map((e, i) => (
+                  <p key={i} className="text-xs text-red-500">{e}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <p className="text-xs text-slate-400">
+          Push exports Moldwise leads to HubSpot contacts. Pull imports HubSpot contacts as new leads.
         </p>
-
-        {/* Result */}
-        {result && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-700">
-            {result.action === 'push' && (
-              <>✓ {result.created} created · {result.updated} updated in HubSpot
-              {result.errors?.length > 0 && <span className="text-amber-600"> · {result.errors.length} errors</span>}
-              </>
-            )}
-            {result.action === 'pull' && (
-              <>✓ {result.imported} new leads imported from {result.total} HubSpot contacts</>
-            )}
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            {error}
-          </div>
-        )}
-
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full text-xs text-slate-400 hover:text-slate-600"
-          onClick={checkStatus}
-          disabled={loading}
-        >
-          <RefreshCw className="w-3 h-3 mr-1" /> Refresh status
-        </Button>
       </CardContent>
     </Card>
   );
