@@ -6,112 +6,88 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { action, leadIds } = await req.json();
     const { accessToken } = await base44.asServiceRole.connectors.getConnection('hubspot');
+    const body = await req.json().catch(() => ({}));
+    const action = body.action || 'fetch_contacts';
 
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    };
-
-    // --- PUSH: Export leads to HubSpot as contacts ---
-    if (action === 'push') {
-      const leads = leadIds?.length
-        ? await Promise.all(leadIds.map(id => base44.entities.Lead.get(id)))
-        : await base44.entities.Lead.list();
-
-      let created = 0, updated = 0, failed = 0;
-
-      for (const lead of leads) {
-        const props = {
-          email: lead.email || '',
-          firstname: lead.first_name || '',
-          lastname: lead.last_name || '',
-          jobtitle: lead.job_title || '',
-          company: lead.company_name || '',
-          phone: lead.phone || '',
-          website: lead.website || '',
-          hs_lead_status: lead.status || 'new',
-          notes_last_updated: lead.notes || '',
-        };
-
-        // Check if contact exists by email
-        if (lead.email) {
-          const searchRes = await fetch('https://api.hubapi.com/crm/v3/objects/contacts/search', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              filterGroups: [{ filters: [{ propertyName: 'email', operator: 'EQ', value: lead.email }] }],
-              limit: 1,
-            }),
-          });
-          const searchData = await searchRes.json();
-
-          if (searchData.total > 0) {
-            const contactId = searchData.results[0].id;
-            await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`, {
-              method: 'PATCH',
-              headers,
-              body: JSON.stringify({ properties: props }),
-            });
-            updated++;
-          } else {
-            const createRes = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({ properties: props }),
-            });
-            if (createRes.ok) created++; else failed++;
-          }
-        } else {
-          // No email — create anyway
-          const createRes = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ properties: props }),
-          });
-          if (createRes.ok) created++; else failed++;
-        }
+    if (action === 'fetch_contacts') {
+      // Fetch contacts from HubSpot
+      const res = await fetch(
+        'https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=firstname,lastname,email,phone,jobtitle,company,hs_lead_status,lifecyclestage',
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!res.ok) {
+        const err = await res.text();
+        return Response.json({ error: `HubSpot API error: ${err}` }, { status: res.status });
       }
-
-      return Response.json({ success: true, created, updated, failed, total: leads.length });
+      const data = await res.json();
+      return Response.json({ contacts: data.results || [], total: data.total || 0 });
     }
 
-    // --- PULL: Import HubSpot contacts into Moldwise CRM ---
-    if (action === 'pull') {
+    if (action === 'push_lead') {
+      // Push a single lead to HubSpot as a contact
+      const { lead } = body;
+      if (!lead) return Response.json({ error: 'Missing lead data' }, { status: 400 });
+
+      const properties = {
+        firstname: lead.first_name || '',
+        lastname: lead.last_name || '',
+        email: lead.email || '',
+        phone: lead.phone || '',
+        jobtitle: lead.job_title || '',
+        company: lead.company_name || '',
+        website: lead.website || '',
+        hs_lead_status: lead.status || 'NEW',
+      };
+
+      const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ properties }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        return Response.json({ error: `HubSpot API error: ${err}` }, { status: res.status });
+      }
+      const data = await res.json();
+      return Response.json({ success: true, hubspot_id: data.id });
+    }
+
+    if (action === 'import_contacts') {
+      // Import HubSpot contacts into local Lead entity
       const res = await fetch(
-        'https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=firstname,lastname,email,jobtitle,company,phone,website,hs_lead_status',
-        { headers }
+        'https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=firstname,lastname,email,phone,jobtitle,company,hs_lead_status,lifecyclestage',
+        { headers: { Authorization: `Bearer ${accessToken}` } }
       );
+      if (!res.ok) {
+        const err = await res.text();
+        return Response.json({ error: `HubSpot API error: ${err}` }, { status: res.status });
+      }
       const data = await res.json();
       const contacts = data.results || [];
 
       let imported = 0;
+      let skipped = 0;
       for (const contact of contacts) {
         const p = contact.properties;
-        if (!p.firstname && !p.lastname && !p.company) continue;
-        await base44.entities.Lead.create({
+        if (!p.firstname && !p.lastname && !p.company) { skipped++; continue; }
+        await base44.asServiceRole.entities.Lead.create({
           first_name: p.firstname || 'Unknown',
           last_name: p.lastname || '',
           email: p.email || '',
+          phone: p.phone || '',
           job_title: p.jobtitle || '',
           company_name: p.company || 'Unknown',
-          phone: p.phone || '',
-          website: p.website || '',
           status: 'new',
           source: 'other',
         });
         imported++;
       }
-
-      return Response.json({ success: true, imported, total: contacts.length });
-    }
-
-    // --- STATUS: Get HubSpot account info ---
-    if (action === 'status') {
-      const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts?limit=1', { headers });
-      const data = await res.json();
-      return Response.json({ success: true, connected: res.ok, contactsAvailable: data.total ?? 0 });
+      return Response.json({ success: true, imported, skipped });
     }
 
     return Response.json({ error: 'Unknown action' }, { status: 400 });
