@@ -35,55 +35,47 @@ export default function BatchEnrichment({ open, onClose, selectedLeads, onEnrich
             continue;
           }
 
-          // Use AI to enrich empty fields
-          const prompt = `You are a B2B lead researcher. Based on this partial lead information, fill in missing details. Only return JSON, no other text.
-          
-          Lead data:
-          - Name: ${lead.first_name} ${lead.last_name}
-          - Company: ${lead.company_name || 'Unknown'}
-          - Email: ${lead.email || 'Unknown'}
-          - Phone: ${lead.phone || 'Unknown'}
-          - Job Title: ${lead.job_title || 'Unknown'}
-          - LinkedIn: ${lead.linkedin_url || 'Unknown'}
-          
-          Research this person and company online and provide:
-          {
-            "email": "their work email if found",
-            "phone": "their work phone if found",
-            "company_name": "correct company name",
-            "job_title": "current job title",
-            "industry": "company industry",
-            "company_size": "company size (1-10, 11-50, 51-200, 201-500, 501-1000, 1000+)",
-            "address": "company street address and city"
-          }`;
-
-          const aiRes = await base44.integrations.Core.InvokeLLM({
-            prompt,
-            response_json_schema: {
-              type: "object",
-              properties: {
-                email: { type: "string" },
-                phone: { type: "string" },
-                company_name: { type: "string" },
-                job_title: { type: "string" },
-                industry: { type: "string" },
-                company_size: { type: "string" },
-                address: { type: "string" }
-              }
-            }
-          });
-
-          // Merge enriched data with existing lead
+          // Verify and enrich with real sources only
           const enrichedData = {};
-          if (aiRes.email && !lead.email) enrichedData.email = aiRes.email;
-          if (aiRes.phone && !lead.phone) enrichedData.phone = aiRes.phone;
-          if (aiRes.company_name && !lead.company_name) enrichedData.company_name = aiRes.company_name;
-          if (aiRes.job_title && !lead.job_title) enrichedData.job_title = aiRes.job_title;
-          if (aiRes.industry && !lead.industry) enrichedData.industry = aiRes.industry;
-          if (aiRes.company_size && !lead.company_size) enrichedData.company_size = aiRes.company_size;
-          if (aiRes.address && !lead.address) enrichedData.address = aiRes.address;
 
-          // Update lead if there's new data
+          // If missing company info, search for real company data
+          if (!lead.company_name || !lead.address || !lead.phone) {
+            try {
+              const searchRes = await base44.functions.invoke('apifyEnrichCompany', {
+                company_name: lead.company_name || `${lead.first_name} ${lead.last_name}`,
+                industry: lead.industry
+              });
+
+              if (searchRes.data?.success && searchRes.data?.data) {
+                const compData = searchRes.data.data;
+                if (compData.name && !lead.company_name) enrichedData.company_name = compData.name;
+                if (compData.address && !lead.address) enrichedData.address = compData.address;
+                if (compData.phone && !lead.phone) enrichedData.phone = compData.phone;
+                if (compData.website && !lead.website) enrichedData.website = compData.website;
+                if (compData.industry && !lead.industry) enrichedData.industry = compData.industry;
+              }
+            } catch (e) {
+              // Apify enrichment failed, skip company data
+            }
+          }
+
+          // If missing email, try to find from verified sources
+          if (!lead.email && enrichedData.company_name) {
+            try {
+              const emailRes = await base44.functions.invoke('apifyWebsiteSearch', {
+                company_name: enrichedData.company_name || lead.company_name,
+                person_name: `${lead.first_name} ${lead.last_name}`
+              });
+
+              if (emailRes.data?.success && emailRes.data?.email) {
+                enrichedData.email = emailRes.data.email;
+              }
+            } catch (e) {
+              // Email search failed
+            }
+          }
+
+          // Update lead only if we found verified real data
           if (Object.keys(enrichedData).length > 0) {
             await base44.entities.Lead.update(lead.id, enrichedData);
           }
