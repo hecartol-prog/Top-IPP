@@ -6,7 +6,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { action, direction } = await req.json();
+    const { action, leadIds } = await req.json();
     const { accessToken } = await base44.asServiceRole.connectors.getConnection('hubspot');
 
     const headers = {
@@ -14,113 +14,117 @@ Deno.serve(async (req) => {
       'Content-Type': 'application/json',
     };
 
-    // ── FETCH HUBSPOT CONTACTS ──────────────────────────────────────────────
-    if (action === 'fetch_contacts') {
+    // Push leads from Moldwise → HubSpot
+    if (action === 'push') {
+      const leads = leadIds
+        ? await Promise.all(leadIds.map(id => base44.entities.Lead.get(id)))
+        : await base44.entities.Lead.list();
+
+      const results = { created: 0, updated: 0, errors: [] };
+
+      for (const lead of leads) {
+        if (!lead.email) continue;
+
+        const properties = {
+          firstname: lead.first_name || '',
+          lastname: lead.last_name || '',
+          email: lead.email,
+          phone: lead.phone || '',
+          jobtitle: lead.job_title || '',
+          company: lead.company_name || '',
+          website: lead.website || '',
+          linkedinbio: lead.linkedin_url || '',
+          city: lead.location || '',
+          country: lead.country || '',
+          hs_lead_status: lead.status || 'new',
+          amount: lead.estimated_value ? String(lead.estimated_value) : '',
+          description: lead.notes || '',
+        };
+
+        // Search for existing contact by email
+        const searchRes = await fetch('https://api.hubapi.com/crm/v3/objects/contacts/search', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            filterGroups: [{ filters: [{ propertyName: 'email', operator: 'EQ', value: lead.email }] }],
+            limit: 1,
+          }),
+        });
+        const searchData = await searchRes.json();
+
+        if (searchData.results && searchData.results.length > 0) {
+          // Update existing
+          const contactId = searchData.results[0].id;
+          await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({ properties }),
+          });
+          results.updated++;
+        } else {
+          // Create new
+          const createRes = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ properties }),
+          });
+          if (!createRes.ok) {
+            const err = await createRes.json();
+            results.errors.push({ lead: lead.email, error: err.message });
+          } else {
+            results.created++;
+          }
+        }
+      }
+
+      return Response.json({ success: true, ...results });
+    }
+
+    // Pull contacts from HubSpot → Moldwise
+    if (action === 'pull') {
       const res = await fetch(
-        'https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=firstname,lastname,email,phone,jobtitle,company,hs_lead_status,lifecyclestage',
+        'https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=firstname,lastname,email,phone,jobtitle,company,website,city,country,hs_lead_status',
         { headers }
       );
       const data = await res.json();
-      if (!res.ok) return Response.json({ error: data.message }, { status: res.status });
+      const contacts = data.results || [];
 
-      const contacts = (data.results || []).map(c => ({
-        hubspot_id: c.id,
-        first_name: c.properties.firstname || '',
-        last_name: c.properties.lastname || '',
-        email: c.properties.email || '',
-        phone: c.properties.phone || '',
-        job_title: c.properties.jobtitle || '',
-        company_name: c.properties.company || '',
-        status: 'new',
-        source: 'other',
-      }));
-
-      return Response.json({ contacts, total: data.results?.length || 0 });
-    }
-
-    // ── IMPORT CONTACTS INTO CRM ────────────────────────────────────────────
-    if (action === 'import_contacts') {
-      const { contacts } = await req.json().catch(() => ({ contacts: [] }));
-      // contacts already parsed above — re-read body not possible; contacts passed in payload
-      return Response.json({ error: 'Use fetch_contacts first, then import via import_leads action' }, { status: 400 });
-    }
-
-    // ── IMPORT SELECTED LEADS INTO CRM ─────────────────────────────────────
-    if (action === 'import_leads') {
-      const body = await req.json().catch(() => ({}));
-      const leads = body.leads || [];
       let imported = 0;
-      for (const lead of leads) {
+      for (const contact of contacts) {
+        const p = contact.properties;
+        if (!p.email) continue;
+
+        // Check if already exists
+        const existing = await base44.entities.Lead.filter({ email: p.email });
+        if (existing.length > 0) continue;
+
         await base44.entities.Lead.create({
-          first_name: lead.first_name || 'Unknown',
-          last_name: lead.last_name || '',
-          email: lead.email || '',
-          phone: lead.phone || '',
-          job_title: lead.job_title || '',
-          company_name: lead.company_name || '',
+          first_name: p.firstname || 'Unknown',
+          last_name: p.lastname || '',
+          email: p.email,
+          phone: p.phone || '',
+          job_title: p.jobtitle || '',
+          company_name: p.company || 'Unknown',
+          website: p.website || '',
+          location: p.city || '',
+          country: p.country || '',
           status: 'new',
           source: 'other',
         });
         imported++;
       }
-      return Response.json({ imported });
+
+      return Response.json({ success: true, imported });
     }
 
-    // ── PUSH LEAD TO HUBSPOT ────────────────────────────────────────────────
-    if (action === 'push_lead') {
-      const body = await req.json().catch(() => ({}));
-      const lead = body.lead;
-      if (!lead) return Response.json({ error: 'No lead provided' }, { status: 400 });
-
-      const payload = {
-        properties: {
-          firstname: lead.first_name || '',
-          lastname: lead.last_name || '',
-          email: lead.email || '',
-          phone: lead.phone || '',
-          jobtitle: lead.job_title || '',
-          company: lead.company_name || '',
-          website: lead.website || '',
-          lifecyclestage: 'lead',
-        }
-      };
-
-      const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      });
+    // Get HubSpot stats
+    if (action === 'stats') {
+      const res = await fetch(
+        'https://api.hubapi.com/crm/v3/objects/contacts?limit=1',
+        { headers }
+      );
       const data = await res.json();
-      if (!res.ok) return Response.json({ error: data.message }, { status: res.status });
-      return Response.json({ success: true, hubspot_id: data.id });
-    }
-
-    // ── SYNC ALL LEADS TO HUBSPOT ───────────────────────────────────────────
-    if (action === 'sync_to_hubspot') {
-      const leads = await base44.entities.Lead.list();
-      let synced = 0;
-      let errors = 0;
-      for (const lead of leads) {
-        const payload = {
-          properties: {
-            firstname: lead.first_name || '',
-            lastname: lead.last_name || '',
-            email: lead.email || '',
-            phone: lead.phone || '',
-            jobtitle: lead.job_title || '',
-            company: lead.company_name || '',
-            website: lead.website || '',
-          }
-        };
-        const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) synced++;
-        else errors++;
-      }
-      return Response.json({ synced, errors, total: leads.length });
+      return Response.json({ success: true, total: data.total || 0 });
     }
 
     return Response.json({ error: 'Unknown action' }, { status: 400 });
