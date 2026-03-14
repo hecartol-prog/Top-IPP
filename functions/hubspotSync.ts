@@ -73,28 +73,69 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'pull_contacts') {
-      // Pull HubSpot contacts into Moldwise
+      // Pull HubSpot contacts and merge with existing leads (don't overwrite)
       const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=firstname,lastname,email,phone,jobtitle,company,website,hs_lead_status,industry,country', {
         headers,
       });
       const data = await res.json();
       const contacts = data.results || [];
 
-      const mappedLeads = contacts.map(c => ({
-        first_name: c.properties.firstname || '',
-        last_name: c.properties.lastname || '',
-        email: c.properties.email || '',
-        phone: c.properties.phone || '',
-        job_title: c.properties.jobtitle || '',
-        company_name: c.properties.company || '',
-        website: c.properties.website || '',
-        industry: c.properties.industry || '',
-        country: c.properties.country || '',
-        status: mapHubspotStatusToLocal(c.properties.hs_lead_status),
-        source: 'other',
-      })).filter(l => l.first_name || l.last_name || l.company_name);
+      // Get existing leads to avoid overwrites
+      const existingLeads = await base44.entities.Lead.list();
+      const existingByEmail = new Map(existingLeads.map(l => [l.email?.toLowerCase(), l]));
 
-      return Response.json({ success: true, action: 'pull_contacts', contacts: mappedLeads });
+      let merged = 0, created = 0;
+      const results = { merged, created, failed: 0, errors: [] };
+
+      for (const c of contacts) {
+        const email = c.properties.email;
+        if (!email) continue;
+
+        const hsLead = {
+          first_name: c.properties.firstname || '',
+          last_name: c.properties.lastname || '',
+          email: email,
+          phone: c.properties.phone || '',
+          job_title: c.properties.jobtitle || '',
+          company_name: c.properties.company || '',
+          website: c.properties.website || '',
+          industry: c.properties.industry || '',
+          country: c.properties.country || '',
+          status: mapHubspotStatusToLocal(c.properties.hs_lead_status),
+          source: 'hubspot',
+        };
+
+        const existing = existingByEmail.get(email.toLowerCase());
+        if (existing) {
+          // Merge: only fill empty fields in existing lead
+          const updateData = {};
+          Object.keys(hsLead).forEach(key => {
+            if (!existing[key] && hsLead[key]) {
+              updateData[key] = hsLead[key];
+            }
+          });
+          if (Object.keys(updateData).length > 0) {
+            try {
+              await base44.entities.Lead.update(existing.id, updateData);
+              results.merged++;
+            } catch (e) {
+              results.failed++;
+              results.errors.push(`Merge failed for ${email}: ${e.message}`);
+            }
+          }
+        } else {
+          // Create new lead
+          try {
+            await base44.entities.Lead.create(hsLead);
+            results.created++;
+          } catch (e) {
+            results.failed++;
+            results.errors.push(`Create failed for ${email}: ${e.message}`);
+          }
+        }
+      }
+
+      return Response.json({ success: true, action: 'pull_contacts', results });
     }
 
     if (action === 'get_stats') {
