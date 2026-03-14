@@ -14,106 +14,109 @@ Deno.serve(async (req) => {
       'Content-Type': 'application/json',
     };
 
-    // ── PUSH: Export leads from Moldwise → HubSpot ──────────────────────────
+    // ── PUSH: Export selected leads to HubSpot contacts ──────────────────
     if (action === 'push') {
-      const leads = leadIds
-        ? await Promise.all(leadIds.map(id => base44.asServiceRole.entities.Lead.get(id)))
-        : await base44.asServiceRole.entities.Lead.list();
+      const leads = await base44.entities.Lead.list();
+      const toSync = leadIds ? leads.filter(l => leadIds.includes(l.id)) : leads;
 
       const results = { created: 0, updated: 0, errors: [] };
 
-      for (const lead of leads) {
-        if (!lead) continue;
-        const props = {
+      for (const lead of toSync) {
+        const properties = {
           firstname: lead.first_name || '',
           lastname: lead.last_name || '',
           email: lead.email || '',
           phone: lead.phone || '',
           jobtitle: lead.job_title || '',
           company: lead.company_name || '',
-          country: lead.country || '',
           website: lead.website || '',
           hs_lead_status: lead.status || 'new',
           lifecyclestage: lead.status === 'won' ? 'customer' : 'lead',
+          notes_last_updated: lead.notes || '',
+          linkedin_bio: lead.linkedin_url || '',
         };
 
-        // Search for existing contact by email
-        let existingId = null;
+        // Check if contact already exists by email
         if (lead.email) {
-          const searchRes = await fetch('https://api.hubapi.com/crm/v3/objects/contacts/search', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              filterGroups: [{ filters: [{ propertyName: 'email', operator: 'EQ', value: lead.email }] }],
-              limit: 1,
-            }),
-          });
+          const searchRes = await fetch(
+            `https://api.hubapi.com/crm/v3/objects/contacts/search`,
+            {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                filterGroups: [{ filters: [{ propertyName: 'email', operator: 'EQ', value: lead.email }] }],
+                properties: ['email', 'hs_object_id'],
+                limit: 1,
+              }),
+            }
+          );
           const searchData = await searchRes.json();
-          if (searchData.results?.length > 0) existingId = searchData.results[0].id;
-        }
 
-        if (existingId) {
-          const res = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${existingId}`, {
-            method: 'PATCH', headers,
-            body: JSON.stringify({ properties: props }),
-          });
-          if (res.ok) results.updated++; else results.errors.push(`Update failed for ${lead.email}`);
-        } else {
-          const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
-            method: 'POST', headers,
-            body: JSON.stringify({ properties: props }),
-          });
-          if (res.ok) results.created++; else results.errors.push(`Create failed for ${lead.email || lead.first_name}`);
+          if (searchData.results?.length > 0) {
+            const contactId = searchData.results[0].id;
+            const patchRes = await fetch(
+              `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`,
+              { method: 'PATCH', headers, body: JSON.stringify({ properties }) }
+            );
+            if (patchRes.ok) results.updated++;
+            else results.errors.push(`Update failed for ${lead.email}`);
+          } else {
+            const createRes = await fetch(
+              `https://api.hubapi.com/crm/v3/objects/contacts`,
+              { method: 'POST', headers, body: JSON.stringify({ properties }) }
+            );
+            if (createRes.ok) results.created++;
+            else results.errors.push(`Create failed for ${lead.email}`);
+          }
         }
       }
 
       return Response.json({ success: true, action: 'push', ...results });
     }
 
-    // ── PULL: Import contacts from HubSpot → Moldwise ───────────────────────
+    // ── PULL: Import HubSpot contacts into CRM leads ──────────────────────
     if (action === 'pull') {
-      const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=firstname,lastname,email,phone,jobtitle,company,country,website,hs_lead_status', {
-        headers,
-      });
+      const res = await fetch(
+        `https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=firstname,lastname,email,phone,jobtitle,company,website,linkedin_bio,hs_lead_status`,
+        { headers }
+      );
       const data = await res.json();
       const contacts = data.results || [];
 
-      let imported = 0;
-      let skipped = 0;
+      const existing = await base44.asServiceRole.entities.Lead.list();
+      const existingEmails = new Set(existing.map(l => l.email).filter(Boolean));
 
+      let imported = 0;
       for (const contact of contacts) {
         const p = contact.properties;
-        if (!p.firstname && !p.lastname && !p.company) { skipped++; continue; }
-
-        // Check if already exists by email
-        if (p.email) {
-          const existing = await base44.asServiceRole.entities.Lead.filter({ email: p.email });
-          if (existing.length > 0) { skipped++; continue; }
-        }
+        if (!p.email || existingEmails.has(p.email)) continue;
 
         await base44.asServiceRole.entities.Lead.create({
-          first_name: p.firstname || '',
+          first_name: p.firstname || 'Unknown',
           last_name: p.lastname || '',
-          email: p.email || '',
+          email: p.email,
           phone: p.phone || '',
           job_title: p.jobtitle || '',
-          company_name: p.company || '',
-          country: p.country || '',
+          company_name: p.company || 'Unknown',
           website: p.website || '',
+          linkedin_url: p.linkedin_bio || '',
           status: 'new',
           source: 'other',
         });
         imported++;
       }
 
-      return Response.json({ success: true, action: 'pull', imported, skipped, total: contacts.length });
+      return Response.json({ success: true, action: 'pull', imported, total: contacts.length });
     }
 
-    // ── STATUS: Get HubSpot contact count ────────────────────────────────────
+    // ── STATUS: Check connection & counts ─────────────────────────────────
     if (action === 'status') {
-      const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts?limit=1', { headers });
+      const res = await fetch(
+        `https://api.hubapi.com/crm/v3/objects/contacts?limit=1`,
+        { headers }
+      );
       const data = await res.json();
-      return Response.json({ success: true, total: data.total || 0 });
+      return Response.json({ success: true, connected: true, hubspotTotal: data.total || 0 });
     }
 
     return Response.json({ error: 'Unknown action' }, { status: 400 });
