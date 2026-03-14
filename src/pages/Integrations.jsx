@@ -4,6 +4,7 @@ import { Linkedin, CheckCircle, AlertCircle } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import LinkedInPanel from "../components/integrations/LinkedInPanel";
+import HubSpotPanel from "../components/integrations/HubSpotPanel";
 
 export default function Integrations() {
   return (
