@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Search, LayoutGrid, List, Upload, Globe, ArrowUpDown, Trash2, ChevronUp, ChevronDown, Zap } from "lucide-react";
+import { Plus, Search, LayoutGrid, List, Upload, Globe, ArrowUpDown, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import LeadCard from "../components/leads/LeadCard";
 import LeadForm from "../components/leads/LeadForm";
@@ -13,7 +13,6 @@ import LeadDetails from "@/components/leads/LeadDetails.jsx";
 import LeadCSVImport from "../components/leads/CSVImport";
 import WebScraper from "../components/leads/WebScraper";
 import LeadListView from "../components/leads/LeadListView";
-import BatchEnrichment from "@/components/leads/BatchEnrichment";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,7 +39,6 @@ export default function Leads() {
   const [selectedLead, setSelectedLead] = useState(null);
   const [editingLead, setEditingLead] = useState(null);
   const [deletingLead, setDeletingLead] = useState(null);
-  const [showBatchEnrichment, setShowBatchEnrichment] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
@@ -309,26 +307,15 @@ export default function Leads() {
             {selectedIds.length > 0 && <span className="ml-2 font-medium text-slate-700">· {selectedIds.length} selected</span>}
           </p>
           {selectedIds.length > 0 && (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowBatchEnrichment(true)}
-                className="text-amber-600 border-amber-200 hover:bg-amber-50"
-              >
-                <Zap className="w-3.5 h-3.5 mr-1.5" />
-                AI Enrich
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => bulkDeleteMutation.mutate(selectedIds)}
-                disabled={bulkDeleteMutation.isPending}
-              >
-                <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                Delete {selectedIds.length}
-              </Button>
-            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => bulkDeleteMutation.mutate(selectedIds)}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              Delete {selectedIds.length} selected
+            </Button>
           )}
         </div>
 
@@ -428,17 +415,6 @@ export default function Leads() {
         onDelete={handleDelete}
         onActivityCreate={(data) => createActivityMutation.mutate(data)}
         onUpdateLead={(updatedLead) => updateMutation.mutate({ id: updatedLead.id, data: updatedLead, keepDetailsOpen: true })}
-      />
-
-      {/* Batch Enrichment Modal */}
-      <BatchEnrichment
-        open={showBatchEnrichment}
-        onClose={() => setShowBatchEnrichment(false)}
-        selectedLeads={leads.filter(l => selectedIds.includes(l.id))}
-        onEnrichmentComplete={() => {
-          queryClient.invalidateQueries({ queryKey: ['leads'] });
-          setSelectedIds([]);
-        }}
       />
 
       {/* Delete Confirmation */}
