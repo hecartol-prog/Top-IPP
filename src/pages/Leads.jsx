@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Search, LayoutGrid, List, Upload, Globe, ArrowUpDown, Trash2, ChevronUp, ChevronDown, Zap, AlertCircle, RefreshCw } from "lucide-react";
+import { Plus, Search, LayoutGrid, List, Upload, Globe, ArrowUpDown, Trash2, ChevronUp, ChevronDown, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import LeadCard from "../components/leads/LeadCard";
 import LeadForm from "../components/leads/LeadForm";
@@ -41,8 +41,6 @@ export default function Leads() {
   const [editingLead, setEditingLead] = useState(null);
   const [deletingLead, setDeletingLead] = useState(null);
   const [showBatchEnrichment, setShowBatchEnrichment] = useState(false);
-  const [cleaningDatabase, setCleaningDatabase] = useState(false);
-  const [cleanupResult, setCleanupResult] = useState(null);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
@@ -212,26 +210,6 @@ export default function Leads() {
             >
               <Upload className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Import CSV</span>
-            </Button>
-            <Button 
-              onClick={async () => {
-                setCleaningDatabase(true);
-                try {
-                  const res = await base44.functions.invoke('cleanupFakeLeads', {});
-                  setCleanupResult(res.data);
-                } catch (e) {
-                  setCleanupResult({ error: e.message });
-                } finally {
-                  setCleaningDatabase(false);
-                }
-              }}
-              variant="destructive"
-              size="sm"
-              disabled={cleaningDatabase}
-              title="Remove fake/placeholder data from database"
-            >
-              {cleaningDatabase ? <RefreshCw className="w-4 h-4 animate-spin mr-1 sm:mr-2" /> : <AlertCircle className="w-4 h-4 sm:mr-2" />}
-              <span className="hidden sm:inline">{cleaningDatabase ? 'Cleaning...' : 'Fix DB'}</span>
             </Button>
             <Button 
               onClick={() => { setEditingLead(null); setShowForm(true); }}
@@ -462,35 +440,6 @@ export default function Leads() {
           setSelectedIds([]);
         }}
       />
-
-      {/* Cleanup Result Toast */}
-      {cleanupResult && (
-        <div className="fixed bottom-4 right-4 bg-white border border-slate-200 rounded-lg shadow-lg p-4 max-w-sm z-50">
-          {cleanupResult.error ? (
-            <div className="text-red-700">
-              <p className="font-medium">Cleanup failed</p>
-              <p className="text-sm mt-1">{cleanupResult.error}</p>
-            </div>
-          ) : (
-            <div className="text-emerald-700">
-              <p className="font-medium">Database cleaned!</p>
-              <p className="text-sm mt-1">Removed fake data from {cleanupResult.cleaned} leads</p>
-              {cleanupResult.errors && cleanupResult.errors.length > 0 && (
-                <p className="text-xs text-amber-700 mt-2">⚠ {cleanupResult.errors.length} errors during cleanup</p>
-              )}
-            </div>
-          )}
-          <button 
-            onClick={() => {
-              setCleanupResult(null);
-              queryClient.invalidateQueries({ queryKey: ['leads'] });
-            }}
-            className="mt-3 w-full text-sm font-medium text-slate-600 hover:text-slate-900 py-1 border-t"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deletingLead} onOpenChange={() => setDeletingLead(null)}>
