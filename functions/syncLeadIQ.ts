@@ -98,7 +98,8 @@ Deno.serve(async (req) => {
     return Response.json({
       success: true,
       synced: syncedCount,
-      total: prospects.length,
+      total: allProspects.length,
+      lists: lists.length,
       errors: errors.length > 0 ? errors : null,
     });
   } catch (error) {
