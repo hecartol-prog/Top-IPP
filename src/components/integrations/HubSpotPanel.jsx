@@ -3,50 +3,39 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Upload, Download, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle, RefreshCw, Download, Upload, Users, TrendingUp } from "lucide-react";
 
 export default function HubSpotPanel() {
-  const [status, setStatus] = useState(null); // null | { connected, total }
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(null);
   const [result, setResult] = useState(null);
 
-  const checkStatus = async () => {
+  const fetchStats = async () => {
     setLoading(true);
-    setResult(null);
     try {
-      const res = await base44.functions.invoke('hubspotSync', { action: 'status' });
-      setStatus(res.data);
-    } catch {
-      setStatus({ connected: false, error: 'Could not reach HubSpot' });
-    }
-    setLoading(false);
-  };
-
-  const pushLeads = async () => {
-    setLoading(true);
-    setResult(null);
-    try {
-      const res = await base44.functions.invoke('hubspotSync', { action: 'push' });
-      setResult({ type: 'push', ...res.data });
+      const res = await base44.functions.invoke("hubspotSync", { action: "get_stats" });
+      setStats(res.data);
     } catch (e) {
-      setResult({ type: 'error', message: e.message });
+      setStats(null);
     }
     setLoading(false);
   };
 
-  const pullContacts = async () => {
-    setLoading(true);
+  useEffect(() => { fetchStats(); }, []);
+
+  const handleSync = async (action) => {
+    setSyncing(action);
     setResult(null);
     try {
-      const res = await base44.functions.invoke('hubspotSync', { action: 'pull' });
-      setResult({ type: 'pull', ...res.data });
+      const res = await base44.functions.invoke("hubspotSync", { action });
+      setResult(res.data);
+      fetchStats();
     } catch (e) {
-      setResult({ type: 'error', message: e.message });
+      setResult({ error: e.message });
     }
-    setLoading(false);
+    setSyncing(null);
   };
-
-  useEffect(() => { checkStatus(); }, []);
 
   return (
     <Card className="bg-white border-0 shadow-sm">
@@ -57,79 +46,79 @@ export default function HubSpotPanel() {
               <span className="text-white font-bold text-sm">HS</span>
             </div>
             <div>
-              <CardTitle className="text-base font-semibold text-slate-900">HubSpot CRM</CardTitle>
-              <p className="text-xs text-slate-400 mt-0.5">Sync contacts & deals</p>
+              <CardTitle className="text-lg font-semibold text-slate-900">HubSpot CRM</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Sync contacts & deals</p>
             </div>
           </div>
-          {status === null ? (
-            <Badge variant="secondary" className="text-xs">Checking...</Badge>
-          ) : status.connected ? (
-            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 border text-xs">
-              <CheckCircle className="w-3 h-3 mr-1" /> Connected
-            </Badge>
-          ) : (
-            <Badge className="bg-red-50 text-red-600 border-red-200 border text-xs">
-              <AlertCircle className="w-3 h-3 mr-1" /> Error
-            </Badge>
-          )}
+          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 border text-xs">
+            <CheckCircle className="w-3 h-3 mr-1" /> Connected
+          </Badge>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {status?.connected && (
-          <p className="text-sm text-slate-500">
-            <span className="font-medium text-slate-700">{status.total?.toLocaleString()}</span> contacts in HubSpot
-          </p>
-        )}
-        {status?.error && (
-          <p className="text-xs text-red-500">{status.error}</p>
-        )}
+        {/* Stats */}
+        {loading ? (
+          <div className="grid grid-cols-2 gap-3">
+            {[1,2].map(i => <div key={i} className="h-16 bg-slate-100 rounded-lg animate-pulse" />)}
+          </div>
+        ) : stats ? (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-50 rounded-lg p-3 text-center">
+              <Users className="w-5 h-5 text-orange-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-slate-900">{stats.contacts_total ?? "—"}</p>
+              <p className="text-xs text-slate-500">Contacts</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3 text-center">
+              <TrendingUp className="w-5 h-5 text-orange-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold text-slate-900">{stats.deals_total ?? "—"}</p>
+              <p className="text-xs text-slate-500">Deals</p>
+            </div>
+          </div>
+        ) : null}
 
-        <div className="grid grid-cols-2 gap-3">
+        {/* Actions */}
+        <div className="space-y-2">
           <Button
-            onClick={pushLeads}
-            disabled={loading || !status?.connected}
             variant="outline"
-            className="gap-2 text-sm"
+            className="w-full justify-start gap-2 border-slate-200"
+            onClick={() => handleSync("import_contacts")}
+            disabled={!!syncing}
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            Push Leads → HS
+            <Download className="w-4 h-4 text-orange-500" />
+            {syncing === "import_contacts" ? "Importing..." : "Import contacts from HubSpot"}
           </Button>
           <Button
-            onClick={pullContacts}
-            disabled={loading || !status?.connected}
             variant="outline"
-            className="gap-2 text-sm"
+            className="w-full justify-start gap-2 border-slate-200"
+            onClick={() => handleSync("export_leads")}
+            disabled={!!syncing}
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            Pull HS → Leads
+            <Upload className="w-4 h-4 text-orange-500" />
+            {syncing === "export_leads" ? "Exporting..." : "Export leads to HubSpot"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full text-slate-500 gap-2"
+            onClick={fetchStats}
+            disabled={loading}
+          >
+            <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
+            Refresh stats
           </Button>
         </div>
 
-        <Button
-          onClick={checkStatus}
-          disabled={loading}
-          variant="ghost"
-          size="sm"
-          className="w-full gap-2 text-slate-500 text-xs"
-        >
-          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-          Refresh Status
-        </Button>
-
+        {/* Result feedback */}
         {result && (
-          <div className={`p-3 rounded-lg text-sm ${
-            result.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'
-          }`}>
-            {result.type === 'push' && (
-              <p>✓ Pushed: <strong>{result.created}</strong> created, <strong>{result.updated}</strong> updated
-                {result.errors?.length > 0 && `, ${result.errors.length} errors`}
-              </p>
-            )}
-            {result.type === 'pull' && (
-              <p>✓ Imported <strong>{result.imported}</strong> contacts from HubSpot</p>
-            )}
-            {result.type === 'error' && <p>✗ {result.message}</p>}
+          <div className={`text-sm p-3 rounded-lg ${result.error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
+            {result.error ? (
+              `Error: ${result.error}`
+            ) : result.imported !== undefined ? (
+              `✓ Imported ${result.imported} contacts from HubSpot`
+            ) : result.exported !== undefined ? (
+              `✓ Exported ${result.exported} leads to HubSpot${result.errors > 0 ? ` (${result.errors} skipped)` : ""}`
+            ) : null}
           </div>
         )}
       </CardContent>
