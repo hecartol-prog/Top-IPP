@@ -14,29 +14,27 @@ Deno.serve(async (req) => {
       'Content-Type': 'application/json',
     };
 
-    // PUSH: Export selected leads to HubSpot as contacts
+    // ── PUSH: Export leads from Moldwise → HubSpot ──────────────────────────
     if (action === 'push') {
-      const leads = leadIds && leadIds.length > 0
-        ? await Promise.all(leadIds.map(id => base44.entities.Lead.get(id)))
-        : await base44.entities.Lead.list();
+      const leads = leadIds
+        ? await Promise.all(leadIds.map(id => base44.asServiceRole.entities.Lead.get(id)))
+        : await base44.asServiceRole.entities.Lead.list();
 
       const results = { created: 0, updated: 0, errors: [] };
 
       for (const lead of leads) {
         if (!lead) continue;
-        const properties = {
+        const props = {
           firstname: lead.first_name || '',
           lastname: lead.last_name || '',
           email: lead.email || '',
           phone: lead.phone || '',
           jobtitle: lead.job_title || '',
           company: lead.company_name || '',
+          country: lead.country || '',
           website: lead.website || '',
           hs_lead_status: lead.status || 'new',
-          city: lead.location || '',
-          country: lead.country || '',
-          linkedin_bio: lead.linkedin_url || '',
-          notes_last_updated: lead.notes || '',
+          lifecyclestage: lead.status === 'won' ? 'customer' : 'lead',
         };
 
         // Search for existing contact by email
@@ -51,69 +49,67 @@ Deno.serve(async (req) => {
             }),
           });
           const searchData = await searchRes.json();
-          existingId = searchData.results?.[0]?.id;
+          if (searchData.results?.length > 0) existingId = searchData.results[0].id;
         }
 
         if (existingId) {
-          await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${existingId}`, {
-            method: 'PATCH',
-            headers,
-            body: JSON.stringify({ properties }),
+          const res = await fetch(`https://api.hubapi.com/crm/v3/objects/contacts/${existingId}`, {
+            method: 'PATCH', headers,
+            body: JSON.stringify({ properties: props }),
           });
-          results.updated++;
+          if (res.ok) results.updated++; else results.errors.push(`Update failed for ${lead.email}`);
         } else {
-          const createRes = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ properties }),
+          const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
+            method: 'POST', headers,
+            body: JSON.stringify({ properties: props }),
           });
-          if (createRes.ok) {
-            results.created++;
-          } else {
-            const err = await createRes.json();
-            results.errors.push(`${lead.first_name} ${lead.last_name}: ${err.message}`);
-          }
+          if (res.ok) results.created++; else results.errors.push(`Create failed for ${lead.email || lead.first_name}`);
         }
       }
 
-      return Response.json({ success: true, ...results });
+      return Response.json({ success: true, action: 'push', ...results });
     }
 
-    // PULL: Import contacts from HubSpot into CRM leads
+    // ── PULL: Import contacts from HubSpot → Moldwise ───────────────────────
     if (action === 'pull') {
-      const res = await fetch(
-        'https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=firstname,lastname,email,phone,jobtitle,company,website,hs_lead_status,city,country,linkedin_bio',
-        { headers }
-      );
+      const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts?limit=100&properties=firstname,lastname,email,phone,jobtitle,company,country,website,hs_lead_status', {
+        headers,
+      });
       const data = await res.json();
       const contacts = data.results || [];
 
       let imported = 0;
+      let skipped = 0;
+
       for (const contact of contacts) {
         const p = contact.properties;
-        if (!p.firstname && !p.lastname && !p.company) continue;
+        if (!p.firstname && !p.lastname && !p.company) { skipped++; continue; }
+
+        // Check if already exists by email
+        if (p.email) {
+          const existing = await base44.asServiceRole.entities.Lead.filter({ email: p.email });
+          if (existing.length > 0) { skipped++; continue; }
+        }
 
         await base44.asServiceRole.entities.Lead.create({
-          first_name: p.firstname || 'Unknown',
+          first_name: p.firstname || '',
           last_name: p.lastname || '',
           email: p.email || '',
           phone: p.phone || '',
           job_title: p.jobtitle || '',
-          company_name: p.company || 'Unknown',
+          company_name: p.company || '',
+          country: p.country || '',
           website: p.website || '',
           status: 'new',
           source: 'other',
-          location: p.city || '',
-          country: p.country || '',
-          linkedin_url: p.linkedin_bio || '',
         });
         imported++;
       }
 
-      return Response.json({ success: true, imported });
+      return Response.json({ success: true, action: 'pull', imported, skipped, total: contacts.length });
     }
 
-    // STATUS: Get HubSpot contact count
+    // ── STATUS: Get HubSpot contact count ────────────────────────────────────
     if (action === 'status') {
       const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts?limit=1', { headers });
       const data = await res.json();
