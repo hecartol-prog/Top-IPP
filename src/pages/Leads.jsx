@@ -430,6 +430,17 @@ export default function Leads() {
         onUpdateLead={(updatedLead) => updateMutation.mutate({ id: updatedLead.id, data: updatedLead, keepDetailsOpen: true })}
       />
 
+      {/* Batch Enrichment Modal */}
+      <BatchEnrichment
+        open={showBatchEnrichment}
+        onClose={() => setShowBatchEnrichment(false)}
+        selectedLeads={leads.filter(l => selectedIds.includes(l.id))}
+        onEnrichmentComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['leads'] });
+          setSelectedIds([]);
+        }}
+      />
+
       {/* Delete Confirmation */}
       <AlertDialog open={!!deletingLead} onOpenChange={() => setDeletingLead(null)}>
         <AlertDialogContent>
