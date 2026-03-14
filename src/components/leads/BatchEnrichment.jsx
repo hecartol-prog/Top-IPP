@@ -53,7 +53,8 @@ export default function BatchEnrichment({ open, onClose, selectedLeads, onEnrich
             "company_name": "correct company name",
             "job_title": "current job title",
             "industry": "company industry",
-            "company_size": "company size (1-10, 11-50, 51-200, 201-500, 501-1000, 1000+)"
+            "company_size": "company size (1-10, 11-50, 51-200, 201-500, 501-1000, 1000+)",
+            "address": "company street address and city"
           }`;
 
           const aiRes = await base44.integrations.Core.InvokeLLM({
@@ -66,7 +67,8 @@ export default function BatchEnrichment({ open, onClose, selectedLeads, onEnrich
                 company_name: { type: "string" },
                 job_title: { type: "string" },
                 industry: { type: "string" },
-                company_size: { type: "string" }
+                company_size: { type: "string" },
+                address: { type: "string" }
               }
             }
           });
@@ -79,6 +81,7 @@ export default function BatchEnrichment({ open, onClose, selectedLeads, onEnrich
           if (aiRes.job_title && !lead.job_title) enrichedData.job_title = aiRes.job_title;
           if (aiRes.industry && !lead.industry) enrichedData.industry = aiRes.industry;
           if (aiRes.company_size && !lead.company_size) enrichedData.company_size = aiRes.company_size;
+          if (aiRes.address && !lead.address) enrichedData.address = aiRes.address;
 
           // Update lead if there's new data
           if (Object.keys(enrichedData).length > 0) {
@@ -135,6 +138,7 @@ export default function BatchEnrichment({ open, onClose, selectedLeads, onEnrich
                   <Badge variant="outline">Job Title</Badge>
                   <Badge variant="outline">Industry</Badge>
                   <Badge variant="outline">Company Size</Badge>
+                  <Badge variant="outline">Address</Badge>
                 </div>
               </div>
 
