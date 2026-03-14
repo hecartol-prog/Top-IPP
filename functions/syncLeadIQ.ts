@@ -16,8 +16,8 @@ Deno.serve(async (req) => {
     // Decode the base64 secret
     const decodedSecret = atob(apiSecret);
 
-    // Fetch recent leads from LeadIQ
-    const leadiqRes = await fetch('https://api.leadiq.io/v2/prospects', {
+    // Fetch all lists from LeadIQ
+    const listsRes = await fetch('https://api.leadiq.io/v2/lists', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -26,12 +26,42 @@ Deno.serve(async (req) => {
       },
     });
 
-    if (!leadiqRes.ok) {
-      return Response.json({ error: `LeadIQ API error: ${leadiqRes.statusText}` }, { status: 500 });
+    if (!listsRes.ok) {
+      return Response.json({ error: `LeadIQ API error: ${listsRes.statusText}` }, { status: 500 });
     }
 
-    const leadiqData = await leadiqRes.json();
-    const prospects = leadiqData.data || [];
+    const listsData = await listsRes.json();
+    const lists = listsData.data || [];
+
+    // Fetch prospects from all lists
+    let allProspects = [];
+    for (const list of lists) {
+      let offset = 0;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const prospectRes = await fetch(`https://api.leadiq.io/v2/lists/${list.id}/prospects?offset=${offset}&limit=100`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'X-API-Secret': decodedSecret,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!prospectRes.ok) break;
+
+        const prospectData = await prospectRes.json();
+        const prospects = prospectData.data || [];
+        
+        if (prospects.length === 0) {
+          hasMore = false;
+        } else {
+          allProspects = allProspects.concat(prospects);
+          offset += 100;
+        }
+      }
+    }
 
     let syncedCount = 0;
     const errors = [];
