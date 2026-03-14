@@ -13,6 +13,7 @@ import LeadDetails from "@/components/leads/LeadDetails.jsx";
 import LeadCSVImport from "../components/leads/CSVImport";
 import WebScraper from "../components/leads/WebScraper";
 import LeadListView from "../components/leads/LeadListView";
+import BatchEnrichment from "@/components/leads/BatchEnrichment";
 import {
   AlertDialog,
   AlertDialogAction,
