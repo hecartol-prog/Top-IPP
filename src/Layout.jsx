@@ -117,8 +117,8 @@ export default function Layout({ children, currentPageName }) {
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded bg-orange-500 flex items-center justify-center">
-                      <span className="text-white font-bold" style={{fontSize: '8px'}}>HS</span>
+                    <div className="w-4 h-4 bg-orange-500 rounded flex items-center justify-center">
+                      <span className="text-white font-bold text-[8px]">HS</span>
                     </div>
                     <span className="text-sm text-slate-600">HubSpot</span>
                   </div>
