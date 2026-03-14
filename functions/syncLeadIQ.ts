@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     const existingEmails = new Set(existingLeads.map(l => l.email?.toLowerCase()));
 
     // Create leads from LeadIQ prospects
-    for (const prospect of prospects) {
+    for (const prospect of allProspects) {
       if (!prospect.email || existingEmails.has(prospect.email.toLowerCase())) {
         continue;
       }
