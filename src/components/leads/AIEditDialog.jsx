@@ -309,6 +309,91 @@ Find the top decision maker: Director General, CEO, General Manager, Purchasing/
           </div>
         )}
 
+        {suggestions && !loading && !savedOk && (
+          <div className="space-y-4 mt-2">
+            {suggestionKeys.length === 0 ? (
+              <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg text-sm text-slate-600">
+                <AlertCircle className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                No corrections found — current data appears accurate or could not be verified online.
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-slate-500">{suggestionKeys.length} suggestion(s) found. Accept the ones you want to apply.</p>
+
+                <div className="space-y-3">
+                  {suggestionKeys.map(key => {
+                    const s = suggestions[key];
+                    const Icon = fieldIcons[key] || User;
+                    const isAccepted = accepted[key];
+                    const isRejected = rejected[key];
+
+                    return (
+                      <div
+                        key={key}
+                        className={`rounded-xl border p-3 transition-colors ${
+                          isAccepted ? 'border-emerald-300 bg-emerald-50' :
+                          isRejected ? 'border-slate-200 bg-slate-50 opacity-50' :
+                          'border-slate-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-2 flex-1 min-w-0">
+                            <Icon className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{fieldLabels[key]}</p>
+                              {s.current && (
+                                <p className="text-xs text-slate-400 line-through mb-0.5 truncate">{s.current}</p>
+                              )}
+                              <p className="text-sm font-medium text-slate-900 break-all">{s.suggested}</p>
+                              <p className="text-xs text-slate-400 mt-1">{s.reason}</p>
+                              <div className="mt-1.5">{confidenceBadge(s.confidence)}</div>
+                            </div>
+                          </div>
+                          <div className="flex gap-1 flex-shrink-0">
+                            <button
+                              onClick={() => toggleAccept(key)}
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                isAccepted ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-emerald-100 hover:text-emerald-600'
+                              }`}
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => toggleReject(key)}
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                isRejected ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-600'
+                              }`}
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    onClick={handleApply}
+                    disabled={acceptedCount === 0 || saving}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    {saving ? (
+                      <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                    ) : (
+                      <><Check className="w-4 h-4 mr-2" /> Apply {acceptedCount > 0 ? `${acceptedCount} Change${acceptedCount > 1 ? 's' : ''}` : 'Selected'}</>
+                    )}
+                  </Button>
+                  <Button variant="outline" onClick={() => { setSuggestions(null); setAccepted({}); setRejected({}); }}>
+                    Reset
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Contact Person Search Section */}
         <div className="border-t border-slate-100 pt-4 mt-2">
           <p className="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-2">
