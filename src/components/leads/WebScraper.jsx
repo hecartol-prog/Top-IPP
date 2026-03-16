@@ -84,18 +84,9 @@ Do NOT include category, filter, navigation, or pagination links — only profil
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `Fetch this company/contact detail page: ${pageUrl}
 
-Extract ALL contact and company information visible on the page:
-- Company name
-- Contact person name (first and last name)
-- Email address
-- Phone numbers
-- Website
-- Physical address / location
-- Industry / products / services
-- Any other relevant business info
-
-Return the data structured as a lead record.`,
+Extract all contact and company information: company name, contact person (first/last name), email, phone, website, address/location, industry/products.`,
       add_context_from_internet: true,
+      model: "gemini_3_flash",
       response_json_schema: {
         type: "object",
         properties: {
