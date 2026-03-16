@@ -205,7 +205,7 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
                     ) : <span className="text-xs text-slate-300">—</span>}
                   </td>
 
-                  <td className="px-3 py-3" onMouseDown={(e) => e.stopPropagation()}>
+                  <td className={`px-3 py-3 sticky right-0 z-10 ${isSelected ? "bg-teal-50/40" : "bg-white group-hover:bg-slate-50"}`} onMouseDown={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-700" onClick={() => onEdit(lead)}>
                         <Pencil className="w-3.5 h-3.5" />
