@@ -278,10 +278,18 @@ Find the top decision maker: Director General, CEO, General Manager, Purchasing/
         )}
 
         {loading && (
-          <div className="py-6 text-center space-y-4">
-            <RefreshCw className="w-8 h-8 mx-auto text-violet-500 animate-spin" />
-            <p className="text-sm text-slate-500">Searching the web for accurate contact information...</p>
-            <div className="space-y-2 animate-pulse text-left">
+          <div className="py-4 space-y-3">
+            <div className="flex gap-3">
+              <div className={`flex-1 flex items-center gap-2 text-xs rounded-lg px-3 py-2 ${loadingStage === "verify" ? "bg-violet-50 text-violet-700" : "bg-slate-50 text-slate-400"}`}>
+                {loadingStage === "verify" ? <RefreshCw className="w-3.5 h-3.5 animate-spin flex-shrink-0" /> : <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+                Stage 1: Verify contact info
+              </div>
+              <div className={`flex-1 flex items-center gap-2 text-xs rounded-lg px-3 py-2 ${loadingStage === "google" ? "bg-blue-50 text-blue-700" : "bg-slate-50 text-slate-400"}`}>
+                {loadingStage === "google" && <RefreshCw className="w-3.5 h-3.5 animate-spin flex-shrink-0" />}
+                Stage 2: Google search
+              </div>
+            </div>
+            <div className="space-y-2 animate-pulse">
               <div className="h-3 bg-slate-100 rounded w-3/4" />
               <div className="h-3 bg-slate-100 rounded w-full" />
               <div className="h-3 bg-slate-100 rounded w-5/6" />
