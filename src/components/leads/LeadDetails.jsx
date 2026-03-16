@@ -643,11 +643,16 @@ For the best contact found, provide:
             </Button>
 
             {researchLoading && (
-              <div className="space-y-3 animate-pulse">
-                <div className="h-4 bg-slate-100 rounded w-3/4" />
-                <div className="h-4 bg-slate-100 rounded w-full" />
-                <div className="h-4 bg-slate-100 rounded w-5/6" />
-                <div className="h-4 bg-slate-100 rounded w-2/3" />
+              <div className="space-y-3">
+                <div className={`flex items-center gap-2 text-xs rounded-lg px-3 py-2 ${researchStage === "initial" ? "bg-violet-50 text-violet-700" : "bg-emerald-50 text-emerald-700"}`}>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+                  {researchStage === "initial" ? "Stage 1: AI enrichment from known sources..." : "Stage 2: Google search cross-reference..."}
+                </div>
+                <div className="space-y-2 animate-pulse">
+                  <div className="h-3 bg-slate-100 rounded w-3/4" />
+                  <div className="h-3 bg-slate-100 rounded w-full" />
+                  <div className="h-3 bg-slate-100 rounded w-5/6" />
+                </div>
               </div>
             )}
 
