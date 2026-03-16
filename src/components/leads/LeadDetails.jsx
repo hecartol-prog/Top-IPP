@@ -192,10 +192,41 @@ export default function LeadDetails({ open, onClose, lead, activities = [], onEd
     setEnrichedFields(null);
     setSaved(false);
     try {
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are a B2B lead research assistant for a plastic injection mold manufacturing company.
+      // Step 1: Google web search for company and contact
+      const searchResult = await base44.integrations.Core.InvokeLLM({
+        prompt: `Search the web for information about this company and contact person. Return everything you find.
 
-Research this lead and fill in the missing information fields as accurately as possible.
+Company: "${lead.company_name}"
+Contact: "${lead.first_name} ${lead.last_name}"
+Website: ${lead.website || 'unknown'}
+Location: ${lead.location || 'unknown'}
+
+Search queries to run:
+1. "${lead.company_name}" official website contact phone
+2. "${lead.first_name} ${lead.last_name}" "${lead.company_name}" email LinkedIn
+3. "${lead.company_name}" industry employees size
+
+Return all raw findings: website URL, phone numbers, emails, LinkedIn URLs, company size, industry, location, any relevant company description.`,
+        add_context_from_internet: true,
+        model: "gemini_3_flash",
+        response_json_schema: {
+          type: "object",
+          properties: {
+            web_findings: { type: "string" },
+            found_website: { type: "string" },
+            found_phone: { type: "string" },
+            found_email: { type: "string" },
+            found_linkedin: { type: "string" },
+            found_industry: { type: "string" },
+            found_company_size: { type: "string" },
+            found_location: { type: "string" },
+          }
+        }
+      });
+
+      // Step 2: Use web findings to fill missing fields with high accuracy
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `You are a B2B lead data enrichment assistant. Use the Google search findings below to fill in the missing lead fields.
 
 Lead info:
 - Name: ${lead.first_name} ${lead.last_name}
@@ -209,12 +240,22 @@ Lead info:
 - Phone: ${lead.phone || 'Unknown'}
 - Company Size: ${lead.company_size || 'Unknown'}
 
-Missing fields to research and fill in: ${missingFields.map(f => f.key).join(', ')}
+--- GOOGLE SEARCH FINDINGS ---
+${searchResult.web_findings || ''}
+Website found: ${searchResult.found_website || 'none'}
+Phone found: ${searchResult.found_phone || 'none'}
+Email found: ${searchResult.found_email || 'none'}
+LinkedIn found: ${searchResult.found_linkedin || 'none'}
+Industry found: ${searchResult.found_industry || 'none'}
+Company size found: ${searchResult.found_company_size || 'none'}
+Location found: ${searchResult.found_location || 'none'}
+---
 
-Return ONLY valid JSON with the fields you could find. Only include fields you are reasonably confident about. Use null for fields you cannot determine.
+Missing fields to fill: ${missingFields.map(f => f.key).join(', ')}
+
+Use the search findings above. Only include fields you found evidence for. Use null for unknowns.
 For company_size, use only one of: "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+".
-For notes, write a brief 2-3 sentence summary about the company and their potential manufacturing needs.`,
-        add_context_from_internet: true,
+For notes, write a 2-3 sentence summary about the company and their potential plastic injection mold needs.`,
         response_json_schema: {
           type: "object",
           properties: {
