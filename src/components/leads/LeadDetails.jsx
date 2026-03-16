@@ -751,10 +751,16 @@ Based on the search results, identify the best decision maker for plastic inject
               </Button>
 
               {contactSearchLoading && (
-                <div className="space-y-2 animate-pulse">
-                  <div className="h-3 bg-slate-100 rounded w-3/4" />
-                  <div className="h-3 bg-slate-100 rounded w-full" />
-                  <div className="h-3 bg-slate-100 rounded w-2/3" />
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs text-slate-500 bg-indigo-50 rounded-lg p-3">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400 flex-shrink-0" />
+                    Step 1: Running Google search for contact details...
+                  </div>
+                  <div className="space-y-2 animate-pulse">
+                    <div className="h-3 bg-slate-100 rounded w-3/4" />
+                    <div className="h-3 bg-slate-100 rounded w-full" />
+                    <div className="h-3 bg-slate-100 rounded w-2/3" />
+                  </div>
                 </div>
               )}
 
