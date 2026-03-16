@@ -69,6 +69,7 @@ Only include profile/company page URLs in detail_links, not category or filter l
 Return ALL URLs that link to individual company or person profile/detail pages on this page.
 Do NOT include category, filter, navigation, or pagination links — only profile/detail page URLs.`,
       add_context_from_internet: true,
+      model: "gemini_3_flash",
       response_json_schema: {
         type: "object",
         properties: {
