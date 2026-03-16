@@ -43,11 +43,12 @@ export default function WebScraper({ onImportComplete }) {
 Analyze the page and return:
 1. is_detail_page: true if this is a single company/person profile page (not a listing)
 2. detail_links: list of absolute URLs linking to individual company/profile pages visible on THIS page only
-3. all_pagination_urls: list of ALL pagination page URLs found (page 2, page 3, page 4, etc. - include ALL page links visible in the pagination nav, not just "next")
+3. all_pagination_urls: list of ALL pagination page URLs found (page 2, page 3, etc.)
 4. has_pagination: true if there are multiple pages
 
-Important: For detail_links, only include URLs to individual profile/company pages, NOT category or filter links.`,
+Only include profile/company page URLs in detail_links, not category or filter links.`,
       add_context_from_internet: true,
+      model: "gemini_3_flash",
       response_json_schema: {
         type: "object",
         properties: {
