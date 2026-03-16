@@ -339,15 +339,21 @@ export default function Leads() {
             </Button>
           </div>
         ) : viewMode === "list" ? (
-          <LeadListView
-            leads={filteredLeads}
-            selectedIds={selectedIds}
-            onToggleSelect={toggleSelectId}
-            onToggleAll={toggleSelectAll}
-            onEdit={(lead) => handleEdit(lead)}
-            onDelete={(lead) => handleDelete(lead)}
-            onRowClick={(lead) => setSelectedLead(lead)}
-          />
+          <div
+            className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-auto"
+            style={{ maxHeight: "calc(100vh - 320px)", minHeight: "300px" }}
+          >
+            <LeadListView
+              leads={filteredLeads}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelectId}
+              onToggleAll={toggleSelectAll}
+              onEdit={(lead) => handleEdit(lead)}
+              onDelete={(lead) => handleDelete(lead)}
+              onRowClick={(lead) => setSelectedLead(lead)}
+              embedded
+            />
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <AnimatePresence>
