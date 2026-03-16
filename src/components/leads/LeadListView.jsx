@@ -176,6 +176,14 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
                     ) : <span className="text-xs text-slate-300">—</span>}
                   </td>
 
+                  <td className="px-3 py-3 min-w-[110px]">
+                    <span className="text-xs text-slate-500">{lead.country || <span className="text-slate-300">—</span>}</span>
+                  </td>
+
+                  <td className="px-3 py-3 min-w-[100px]">
+                    <span className="text-xs text-slate-500 capitalize">{lead.language || <span className="text-slate-300">—</span>}</span>
+                  </td>
+
                   <td className="px-3 py-3 whitespace-nowrap">
                     <Badge className={`${statusColors[lead.status] || statusColors.new} border text-xs font-medium`}>
                       {lead.status?.replace("_", " ") || "new"}
