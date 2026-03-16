@@ -340,7 +340,7 @@ export default function Leads() {
           </div>
         ) : viewMode === "list" ? (
           <div
-            className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-auto"
+            className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-x-auto overflow-y-auto"
             style={{ maxHeight: "calc(100vh - 320px)", minHeight: "300px" }}
           >
             <LeadListView
