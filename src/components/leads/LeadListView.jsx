@@ -88,7 +88,7 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
       onMouseLeave={handleMouseUp}
     >
         <table className="w-full min-w-[900px] text-sm">
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr className="bg-slate-50 border-b border-slate-200">
               <th className="w-10 px-4 py-3 text-left">
                 <Checkbox
