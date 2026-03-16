@@ -8,9 +8,6 @@ Deno.serve(async (req) => {
     const { url } = body;
     if (!url) return Response.json({ error: 'url is required' }, { status: 400 });
 
-    // Verify user is authenticated via service role
-    const user = await base44.asServiceRole.auth.me().catch(() => null);
-
     const resp = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
