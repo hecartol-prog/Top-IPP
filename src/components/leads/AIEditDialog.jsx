@@ -31,6 +31,7 @@ const fieldLabels = {
 
 export default function AIEditDialog({ open, onClose, lead, onUpdateLead }) {
   const [loading, setLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState(null); // "verify" | "google"
   const [suggestions, setSuggestions] = useState(null);
   const [accepted, setAccepted] = useState({});
   const [rejected, setRejected] = useState({});
