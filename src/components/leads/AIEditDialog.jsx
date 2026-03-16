@@ -42,13 +42,24 @@ export default function AIEditDialog({ open, onClose, lead, onUpdateLead }) {
   const [contactSaving, setContactSaving] = useState(false);
   const [contactSavedOk, setContactSavedOk] = useState(false);
 
+  const fieldSchema = {
+    type: "object",
+    properties: {
+      suggested: { type: "string" },
+      confidence: { type: "string" },
+      reason: { type: "string" }
+    }
+  };
+
   const handleRunAI = async () => {
     setLoading(true);
+    setLoadingStage("verify");
     setSuggestions(null);
     setAccepted({});
     setRejected({});
     setSavedOk(false);
 
+    // Stage 1: Verify & correct contact details
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `You are a B2B data accuracy agent. Research this lead using the web and verify/correct their contact details.
 
@@ -73,75 +84,18 @@ Be conservative — only include fields you actually found evidence for.`,
       response_json_schema: {
         type: "object",
         properties: {
-          email: {
-            type: "object",
-            properties: {
-              suggested: { type: "string" },
-              confidence: { type: "string" },
-              reason: { type: "string" }
-            }
-          },
-          phone: {
-            type: "object",
-            properties: {
-              suggested: { type: "string" },
-              confidence: { type: "string" },
-              reason: { type: "string" }
-            }
-          },
-          linkedin_url: {
-            type: "object",
-            properties: {
-              suggested: { type: "string" },
-              confidence: { type: "string" },
-              reason: { type: "string" }
-            }
-          },
-          website: {
-            type: "object",
-            properties: {
-              suggested: { type: "string" },
-              confidence: { type: "string" },
-              reason: { type: "string" }
-            }
-          },
-          job_title: {
-            type: "object",
-            properties: {
-              suggested: { type: "string" },
-              confidence: { type: "string" },
-              reason: { type: "string" }
-            }
-          },
-          location: {
-            type: "object",
-            properties: {
-              suggested: { type: "string" },
-              confidence: { type: "string" },
-              reason: { type: "string" }
-            }
-          },
-          first_name: {
-            type: "object",
-            properties: {
-              suggested: { type: "string" },
-              confidence: { type: "string" },
-              reason: { type: "string" }
-            }
-          },
-          last_name: {
-            type: "object",
-            properties: {
-              suggested: { type: "string" },
-              confidence: { type: "string" },
-              reason: { type: "string" }
-            }
-          },
+          email: fieldSchema,
+          phone: fieldSchema,
+          linkedin_url: fieldSchema,
+          website: fieldSchema,
+          job_title: fieldSchema,
+          location: fieldSchema,
+          first_name: fieldSchema,
+          last_name: fieldSchema,
         }
       }
     });
 
-    // Filter to only meaningful suggestions
     const cleaned = {};
     Object.entries(result).forEach(([key, val]) => {
       if (val?.suggested && val.suggested !== lead[key] && val.suggested !== 'Unknown' && val.suggested !== 'null') {
@@ -149,6 +103,50 @@ Be conservative — only include fields you actually found evidence for.`,
       }
     });
 
+    // Stage 2: Google search for additional missing/unverified fields
+    setLoadingStage("google");
+    const contactName = [lead.first_name, lead.last_name].filter(Boolean).join(' ');
+    const allFields = ['email', 'phone', 'linkedin_url', 'website', 'job_title', 'location', 'first_name', 'last_name'];
+    const stillMissing = allFields.filter(key => !lead[key] && !cleaned[key]);
+
+    if (stillMissing.length > 0) {
+      const googleResult = await base44.integrations.Core.InvokeLLM({
+        prompt: `Search Google specifically for:
+1. "${contactName ? contactName + ' ' + lead.company_name : lead.company_name} contact details"
+2. "${lead.company_name} ${contactName || 'director manager'} email phone LinkedIn"
+
+Company: ${lead.company_name}
+Contact: ${contactName || 'Unknown'}
+Website: ${lead.website || 'Unknown'}
+
+I need to find: ${stillMissing.join(', ')}
+
+For each field found via Google search results, return the value, confidence ("high"/"medium"/"low"), and which search result you found it in.`,
+        add_context_from_internet: true,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            email: fieldSchema,
+            phone: fieldSchema,
+            linkedin_url: fieldSchema,
+            website: fieldSchema,
+            job_title: fieldSchema,
+            location: fieldSchema,
+            first_name: fieldSchema,
+            last_name: fieldSchema,
+          }
+        }
+      });
+
+      // Merge google results for still-missing fields (don't overwrite stage 1 results)
+      Object.entries(googleResult).forEach(([key, val]) => {
+        if (!cleaned[key] && val?.suggested && val.suggested !== lead[key] && val.suggested !== 'Unknown' && val.suggested !== 'null') {
+          cleaned[key] = { ...val, current: lead[key], source: 'google' };
+        }
+      });
+    }
+
+    setLoadingStage(null);
     setSuggestions(cleaned);
     setLoading(false);
   };
