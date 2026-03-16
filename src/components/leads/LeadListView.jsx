@@ -83,7 +83,7 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
 
   return (
     <div
-      className="select-none w-full"
+      className="select-none"
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
