@@ -121,7 +121,7 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
                   onMouseEnter={() => handleRowMouseEnter(lead.id)}
                 >
                   {/* data-no-drag prevents drag-select from starting on the checkbox cell */}
-                  <td className="px-4 py-3" data-no-drag="true" onMouseDown={(e) => e.stopPropagation()}>
+                  <td className={`px-4 py-3 sticky left-0 z-10 ${isSelected ? "bg-teal-50/40" : "bg-white group-hover:bg-slate-50"}`} data-no-drag="true" onMouseDown={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={isSelected}
                       onCheckedChange={() => onToggleSelect(lead.id)}
