@@ -109,8 +109,9 @@ Extract all contact and company information: company name, contact person (first
   const extractFromTablePage = async (pageUrl, onProgress) => {
     const countResult = await base44.integrations.Core.InvokeLLM({
       prompt: `Visit this URL: ${pageUrl}
-Count the TOTAL number of company/contact rows in the table or list on this page (do NOT count the header row). Return only the integer count.`,
+Count the TOTAL number of company/contact rows in the table or list (do NOT count the header row). Return only the integer count.`,
       add_context_from_internet: true,
+      model: "gemini_3_flash",
       response_json_schema: {
         type: "object",
         properties: { total_entries: { type: "number" } }
