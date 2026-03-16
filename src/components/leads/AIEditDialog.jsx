@@ -48,8 +48,33 @@ export default function AIEditDialog({ open, onClose, lead, onUpdateLead }) {
     setRejected({});
     setSavedOk(false);
 
+    // Step 1: Google web search
+    const webSearch = await base44.integrations.Core.InvokeLLM({
+      prompt: `Search the web for the following person and company. Run multiple searches:
+1. "${lead.first_name} ${lead.last_name}" "${lead.company_name}" email phone LinkedIn
+2. "${lead.company_name}" official website contact address
+3. site:linkedin.com "${lead.first_name} ${lead.last_name}" "${lead.company_name}"
+
+Return all raw findings: website, phone numbers, email addresses, LinkedIn URLs, location, job title. Include source URLs if visible.`,
+      add_context_from_internet: true,
+      model: "gemini_3_flash",
+      response_json_schema: {
+        type: "object",
+        properties: {
+          web_findings: { type: "string" },
+          found_email: { type: "string" },
+          found_phone: { type: "string" },
+          found_linkedin: { type: "string" },
+          found_website: { type: "string" },
+          found_location: { type: "string" },
+          found_job_title: { type: "string" },
+        }
+      }
+    });
+
+    // Step 2: Verify/correct using the search findings
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are a B2B data accuracy agent. Research this lead using the web and verify/correct their contact details.
+      prompt: `You are a B2B data accuracy agent. Use the Google search findings below to verify and correct this lead's contact details.
 
 Current lead data:
 - Name: ${lead.first_name} ${lead.last_name}
@@ -61,14 +86,18 @@ Current lead data:
 - Website: ${lead.website || 'Unknown'}
 - Location: ${lead.location || 'Unknown'}
 
-Search the web for this person and company. For each field below, provide:
-1. The best/corrected value you found (or null if you couldn't find/verify it)
-2. Confidence: "high", "medium", or "low"
-3. A short reason explaining where you found it
+--- GOOGLE SEARCH FINDINGS ---
+${webSearch.web_findings || ''}
+Email found: ${webSearch.found_email || 'none'}
+Phone found: ${webSearch.found_phone || 'none'}
+LinkedIn found: ${webSearch.found_linkedin || 'none'}
+Website found: ${webSearch.found_website || 'none'}
+Location found: ${webSearch.found_location || 'none'}
+Job title found: ${webSearch.found_job_title || 'none'}
+---
 
-Only suggest a value if it differs from the current one OR if the current one is missing/Unknown.
-Be conservative — only include fields you actually found evidence for.`,
-      add_context_from_internet: true,
+For each field, provide the corrected value, confidence ("high"/"medium"/"low"), and reason.
+Only suggest a value if it differs from or improves the current one. Be conservative — only include fields with real evidence.`,
       response_json_schema: {
         type: "object",
         properties: {
