@@ -209,7 +209,7 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
               );
             })}
           </tbody>
-        </table>
+      </table>
     </div>
   );
 }
