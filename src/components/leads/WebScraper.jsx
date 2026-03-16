@@ -124,8 +124,8 @@ Count the TOTAL number of company/contact rows in the table or list on this page
       }
     });
 
-    const total = countResult?.total_entries || 80;
-    const batchSize = 10;
+    const total = countResult?.total_entries || 50;
+    const batchSize = 5;
     const batches = Math.ceil(total / batchSize);
     let allLeads = [];
 
@@ -136,10 +136,12 @@ Count the TOTAL number of company/contact rows in the table or list on this page
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Visit this URL: ${pageUrl}
-This page has a table/list of companies. Extract ONLY rows numbered ${start} to ${end} (use the # column or count from top, skipping the header).
-For each row return: company_name, first_name, last_name, email, phone, website, industry, notes.
-Return exactly the rows in that range, no more, no less.`,
+
+Extract rows ${start} to ${end} from the company/contact list on this page (skip the header row).
+For each entry return: company_name, first_name, last_name, email, phone, website, industry.
+Only return those ${end - start + 1} entries, nothing else.`,
         add_context_from_internet: true,
+        model: "gemini_3_flash",
         response_json_schema: {
           type: "object",
           properties: {
@@ -152,17 +154,15 @@ Return exactly the rows in that range, no more, no less.`,
                   last_name: { type: "string" },
                   email: { type: "string" },
                   phone: { type: "string" },
-                  job_title: { type: "string" },
                   company_name: { type: "string" },
                   website: { type: "string" },
-                  industry: { type: "string" },
-                  notes: { type: "string" }
+                  industry: { type: "string" }
                 }
               }
             }
           }
         }
-      });
+      }).catch(() => ({ leads: [] }));
 
       allLeads = [...allLeads, ...(result?.leads || [])];
     }
