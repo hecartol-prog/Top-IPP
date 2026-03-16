@@ -190,9 +190,11 @@ export default function LeadDetails({ open, onClose, lead, activities = [], onEd
 
   const handleResearch = async () => {
     setResearchLoading(true);
+    setResearchStage("initial");
     setEnrichedFields(null);
     setSaved(false);
     try {
+      // Stage 1: Standard AI enrichment
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `You are a B2B lead research assistant for a plastic injection mold manufacturing company.
 
@@ -232,15 +234,62 @@ For notes, write a brief 2-3 sentence summary about the company and their potent
         }
       });
 
-      // Filter out null/empty values and only show missing fields
+      // Build partial found from stage 1
       const found = {};
       missingFields.forEach(f => {
         if (result[f.key]) found[f.key] = result[f.key];
       });
+
+      // Stage 2: Google search cross-reference for remaining missing fields
+      setResearchStage("google");
+      const stillMissing = missingFields.filter(f => !found[f.key]);
+      if (stillMissing.length > 0) {
+        const contactName = [lead.first_name, lead.last_name].filter(Boolean).join(' ');
+        const googleResult = await base44.integrations.Core.InvokeLLM({
+          prompt: `Search Google for: "${lead.company_name}${contactName ? ' ' + contactName : ''}"
+
+Using web search results, find the following missing information about this company/contact:
+- Company: ${lead.company_name}
+- Contact: ${contactName || 'Unknown'}
+- Website already known: ${lead.website || found.website || 'Unknown'}
+
+Fields still needed: ${stillMissing.map(f => f.key).join(', ')}
+
+Search specifically for:
+1. "${lead.company_name} official website contact"
+2. "${contactName ? contactName + ' ' + lead.company_name + ' email phone' : lead.company_name + ' manager director contact'}"
+3. "${lead.company_name} LinkedIn company page"
+
+Return only the fields you found with high confidence. Use null for anything uncertain.
+For company_size, use only one of: "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+".`,
+          add_context_from_internet: true,
+          response_json_schema: {
+            type: "object",
+            properties: {
+              industry: { type: "string" },
+              company_size: { type: "string" },
+              location: { type: "string" },
+              website: { type: "string" },
+              linkedin_url: { type: "string" },
+              phone: { type: "string" },
+              email: { type: "string" },
+              job_title: { type: "string" },
+              notes: { type: "string" },
+            }
+          }
+        });
+
+        // Merge google results for still-missing fields only
+        stillMissing.forEach(f => {
+          if (googleResult[f.key]) found[f.key] = googleResult[f.key];
+        });
+      }
+
       setEnrichedFields(found);
     } catch (e) {
       setEnrichedFields({});
     }
+    setResearchStage(null);
     setResearchLoading(false);
   };
 
