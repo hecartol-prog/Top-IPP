@@ -9,17 +9,33 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Globe, Search, UserPlus, CheckCircle2, AlertCircle, BookOpen, Link, LayoutGrid } from "lucide-react";
 
+const MODES = [
+  { value: "logo_grid", icon: LayoutGrid, label: "Logo Grid", desc: "Cards/icons with 'Ver más' links" },
+  { value: "deep", icon: Link, label: "Deep Crawl", desc: "Auto-detect & follow profile links" },
+  { value: "simple", icon: BookOpen, label: "Simple", desc: "Extract from table/list on one page" },
+];
+
 export default function WebScraper({ onImportComplete }) {
   const [url, setUrl] = useState("");
-  const [scrapeMode, setScrapeMode] = useState("deep"); // "deep" | "logo_grid" | "simple"
+  const [selectedModes, setSelectedModes] = useState(["deep"]); // multi-select
   const [scraping, setScraping] = useState(false);
   const [importing, setImporting] = useState(false);
   const [extractedLeads, setExtractedLeads] = useState([]);
   const [selectedLeads, setSelectedLeads] = useState([]);
   const [message, setMessage] = useState(null);
   const [progressState, setProgressState] = useState(null);
+  const [currentModeLabel, setCurrentModeLabel] = useState("");
 
-  // Step 1a: Analyze starting URL - detect page type and get first set of links + ALL pagination URLs
+  const toggleMode = (value) => {
+    setSelectedModes(prev =>
+      prev.includes(value)
+        ? prev.length === 1 ? prev : prev.filter(m => m !== value) // at least one selected
+        : [...prev, value]
+    );
+  };
+
+  // ─── Extraction helpers ───────────────────────────────────────────────────
+
   const analyzeStartPage = async (startUrl) => {
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `Fetch this URL: ${startUrl}
@@ -45,7 +61,6 @@ Important: For detail_links, only include URLs to individual profile/company pag
     return result || { is_detail_page: false, detail_links: [], all_pagination_urls: [], has_pagination: false };
   };
 
-  // Step 1b: Get detail links from a single listing page (for pagination pages)
   const getDetailLinksFromPage = async (pageUrl) => {
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `Fetch this listing page: ${pageUrl}
@@ -63,7 +78,6 @@ Do NOT include category, filter, navigation, or pagination links — only profil
     return result?.detail_links || [];
   };
 
-  // Step 2: Extract lead data from a single detail page
   const extractFromDetailPage = async (pageUrl) => {
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `Fetch this company/contact detail page: ${pageUrl}
@@ -99,24 +113,19 @@ Return the data structured as a lead record.`,
     return result;
   };
 
-  // Step 3: Extract leads from a flat table/list on a single page (handles large tables with many rows)
   const extractFromTablePage = async (pageUrl, onProgress) => {
-    // First, get the total number of entries
     const countResult = await base44.integrations.Core.InvokeLLM({
       prompt: `Visit this URL: ${pageUrl}
-
 Count the TOTAL number of company/contact rows in the table or list on this page (do NOT count the header row). Return only the integer count.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
-        properties: {
-          total_entries: { type: "number" }
-        }
+        properties: { total_entries: { type: "number" } }
       }
     });
 
-    const total = countResult?.total_entries || 80; // default high to ensure we get all
-    const batchSize = 10; // smaller batches = less JSON overflow risk
+    const total = countResult?.total_entries || 80;
+    const batchSize = 10;
     const batches = Math.ceil(total / batchSize);
     let allLeads = [];
 
@@ -127,7 +136,6 @@ Count the TOTAL number of company/contact rows in the table or list on this page
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Visit this URL: ${pageUrl}
-
 This page has a table/list of companies. Extract ONLY rows numbered ${start} to ${end} (use the # column or count from top, skipping the header).
 For each row return: company_name, first_name, last_name, email, phone, website, industry, notes.
 Return exactly the rows in that range, no more, no less.`,
@@ -162,53 +170,135 @@ Return exactly the rows in that range, no more, no less.`,
     return allLeads;
   };
 
-  // Step 4: Simple single-page extraction (fallback)
-  const extractFromListingPage = async (pageUrl) => {
-    const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Visit this page and extract ALL people/companies/contacts you find: ${pageUrl}
-
-For each, get: first_name, last_name, email, phone, job_title, company_name, linkedin_url, website, location, industry, notes.
-Be thorough — extract EVERY single entry, do not stop early.`,
-      add_context_from_internet: true,
-      response_json_schema: {
-        type: "object",
-        properties: {
-          leads: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                first_name: { type: "string" },
-                last_name: { type: "string" },
-                email: { type: "string" },
-                phone: { type: "string" },
-                job_title: { type: "string" },
-                company_name: { type: "string" },
-                linkedin_url: { type: "string" },
-                website: { type: "string" },
-                location: { type: "string" },
-                industry: { type: "string" },
-                notes: { type: "string" }
-              }
-            }
-          }
-        }
-      }
-    });
-    return result?.leads || [];
-  };
-
-  // Step: Extract all card/logo links via backend function (avoids CORS)
   const extractLogoGridLinks = async (startUrl) => {
     setProgressState({ current: 0, total: 1, label: "Fetching directory links..." });
     const result = await base44.functions.invoke('fetchPageLinks', { url: startUrl });
     return result?.data?.links || [];
   };
 
-  // Detect FlippingBook
-  const isFlippingBookUrl = (u) => {
-    return u.includes("flippingbook") || u.includes("page-html5-substrates") || u.includes("Directorio-de-Empresas");
+  const isFlippingBookUrl = (u) =>
+    u.includes("flippingbook") || u.includes("page-html5-substrates") || u.includes("Directorio-de-Empresas");
+
+  // ─── Mode runners ─────────────────────────────────────────────────────────
+
+  const runLogoGrid = async (startUrl, existingLeads) => {
+    setCurrentModeLabel("Logo Grid");
+    setProgressState({ current: 0, total: 1, label: "Scanning logo grid for company links..." });
+    setMessage({ type: "info", text: "Logo Grid: collecting company page links..." });
+
+    let links = await extractLogoGridLinks(startUrl);
+    links = [...new Set(links)].filter(l => l && l.startsWith("http"));
+
+    if (links.length === 0) {
+      setMessage({ type: "error", text: "Logo Grid: No company links found in the grid." });
+      return existingLeads;
+    }
+
+    // Filter out links we already have companies for
+    const existingWebsites = new Set(existingLeads.map(l => l.website).filter(Boolean));
+    const newLinks = links.filter(l => !existingWebsites.has(l));
+
+    setProgressState({ current: 0, total: newLinks.length, label: `Found ${newLinks.length} new companies. Extracting...` });
+    setMessage({ type: "info", text: `Logo Grid: Found ${newLinks.length} new company cards...` });
+
+    let modeLeads = [...existingLeads];
+    const batchSize = 5;
+    for (let i = 0; i < newLinks.length; i += batchSize) {
+      const batch = newLinks.slice(i, i + batchSize);
+      setProgressState({ current: i, total: newLinks.length, label: `Logo Grid: scraping ${i + 1}–${Math.min(i + batchSize, newLinks.length)} of ${newLinks.length}...` });
+
+      const batchResults = await Promise.all(
+        batch.map(detailUrl => extractFromDetailPage(detailUrl).catch(() => null))
+      );
+
+      for (const lead of batchResults) {
+        if (lead && (lead.company_name || lead.first_name)) modeLeads.push(lead);
+      }
+
+      setMessage({ type: "info", text: `Logo Grid: ${modeLeads.length} total leads so far...` });
+    }
+
+    return modeLeads;
   };
+
+  const runDeepCrawl = async (startUrl, existingLeads) => {
+    setCurrentModeLabel("Deep Crawl");
+    setProgressState({ current: 0, total: 1, label: "Deep Crawl: analyzing page structure..." });
+
+    const analysis = await analyzeStartPage(startUrl);
+    let modeLeads = [...existingLeads];
+
+    if (analysis.is_detail_page) {
+      setProgressState({ current: 1, total: 1, label: "Deep Crawl: extracting detail page..." });
+      const lead = await extractFromDetailPage(startUrl);
+      if (lead?.company_name || lead?.first_name) modeLeads.push(lead);
+      return modeLeads;
+    }
+
+    let allDetailLinks = [...(analysis.detail_links || [])];
+    const paginationUrls = (analysis.all_pagination_urls || []).filter(l => l && l.startsWith("http") && l !== startUrl);
+
+    if (paginationUrls.length > 0) {
+      setProgressState({ current: 0, total: paginationUrls.length, label: `Deep Crawl: collecting links from ${paginationUrls.length} more pages...` });
+      const pagResults = await Promise.all(
+        paginationUrls.map(pgUrl => getDetailLinksFromPage(pgUrl).catch(() => []))
+      );
+      for (const links of pagResults) allDetailLinks = [...allDetailLinks, ...links];
+    }
+
+    allDetailLinks = [...new Set(allDetailLinks)].filter(l => l && l.startsWith("http"));
+
+    // Skip links we already have
+    const existingWebsites = new Set(existingLeads.map(l => l.website).filter(Boolean));
+    const newLinks = allDetailLinks.filter(l => !existingWebsites.has(l));
+
+    if (newLinks.length === 0 && allDetailLinks.length === 0) {
+      setProgressState({ current: 1, total: 1, label: "Deep Crawl: counting entries..." });
+      const allPageUrls = [startUrl, ...paginationUrls];
+      for (const pageUrl of allPageUrls) {
+        const pageLeads = await extractFromTablePage(pageUrl, (i, total, start, end) => {
+          setProgressState({ current: i, total, label: `Deep Crawl: rows ${start}–${end}...` });
+        });
+        modeLeads = [...modeLeads, ...pageLeads];
+        setMessage({ type: "info", text: `Deep Crawl: ${modeLeads.length} leads so far...` });
+      }
+    } else {
+      setProgressState({ current: 0, total: newLinks.length, label: `Deep Crawl: found ${newLinks.length} new pages...` });
+
+      const batchSize = 5;
+      for (let i = 0; i < newLinks.length; i += batchSize) {
+        const batch = newLinks.slice(i, i + batchSize);
+        setProgressState({ current: i, total: newLinks.length, label: `Deep Crawl: scraping ${i + 1}–${Math.min(i + batchSize, newLinks.length)} of ${newLinks.length}...` });
+
+        const batchResults = await Promise.all(
+          batch.map(detailUrl => extractFromDetailPage(detailUrl).catch(() => null))
+        );
+
+        for (const lead of batchResults) {
+          if (lead && (lead.company_name || lead.first_name)) modeLeads.push(lead);
+        }
+
+        setMessage({ type: "info", text: `Deep Crawl: ${modeLeads.length} total leads so far...` });
+      }
+    }
+
+    return modeLeads;
+  };
+
+  const runSimple = async (startUrl, existingLeads) => {
+    setCurrentModeLabel("Simple");
+    setProgressState({ current: 1, total: 1, label: "Simple: counting entries..." });
+
+    let modeLeads = [...existingLeads];
+    const pageLeads = await extractFromTablePage(startUrl, (i, total, start, end) => {
+      setProgressState({ current: i, total, label: `Simple: extracting rows ${start}–${end}...` });
+      setMessage({ type: "info", text: `Simple: ${modeLeads.length} leads so far...` });
+    });
+    modeLeads = [...modeLeads, ...pageLeads];
+    return modeLeads;
+  };
+
+  // ─── Main handler ─────────────────────────────────────────────────────────
 
   const handleScrape = async () => {
     if (!url.trim()) return;
@@ -217,11 +307,12 @@ Be thorough — extract EVERY single entry, do not stop early.`,
     setExtractedLeads([]);
     setSelectedLeads([]);
     setProgressState(null);
+    setCurrentModeLabel("");
 
     let allLeads = [];
 
     try {
-      // --- FlippingBook handling ---
+      // FlippingBook special case (always runs regardless of mode)
       if (isFlippingBookUrl(url)) {
         setMessage({ type: "info", text: "FlippingBook detected. Scanning pages with AI vision..." });
 
@@ -285,115 +376,29 @@ Be thorough — extract EVERY single entry, do not stop early.`,
             }).catch(() => ({ leads: [] }))
           ));
 
-          for (const r of batchResults) {
-            allLeads = [...allLeads, ...(r?.leads || [])];
-          }
+          for (const r of batchResults) allLeads = [...allLeads, ...(r?.leads || [])];
           setMessage({ type: "info", text: `Scanning pages... Found ${allLeads.length} companies so far.` });
         }
 
-      } else if (scrapeMode === "logo_grid") {
-        // --- Logo/Image Grid mode ---
-        setProgressState({ current: 0, total: 1, label: "Scanning logo grid for company links..." });
-        setMessage({ type: "info", text: "Detected logo/image grid. Collecting company page links..." });
-
-        let allDetailLinks = await extractLogoGridLinks(url);
-        allDetailLinks = [...new Set(allDetailLinks)].filter(l => l && l.startsWith("http"));
-
-        if (allDetailLinks.length === 0) {
-          setMessage({ type: "error", text: "No company links found in the grid. Try Deep Crawl mode instead." });
-          setScraping(false);
-          setProgressState(null);
-          return;
-        }
-
-        setProgressState({ current: 0, total: allDetailLinks.length, label: `Found ${allDetailLinks.length} companies. Extracting details...` });
-        setMessage({ type: "info", text: `Found ${allDetailLinks.length} company cards. Now visiting each page...` });
-
-        const batchSize = 5;
-        for (let i = 0; i < allDetailLinks.length; i += batchSize) {
-          const batch = allDetailLinks.slice(i, i + batchSize);
-          setProgressState({ current: i, total: allDetailLinks.length, label: `Scraping companies ${i + 1}–${Math.min(i + batchSize, allDetailLinks.length)} of ${allDetailLinks.length}...` });
-
-          const batchResults = await Promise.all(
-            batch.map(detailUrl => extractFromDetailPage(detailUrl).catch(() => null))
-          );
-
-          for (const lead of batchResults) {
-            if (lead && (lead.company_name || lead.first_name)) {
-              allLeads.push(lead);
-            }
-          }
-
-          setMessage({ type: "info", text: `Extracted ${allLeads.length} leads so far...` });
-        }
-
-      } else if (scrapeMode === "deep") {
-        // --- Deep crawl mode ---
-        setProgressState({ current: 0, total: 1, label: "Analyzing page structure..." });
-
-        const analysis = await analyzeStartPage(url);
-
-        if (analysis.is_detail_page) {
-          setProgressState({ current: 1, total: 1, label: "Extracting from detail page..." });
-          const lead = await extractFromDetailPage(url);
-          if (lead?.company_name || lead?.first_name) allLeads.push(lead);
-
-        } else {
-          let allDetailLinks = [...(analysis.detail_links || [])];
-          const paginationUrls = (analysis.all_pagination_urls || []).filter(l => l && l.startsWith("http") && l !== url);
-
-          if (paginationUrls.length > 0) {
-            setProgressState({ current: 0, total: paginationUrls.length, label: `Found ${paginationUrls.length} more listing pages, collecting links...` });
-            const pagResults = await Promise.all(
-              paginationUrls.map(pgUrl => getDetailLinksFromPage(pgUrl).catch(() => []))
-            );
-            for (const links of pagResults) {
-              allDetailLinks = [...allDetailLinks, ...links];
-            }
-          }
-
-          allDetailLinks = [...new Set(allDetailLinks)].filter(l => l && l.startsWith("http"));
-
-          if (allDetailLinks.length === 0) {
-            setProgressState({ current: 1, total: 1, label: "Counting entries..." });
-            const allPageUrls = [url, ...paginationUrls];
-            for (const pageUrl of allPageUrls) {
-              const pageLeads = await extractFromTablePage(pageUrl, (i, total, start, end) => {
-                setProgressState({ current: i, total, label: `Extracting rows ${start}–${end} from page...` });
-              });
-              allLeads = [...allLeads, ...pageLeads];
-              setMessage({ type: "info", text: `Extracted ${allLeads.length} leads so far...` });
-            }
-          } else {
-            setProgressState({ current: 0, total: allDetailLinks.length, label: `Found ${allDetailLinks.length} company pages. Extracting data...` });
-
-            const batchSize = 5;
-            for (let i = 0; i < allDetailLinks.length; i += batchSize) {
-              const batch = allDetailLinks.slice(i, i + batchSize);
-              setProgressState({ current: i, total: allDetailLinks.length, label: `Scraping companies ${i + 1}–${Math.min(i + batchSize, allDetailLinks.length)} of ${allDetailLinks.length}...` });
-
-              const batchResults = await Promise.all(
-                batch.map(detailUrl => extractFromDetailPage(detailUrl).catch(() => null))
-              );
-
-              for (const lead of batchResults) {
-                if (lead && (lead.company_name || lead.first_name)) {
-                  allLeads.push(lead);
-                }
-              }
-
-              setMessage({ type: "info", text: `Extracted ${allLeads.length} leads so far...` });
-            }
-          }
-        }
-
       } else {
-        // --- Simple mode ---
-        setProgressState({ current: 1, total: 1, label: "Counting entries..." });
-        allLeads = await extractFromTablePage(url, (i, total, start, end) => {
-          setProgressState({ current: i, total, label: `Extracting rows ${start}–${end} of ~${total * 10}...` });
-          setMessage({ type: "info", text: `Extracted ${allLeads.length} leads so far...` });
-        });
+        // Run each selected mode sequentially — each passes its accumulated leads to the next
+        const orderedModes = MODES.map(m => m.value).filter(v => selectedModes.includes(v));
+
+        for (let mi = 0; mi < orderedModes.length; mi++) {
+          const mode = orderedModes[mi];
+          const modeLabel = MODES.find(m => m.value === mode)?.label;
+          setMessage({ type: "info", text: `Running mode ${mi + 1}/${orderedModes.length}: ${modeLabel}...` });
+
+          if (mode === "logo_grid") {
+            allLeads = await runLogoGrid(url, allLeads);
+          } else if (mode === "deep") {
+            allLeads = await runDeepCrawl(url, allLeads);
+          } else if (mode === "simple") {
+            allLeads = await runSimple(url, allLeads);
+          }
+
+          setMessage({ type: "info", text: `${modeLabel} done. ${allLeads.length} leads collected. ${mi < orderedModes.length - 1 ? `Starting next mode...` : ""}` });
+        }
       }
 
     } catch (err) {
@@ -404,8 +409,9 @@ Be thorough — extract EVERY single entry, do not stop early.`,
     }
 
     setProgressState(null);
+    setCurrentModeLabel("");
 
-    // Deduplicate
+    // Deduplicate across all modes
     const seen = new Set();
     const unique = allLeads.filter(l => {
       const key = ((l.company_name || l.first_name || "") + (l.email || "")).toLowerCase().trim();
@@ -415,11 +421,11 @@ Be thorough — extract EVERY single entry, do not stop early.`,
     });
 
     if (unique.length === 0) {
-      setMessage({ type: "error", text: "No leads found. Try enabling Deep Crawl or check the URL." });
+      setMessage({ type: "error", text: "No leads found. Try a different mode or check the URL." });
     } else {
       setExtractedLeads(unique);
       setSelectedLeads(unique.map((_, i) => i));
-      setMessage({ type: "success", text: `Found ${unique.length} lead${unique.length !== 1 ? "s" : ""} extracted.` });
+      setMessage({ type: "success", text: `Found ${unique.length} lead${unique.length !== 1 ? "s" : ""} across ${selectedModes.length} mode${selectedModes.length > 1 ? "s" : ""}.` });
     }
 
     setScraping(false);
@@ -490,35 +496,47 @@ Be thorough — extract EVERY single entry, do not stop early.`,
           className="bg-slate-900 hover:bg-slate-800 shrink-0"
         >
           {scraping ? (
-            <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Scanning...</>
+            <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{currentModeLabel || "Scanning"}...</>
           ) : (
             <><Search className="w-4 h-4 mr-2" />Extract</>
           )}
         </Button>
       </div>
 
-      {/* Mode selector */}
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          { value: "logo_grid", icon: LayoutGrid, label: "Logo Grid", desc: "Cards/icons with 'Ver más' links" },
-          { value: "deep", icon: Link, label: "Deep Crawl", desc: "Auto-detect & follow profile links" },
-          { value: "simple", icon: BookOpen, label: "Simple", desc: "Extract from table/list on one page" },
-        ].map(({ value, icon: Icon, label, desc }) => (
-          <button
-            key={value}
-            onClick={() => setScrapeMode(value)}
-            disabled={scraping}
-            className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 text-center transition-all ${
-              scrapeMode === value
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            <span className="text-xs font-semibold">{label}</span>
-            <span className={`text-[10px] leading-tight ${scrapeMode === value ? "text-slate-300" : "text-slate-400"}`}>{desc}</span>
-          </button>
-        ))}
+      {/* Multi-select Mode selector */}
+      <div>
+        <p className="text-xs text-slate-500 mb-2 font-medium">Extraction modes <span className="text-slate-400 font-normal">(select one or more — run in sequence, results are combined)</span></p>
+        <div className="grid grid-cols-3 gap-2">
+          {MODES.map(({ value, icon: Icon, label, desc }) => {
+            const isSelected = selectedModes.includes(value);
+            return (
+              <button
+                key={value}
+                onClick={() => toggleMode(value)}
+                disabled={scraping}
+                className={`relative flex flex-col items-center gap-1 p-3 rounded-xl border-2 text-center transition-all ${
+                  isSelected
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
+                }`}
+              >
+                {isSelected && (
+                  <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 bg-teal-400 rounded-full flex items-center justify-center">
+                    <CheckCircle2 className="w-3 h-3 text-white" />
+                  </span>
+                )}
+                <Icon className="w-4 h-4" />
+                <span className="text-xs font-semibold">{label}</span>
+                <span className={`text-[10px] leading-tight ${isSelected ? "text-slate-300" : "text-slate-400"}`}>{desc}</span>
+              </button>
+            );
+          })}
+        </div>
+        {selectedModes.length > 1 && (
+          <p className="text-[11px] text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-3 py-1.5 mt-2">
+            ✓ {selectedModes.length} modes selected — each will run in sequence and add new results without overwriting previous ones.
+          </p>
+        )}
       </div>
 
       {/* Progress */}
@@ -616,7 +634,7 @@ Be thorough — extract EVERY single entry, do not stop early.`,
       )}
 
       <p className="text-xs text-slate-400 text-center">
-        Logo Grid: best for image/icon card directories (e.g. aseplas.ec/socios) · Deep Crawl: auto-detect any listing · Also supports FlippingBooks
+        Select multiple modes to combine results · Logo Grid: card/icon directories · Deep Crawl: follows profile links · Simple: table/list pages · Also supports FlippingBooks
       </p>
     </div>
   );
