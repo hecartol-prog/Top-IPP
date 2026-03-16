@@ -87,7 +87,7 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" style={{scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 transparent'}}>
         <table className="w-full min-w-[800px] text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
