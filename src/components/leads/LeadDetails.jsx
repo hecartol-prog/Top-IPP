@@ -152,6 +152,7 @@ export default function LeadDetails({ open, onClose, lead, activities = [], onEd
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showAIEdit, setShowAIEdit] = useState(false);
   const [researchLoading, setResearchLoading] = useState(false);
+  const [researchStage, setResearchStage] = useState(null); // "initial" | "google"
   const [enrichedFields, setEnrichedFields] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
