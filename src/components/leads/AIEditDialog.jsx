@@ -216,8 +216,36 @@ Only suggest a value if it differs from or improves the current one. Be conserva
 
     const hasContact = lead.first_name || lead.last_name;
 
+    // Step 1: Google search
+    const searchQuery = hasContact
+      ? `"${lead.first_name} ${lead.last_name}" "${lead.company_name}" email phone LinkedIn`
+      : `"${lead.company_name}" director general CEO procurement manager contact`;
+
+    const webSearch = await base44.integrations.Core.InvokeLLM({
+      prompt: `Search the web for contact information. Run these searches:
+1. ${searchQuery}
+2. "${lead.company_name}" ${lead.location || ''} management team contacts
+3. site:linkedin.com "${hasContact ? (lead.first_name + ' ' + lead.last_name) : lead.company_name}"
+
+Return all raw findings: full name, job title, email, phone number, LinkedIn URL, and any background notes.`,
+      add_context_from_internet: true,
+      model: "gemini_3_flash",
+      response_json_schema: {
+        type: "object",
+        properties: {
+          web_findings: { type: "string" },
+          found_name: { type: "string" },
+          found_title: { type: "string" },
+          found_email: { type: "string" },
+          found_phone: { type: "string" },
+          found_linkedin: { type: "string" },
+        }
+      }
+    });
+
+    // Step 2: Structured extraction from search results
     const prompt = hasContact
-      ? `You are a B2B sales intelligence assistant. Research the contact person at this company and find detailed outreach information.
+      ? `You are a B2B sales intelligence assistant. Use these Google search findings to provide verified contact details.
 
 Company: ${lead.company_name}
 Contact Person: ${lead.first_name} ${lead.last_name}
@@ -225,24 +253,36 @@ Job Title: ${lead.job_title || 'Unknown'}
 Website: ${lead.website || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
 
-Search the web and find:
-1. Verified email address for this person
-2. Phone number (direct or company)
-3. LinkedIn profile URL
-4. Exact job title / role
-5. Best outreach notes: preferred channel, professional background, any relevant context to build rapport`
-      : `You are a B2B sales intelligence assistant. This company has no known contact person. Search for the best decision maker for plastic injection mold manufacturing procurement.
+--- GOOGLE SEARCH FINDINGS ---
+${webSearch.web_findings || ''}
+Name found: ${webSearch.found_name || 'none'}
+Title found: ${webSearch.found_title || 'none'}
+Email found: ${webSearch.found_email || 'none'}
+Phone found: ${webSearch.found_phone || 'none'}
+LinkedIn found: ${webSearch.found_linkedin || 'none'}
+---
+
+Provide verified contact details and outreach notes based on the search findings. Include confidence level.`
+      : `You are a B2B sales intelligence assistant. Use these Google search findings to identify the best decision maker.
 
 Company: ${lead.company_name}
 Industry: ${lead.industry || 'Unknown'}
 Website: ${lead.website || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
 
-Find the top decision maker: Director General, CEO, General Manager, Purchasing/Procurement Manager, or Operations Director. Provide their full name, title, email, phone, LinkedIn, and why they are the best contact.`;
+--- GOOGLE SEARCH FINDINGS ---
+${webSearch.web_findings || ''}
+Name found: ${webSearch.found_name || 'none'}
+Title found: ${webSearch.found_title || 'none'}
+Email found: ${webSearch.found_email || 'none'}
+Phone found: ${webSearch.found_phone || 'none'}
+LinkedIn found: ${webSearch.found_linkedin || 'none'}
+---
+
+Based on the search results, identify the best decision maker for plastic injection mold procurement. Include their full name, title, email, phone, LinkedIn, and why they are the best contact.`;
 
     const result = await base44.integrations.Core.InvokeLLM({
       prompt,
-      add_context_from_internet: true,
       response_json_schema: {
         type: "object",
         properties: {
