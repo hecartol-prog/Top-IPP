@@ -192,41 +192,10 @@ export default function LeadDetails({ open, onClose, lead, activities = [], onEd
     setEnrichedFields(null);
     setSaved(false);
     try {
-      // Step 1: Google web search for company and contact
-      const searchResult = await base44.integrations.Core.InvokeLLM({
-        prompt: `Search the web for information about this company and contact person. Return everything you find.
-
-Company: "${lead.company_name}"
-Contact: "${lead.first_name} ${lead.last_name}"
-Website: ${lead.website || 'unknown'}
-Location: ${lead.location || 'unknown'}
-
-Search queries to run:
-1. "${lead.company_name}" official website contact phone
-2. "${lead.first_name} ${lead.last_name}" "${lead.company_name}" email LinkedIn
-3. "${lead.company_name}" industry employees size
-
-Return all raw findings: website URL, phone numbers, emails, LinkedIn URLs, company size, industry, location, any relevant company description.`,
-        add_context_from_internet: true,
-        model: "gemini_3_flash",
-        response_json_schema: {
-          type: "object",
-          properties: {
-            web_findings: { type: "string" },
-            found_website: { type: "string" },
-            found_phone: { type: "string" },
-            found_email: { type: "string" },
-            found_linkedin: { type: "string" },
-            found_industry: { type: "string" },
-            found_company_size: { type: "string" },
-            found_location: { type: "string" },
-          }
-        }
-      });
-
-      // Step 2: Use web findings to fill missing fields with high accuracy
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are a B2B lead data enrichment assistant. Use the Google search findings below to fill in the missing lead fields.
+        prompt: `You are a B2B lead research assistant for a plastic injection mold manufacturing company.
+
+Research this lead and fill in the missing information fields as accurately as possible.
 
 Lead info:
 - Name: ${lead.first_name} ${lead.last_name}
@@ -240,22 +209,12 @@ Lead info:
 - Phone: ${lead.phone || 'Unknown'}
 - Company Size: ${lead.company_size || 'Unknown'}
 
---- GOOGLE SEARCH FINDINGS ---
-${searchResult.web_findings || ''}
-Website found: ${searchResult.found_website || 'none'}
-Phone found: ${searchResult.found_phone || 'none'}
-Email found: ${searchResult.found_email || 'none'}
-LinkedIn found: ${searchResult.found_linkedin || 'none'}
-Industry found: ${searchResult.found_industry || 'none'}
-Company size found: ${searchResult.found_company_size || 'none'}
-Location found: ${searchResult.found_location || 'none'}
----
+Missing fields to research and fill in: ${missingFields.map(f => f.key).join(', ')}
 
-Missing fields to fill: ${missingFields.map(f => f.key).join(', ')}
-
-Use the search findings above. Only include fields you found evidence for. Use null for unknowns.
+Return ONLY valid JSON with the fields you could find. Only include fields you are reasonably confident about. Use null for fields you cannot determine.
 For company_size, use only one of: "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+".
-For notes, write a 2-3 sentence summary about the company and their potential plastic injection mold needs.`,
+For notes, write a brief 2-3 sentence summary about the company and their potential manufacturing needs.`,
+        add_context_from_internet: true,
         response_json_schema: {
           type: "object",
           properties: {
@@ -303,40 +262,8 @@ For notes, write a 2-3 sentence summary about the company and their potential pl
       ? `${lead.first_name} ${lead.last_name}`.trim()
       : null;
 
-    // Step 1: Google search for the contact/decision maker
-    const searchQuery = hasContact
-      ? `"${lead.first_name} ${lead.last_name}" "${lead.company_name}" email phone LinkedIn`
-      : `"${lead.company_name}" director general CEO procurement manager contact email`;
-
-    const webSearch = await base44.integrations.Core.InvokeLLM({
-      prompt: `Search the web for contact information. Run these searches:
-1. ${searchQuery}
-2. "${lead.company_name}" ${lead.location || ''} key contacts management team
-3. site:linkedin.com "${hasContact ? (lead.first_name + ' ' + lead.last_name) : lead.company_name}"
-
-Company: ${lead.company_name}
-${hasContact ? `Contact: ${contactQuery}` : 'Looking for: CEO, Director General, Procurement Manager, or General Manager'}
-Website: ${lead.website || 'unknown'}
-Location: ${lead.location || 'unknown'}
-
-Return all raw findings about the contact person: name, title, email, phone, LinkedIn URL, and any professional background notes.`,
-      add_context_from_internet: true,
-      model: "gemini_3_flash",
-      response_json_schema: {
-        type: "object",
-        properties: {
-          web_findings: { type: "string" },
-          found_name: { type: "string" },
-          found_title: { type: "string" },
-          found_email: { type: "string" },
-          found_phone: { type: "string" },
-          found_linkedin: { type: "string" },
-        }
-      }
-    });
-
     const prompt = hasContact
-      ? `You are a B2B sales intelligence assistant. Use the Google search findings below to provide verified contact details.
+      ? `You are a B2B sales intelligence assistant. Research the contact person at this company and find detailed outreach information.
 
 Company: ${lead.company_name}
 Contact Person: ${contactQuery}
@@ -344,36 +271,39 @@ Job Title: ${lead.job_title || 'Unknown'}
 Website: ${lead.website || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
 
---- GOOGLE SEARCH FINDINGS ---
-${webSearch.web_findings || ''}
-Name found: ${webSearch.found_name || 'none'}
-Title found: ${webSearch.found_title || 'none'}
-Email found: ${webSearch.found_email || 'none'}
-Phone found: ${webSearch.found_phone || 'none'}
-LinkedIn found: ${webSearch.found_linkedin || 'none'}
----
+Search the web and find:
+1. Verified email address for this person
+2. Phone number (direct or company)
+3. LinkedIn profile URL
+4. Exact job title / role
+5. Best way to reach them (preferred channel, notes on their activity/presence)
+6. Any relevant personal/professional insights (languages, interests, background) that could help build rapport
 
-Based on the search results above, provide verified contact details and outreach notes. Include confidence level.`
-      : `You are a B2B sales intelligence assistant. Use the Google search findings below to identify the best decision maker.
+Return structured data with confidence levels.`
+      : `You are a B2B sales intelligence assistant. This lead has no contact person identified. Research the company and find the best decision maker to contact for plastic injection mold manufacturing procurement.
 
 Company: ${lead.company_name}
 Industry: ${lead.industry || 'Unknown'}
 Website: ${lead.website || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
 
---- GOOGLE SEARCH FINDINGS ---
-${webSearch.web_findings || ''}
-Name found: ${webSearch.found_name || 'none'}
-Title found: ${webSearch.found_title || 'none'}
-Email found: ${webSearch.found_email || 'none'}
-Phone found: ${webSearch.found_phone || 'none'}
-LinkedIn found: ${webSearch.found_linkedin || 'none'}
----
+Search the web for this company's key decision makers. Look for:
+- Director General / CEO / General Manager
+- Purchasing Manager / Procurement Manager / Director de Compras
+- Operations Director
 
-Based on the search results, identify the best decision maker for plastic injection mold procurement. Provide their full name, title, email, phone, LinkedIn, and why they are the best contact.`;
+For the best contact found, provide:
+1. Full name
+2. Job title
+3. Email address
+4. Phone number
+5. LinkedIn profile URL
+6. Why this is the best person to contact for mold manufacturing sales
+7. Best outreach approach/notes`;
 
     const result = await base44.integrations.Core.InvokeLLM({
       prompt,
+      add_context_from_internet: true,
       response_json_schema: {
         type: "object",
         properties: {
@@ -663,17 +593,11 @@ Based on the search results, identify the best decision maker for plastic inject
             </Button>
 
             {researchLoading && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 rounded-lg p-3">
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-400 flex-shrink-0" />
-                  Step 1: Searching Google for company & contact info...
-                </div>
-                <div className="space-y-2 animate-pulse">
-                  <div className="h-3 bg-slate-100 rounded w-3/4" />
-                  <div className="h-3 bg-slate-100 rounded w-full" />
-                  <div className="h-3 bg-slate-100 rounded w-5/6" />
-                  <div className="h-3 bg-slate-100 rounded w-2/3" />
-                </div>
+              <div className="space-y-3 animate-pulse">
+                <div className="h-4 bg-slate-100 rounded w-3/4" />
+                <div className="h-4 bg-slate-100 rounded w-full" />
+                <div className="h-4 bg-slate-100 rounded w-5/6" />
+                <div className="h-4 bg-slate-100 rounded w-2/3" />
               </div>
             )}
 
@@ -751,16 +675,10 @@ Based on the search results, identify the best decision maker for plastic inject
               </Button>
 
               {contactSearchLoading && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-xs text-slate-500 bg-indigo-50 rounded-lg p-3">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400 flex-shrink-0" />
-                    Step 1: Running Google search for contact details...
-                  </div>
-                  <div className="space-y-2 animate-pulse">
-                    <div className="h-3 bg-slate-100 rounded w-3/4" />
-                    <div className="h-3 bg-slate-100 rounded w-full" />
-                    <div className="h-3 bg-slate-100 rounded w-2/3" />
-                  </div>
+                <div className="space-y-2 animate-pulse">
+                  <div className="h-3 bg-slate-100 rounded w-3/4" />
+                  <div className="h-3 bg-slate-100 rounded w-full" />
+                  <div className="h-3 bg-slate-100 rounded w-2/3" />
                 </div>
               )}
 

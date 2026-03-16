@@ -48,33 +48,8 @@ export default function AIEditDialog({ open, onClose, lead, onUpdateLead }) {
     setRejected({});
     setSavedOk(false);
 
-    // Step 1: Google web search
-    const webSearch = await base44.integrations.Core.InvokeLLM({
-      prompt: `Search the web for the following person and company. Run multiple searches:
-1. "${lead.first_name} ${lead.last_name}" "${lead.company_name}" email phone LinkedIn
-2. "${lead.company_name}" official website contact address
-3. site:linkedin.com "${lead.first_name} ${lead.last_name}" "${lead.company_name}"
-
-Return all raw findings: website, phone numbers, email addresses, LinkedIn URLs, location, job title. Include source URLs if visible.`,
-      add_context_from_internet: true,
-      model: "gemini_3_flash",
-      response_json_schema: {
-        type: "object",
-        properties: {
-          web_findings: { type: "string" },
-          found_email: { type: "string" },
-          found_phone: { type: "string" },
-          found_linkedin: { type: "string" },
-          found_website: { type: "string" },
-          found_location: { type: "string" },
-          found_job_title: { type: "string" },
-        }
-      }
-    });
-
-    // Step 2: Verify/correct using the search findings
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are a B2B data accuracy agent. Use the Google search findings below to verify and correct this lead's contact details.
+      prompt: `You are a B2B data accuracy agent. Research this lead using the web and verify/correct their contact details.
 
 Current lead data:
 - Name: ${lead.first_name} ${lead.last_name}
@@ -86,18 +61,14 @@ Current lead data:
 - Website: ${lead.website || 'Unknown'}
 - Location: ${lead.location || 'Unknown'}
 
---- GOOGLE SEARCH FINDINGS ---
-${webSearch.web_findings || ''}
-Email found: ${webSearch.found_email || 'none'}
-Phone found: ${webSearch.found_phone || 'none'}
-LinkedIn found: ${webSearch.found_linkedin || 'none'}
-Website found: ${webSearch.found_website || 'none'}
-Location found: ${webSearch.found_location || 'none'}
-Job title found: ${webSearch.found_job_title || 'none'}
----
+Search the web for this person and company. For each field below, provide:
+1. The best/corrected value you found (or null if you couldn't find/verify it)
+2. Confidence: "high", "medium", or "low"
+3. A short reason explaining where you found it
 
-For each field, provide the corrected value, confidence ("high"/"medium"/"low"), and reason.
-Only suggest a value if it differs from or improves the current one. Be conservative — only include fields with real evidence.`,
+Only suggest a value if it differs from the current one OR if the current one is missing/Unknown.
+Be conservative — only include fields you actually found evidence for.`,
+      add_context_from_internet: true,
       response_json_schema: {
         type: "object",
         properties: {
@@ -216,36 +187,8 @@ Only suggest a value if it differs from or improves the current one. Be conserva
 
     const hasContact = lead.first_name || lead.last_name;
 
-    // Step 1: Google search
-    const searchQuery = hasContact
-      ? `"${lead.first_name} ${lead.last_name}" "${lead.company_name}" email phone LinkedIn`
-      : `"${lead.company_name}" director general CEO procurement manager contact`;
-
-    const webSearch = await base44.integrations.Core.InvokeLLM({
-      prompt: `Search the web for contact information. Run these searches:
-1. ${searchQuery}
-2. "${lead.company_name}" ${lead.location || ''} management team contacts
-3. site:linkedin.com "${hasContact ? (lead.first_name + ' ' + lead.last_name) : lead.company_name}"
-
-Return all raw findings: full name, job title, email, phone number, LinkedIn URL, and any background notes.`,
-      add_context_from_internet: true,
-      model: "gemini_3_flash",
-      response_json_schema: {
-        type: "object",
-        properties: {
-          web_findings: { type: "string" },
-          found_name: { type: "string" },
-          found_title: { type: "string" },
-          found_email: { type: "string" },
-          found_phone: { type: "string" },
-          found_linkedin: { type: "string" },
-        }
-      }
-    });
-
-    // Step 2: Structured extraction from search results
     const prompt = hasContact
-      ? `You are a B2B sales intelligence assistant. Use these Google search findings to provide verified contact details.
+      ? `You are a B2B sales intelligence assistant. Research the contact person at this company and find detailed outreach information.
 
 Company: ${lead.company_name}
 Contact Person: ${lead.first_name} ${lead.last_name}
@@ -253,36 +196,24 @@ Job Title: ${lead.job_title || 'Unknown'}
 Website: ${lead.website || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
 
---- GOOGLE SEARCH FINDINGS ---
-${webSearch.web_findings || ''}
-Name found: ${webSearch.found_name || 'none'}
-Title found: ${webSearch.found_title || 'none'}
-Email found: ${webSearch.found_email || 'none'}
-Phone found: ${webSearch.found_phone || 'none'}
-LinkedIn found: ${webSearch.found_linkedin || 'none'}
----
-
-Provide verified contact details and outreach notes based on the search findings. Include confidence level.`
-      : `You are a B2B sales intelligence assistant. Use these Google search findings to identify the best decision maker.
+Search the web and find:
+1. Verified email address for this person
+2. Phone number (direct or company)
+3. LinkedIn profile URL
+4. Exact job title / role
+5. Best outreach notes: preferred channel, professional background, any relevant context to build rapport`
+      : `You are a B2B sales intelligence assistant. This company has no known contact person. Search for the best decision maker for plastic injection mold manufacturing procurement.
 
 Company: ${lead.company_name}
 Industry: ${lead.industry || 'Unknown'}
 Website: ${lead.website || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
 
---- GOOGLE SEARCH FINDINGS ---
-${webSearch.web_findings || ''}
-Name found: ${webSearch.found_name || 'none'}
-Title found: ${webSearch.found_title || 'none'}
-Email found: ${webSearch.found_email || 'none'}
-Phone found: ${webSearch.found_phone || 'none'}
-LinkedIn found: ${webSearch.found_linkedin || 'none'}
----
-
-Based on the search results, identify the best decision maker for plastic injection mold procurement. Include their full name, title, email, phone, LinkedIn, and why they are the best contact.`;
+Find the top decision maker: Director General, CEO, General Manager, Purchasing/Procurement Manager, or Operations Director. Provide their full name, title, email, phone, LinkedIn, and why they are the best contact.`;
 
     const result = await base44.integrations.Core.InvokeLLM({
       prompt,
+      add_context_from_internet: true,
       response_json_schema: {
         type: "object",
         properties: {
@@ -348,12 +279,10 @@ Based on the search results, identify the best decision maker for plastic inject
         )}
 
         {loading && (
-          <div className="py-4 space-y-3">
-            <div className="flex items-center gap-2 text-xs text-slate-600 bg-violet-50 rounded-lg p-3">
-              <RefreshCw className="w-3.5 h-3.5 animate-spin text-violet-500 flex-shrink-0" />
-              Step 1: Running Google search for contact & company data...
-            </div>
-            <div className="space-y-2 animate-pulse">
+          <div className="py-6 text-center space-y-4">
+            <RefreshCw className="w-8 h-8 mx-auto text-violet-500 animate-spin" />
+            <p className="text-sm text-slate-500">Searching the web for accurate contact information...</p>
+            <div className="space-y-2 animate-pulse text-left">
               <div className="h-3 bg-slate-100 rounded w-3/4" />
               <div className="h-3 bg-slate-100 rounded w-full" />
               <div className="h-3 bg-slate-100 rounded w-5/6" />
@@ -394,15 +323,9 @@ Based on the search results, identify the best decision maker for plastic inject
           )}
 
           {contactLoading && (
-            <div className="space-y-3 py-1">
-              <div className="flex items-center gap-2 text-xs text-slate-600 bg-indigo-50 rounded-lg p-3">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-500 flex-shrink-0" />
-                Step 1: Running Google search for contact details...
-              </div>
-              <div className="space-y-2 animate-pulse">
-                <div className="h-3 bg-slate-100 rounded w-3/4" />
-                <div className="h-3 bg-slate-100 rounded w-full" />
-              </div>
+            <div className="py-4 text-center space-y-2">
+              <RefreshCw className="w-6 h-6 mx-auto text-indigo-500 animate-spin" />
+              <p className="text-xs text-slate-400">Searching online for contact information...</p>
             </div>
           )}
 
