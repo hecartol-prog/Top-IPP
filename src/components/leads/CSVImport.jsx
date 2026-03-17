@@ -541,11 +541,12 @@ export default function LeadCSVImport({ onImportComplete }) {
                       <td className="px-2 py-1.5">
                         <input type="checkbox" checked={selectedIds.has(lead._id)} onChange={() => toggleSelect(lead._id)} />
                       </td>
-                      <td className="px-2 py-1.5 font-medium text-slate-800 max-w-[140px] truncate">{lead.company_name}</td>
+                      <td className="px-2 py-1.5 font-medium text-slate-800 max-w-[130px] truncate">{lead.company_name}</td>
+                      <td className="px-2 py-1.5 text-slate-500 max-w-[100px] truncate">{[lead.first_name, lead.last_name].filter(Boolean).join(" ") || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-2 py-1.5 text-slate-500 max-w-[120px] truncate">{lead.email || <span className="text-slate-300">—</span>}</td>
                       <td className="px-2 py-1.5 text-slate-500">{lead.phone || <span className="text-slate-300">—</span>}</td>
-                      <td className="px-2 py-1.5 text-slate-500 max-w-[130px] truncate">{lead.email || <span className="text-slate-300">—</span>}</td>
-                      <td className="px-2 py-1.5 text-slate-500 max-w-[80px] truncate">{lead.country || <span className="text-slate-300">—</span>}</td>
-                      <td className="px-2 py-1.5 text-slate-500">{lead.language || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-2 py-1.5 text-slate-500 max-w-[100px] truncate">{lead.industry || <span className="text-slate-300">—</span>}</td>
+                      <td className="px-2 py-1.5 text-slate-500">{lead.priority || <span className="text-slate-300">—</span>}</td>
                     </tr>
                   ))}
                 </tbody>
