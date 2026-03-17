@@ -441,6 +441,19 @@ For the best contact found, provide:
             </div>
           </div>
 
+          {autoEnrichResult && (
+            <div className={`mt-3 text-xs px-3 py-2 rounded-lg flex items-center gap-2 ${
+              autoEnrichResult.fields_updated?.length > 0
+                ? 'bg-teal-500/20 text-teal-200'
+                : 'bg-white/10 text-slate-300'
+            }`}>
+              {autoEnrichResult.fields_updated?.length > 0 ? (
+                <><Check className="w-3.5 h-3.5 shrink-0" /> Updated: {autoEnrichResult.fields_updated.join(', ')}</>
+              ) : (
+                <><Check className="w-3.5 h-3.5 shrink-0" /> All fields already complete or nothing found</>
+              )}
+            </div>
+          )}
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Select value={lead.status} onValueChange={handleStatusChange}>
               <SelectTrigger className="w-36 h-8 bg-white/10 border-white/20 text-white text-xs">
