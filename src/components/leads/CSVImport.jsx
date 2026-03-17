@@ -330,19 +330,39 @@ export default function LeadCSVImport({ onImportComplete }) {
     setMessage(null);
 
     const rows = await parseFileToRows(file);
-    setProgress(`Mapping ${rows.length} rows...`);
+    if (rows.length === 0) {
+      setMessage({ type: "error", text: "File appears empty." });
+      setStep("idle");
+      setProgress("");
+      return;
+    }
+
+    setProgress(`Analyzing column structure with AI (${rows.length} rows)...`);
+
+    let mapping;
+    try {
+      mapping = await detectColumnMapping(rows);
+    } catch (e) {
+      setMessage({ type: "error", text: `AI column detection failed: ${e.message}` });
+      setStep("idle");
+      setProgress("");
+      return;
+    }
+
+    setProgress(`Mapping detected. Extracting leads...`);
 
     let leads;
-    if (isMultiRowFormat(rows)) {
-      setProgress("Detected multi-row company format. Parsing blocks...");
-      const blocks = parseMultiRowFormat(rows);
-      leads = blocks.map(b => multiRowBlockToLead(b, country, language)).filter(Boolean);
+    if (mapping.format === "card_blocks") {
+      // For card/block formats, fall back to LLM-based block extraction
+      leads = await extractCardBlocks(rows, mapping.column_map, country, language, setProgress);
     } else {
-      leads = rows.map(rowToLead).filter(Boolean).map(l => ({ ...l, country, language }));
+      leads = rows
+        .map(row => applyMappingToRow(row, mapping.column_map, country, language))
+        .filter(Boolean);
     }
 
     if (leads.length === 0) {
-      setMessage({ type: "error", text: "No leads found. Please check the file format." });
+      setMessage({ type: "error", text: "No leads could be extracted. The AI could not find company names in this file." });
       setStep("idle");
       setProgress("");
       return;
@@ -353,6 +373,7 @@ export default function LeadCSVImport({ onImportComplete }) {
     setSelectedIds(new Set(indexed.map(l => l._id)));
     setStep("preview");
     setProgress("");
+    setMessage({ type: "success", text: `Found ${leads.length} leads. Format: ${mapping.format}.` });
   };
 
   const handleEnrichWebsites = async () => {
