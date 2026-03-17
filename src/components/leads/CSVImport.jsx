@@ -38,15 +38,17 @@ function cleanValue(val) {
 }
 
 function getCol(row, ...keys) {
+  // Keys are already normalized to uppercase in parseFileToRows
+  // But also try uppercase here for safety
   for (const k of keys) {
-    if (row[k] !== undefined && row[k] !== null) {
-      const v = cleanValue(row[k]);
+    const upper = String(k).trim().toUpperCase();
+    if (row[upper] !== undefined && row[upper] !== null) {
+      const v = cleanValue(row[upper]);
       if (v) return v;
     }
-    // try trimmed
-    const t = k.trim();
-    if (row[t] !== undefined && row[t] !== null) {
-      const v = cleanValue(row[t]);
+    // also try original key
+    if (row[k] !== undefined && row[k] !== null) {
+      const v = cleanValue(row[k]);
       if (v) return v;
     }
   }
