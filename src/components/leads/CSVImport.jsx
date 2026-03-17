@@ -174,6 +174,73 @@ function parseFileToRows(file) {
   });
 }
 
+// For card/block formats: ask AI to parse all blocks and extract leads directly
+async function extractCardBlocks(rows, columnMap, defaultCountry, defaultLanguage, setProgress) {
+  // Chunk rows into batches of 30 and extract all leads via LLM
+  const chunkSize = 30;
+  const allLeads = [];
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    setProgress(`Extracting card blocks... ${Math.min(i + chunkSize, rows.length)}/${rows.length} rows`);
+    try {
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `These rows come from a spreadsheet where companies appear as grouped blocks (card format), not one-per-row.
+Each block of rows represents one company. Extract all companies from this data.
+
+Raw rows:
+${JSON.stringify(chunk, null, 2)}
+
+For each company found, extract all available fields. Return as an array of leads.
+For company_size, use one of: "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+".
+For priority, use: "low", "medium", "high", "urgent".`,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            leads: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  company_name: { type: "string" },
+                  first_name: { type: "string" },
+                  last_name: { type: "string" },
+                  job_title: { type: "string" },
+                  email: { type: "string" },
+                  phone: { type: "string" },
+                  website: { type: "string" },
+                  industry: { type: "string" },
+                  location: { type: "string" },
+                  company_size: { type: "string" },
+                  notes: { type: "string" },
+                  priority: { type: "string" },
+                }
+              }
+            }
+          }
+        }
+      });
+      for (const lead of (result?.leads || [])) {
+        if (lead.company_name) {
+          allLeads.push({
+            ...lead,
+            email: (lead.email || "").includes("@") ? lead.email : "",
+            phone: /\d{4,}/.test(lead.phone || "") ? lead.phone : "",
+            status: "new",
+            source: "other",
+            country: lead.country || defaultCountry,
+            language: defaultLanguage || "english",
+            notes: (lead.notes || "").slice(0, 500),
+            priority: ["low","medium","high","urgent"].includes(lead.priority) ? lead.priority : "medium",
+          });
+        }
+      }
+    } catch (e) {
+      // skip failed chunk
+    }
+  }
+  return allLeads;
+}
+
 // Detect if the file uses a multi-row-per-company format
 function isMultiRowFormat(rows) {
   if (!rows || rows.length < 3) return false;
