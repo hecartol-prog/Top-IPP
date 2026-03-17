@@ -154,24 +154,17 @@ function parseFileToRows(file) {
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: "array" });
-        // Find first sheet with actual data (more than 1 row)
+        // Find sheet with most data
         let sheetName = workbook.SheetNames[0];
+        let maxRows = 0;
         for (const name of workbook.SheetNames) {
-          const s = workbook.Sheets[name];
-          const r = XLSX.utils.sheet_to_json(s, { defval: "" });
-          if (r.length > 1) { sheetName = name; break; }
+          const r = XLSX.utils.sheet_to_json(workbook.Sheets[name], { defval: "" });
+          if (r.length > maxRows) { maxRows = r.length; sheetName = name; }
         }
         const sheet = workbook.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-        // Normalize all keys to UPPERCASE TRIMMED for consistent lookup
-        const normalized = rows.map(row => {
-          const out = {};
-          for (const [k, v] of Object.entries(row)) {
-            out[String(k).trim().toUpperCase()] = v;
-          }
-          return out;
-        });
-        resolve(normalized);
+        // Keep original keys — AI will interpret them
+        resolve(rows);
       } catch (err) {
         reject(err);
       }
