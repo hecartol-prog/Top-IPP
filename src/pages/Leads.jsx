@@ -149,26 +149,7 @@ export default function Leads() {
     }
   };
 
-  // Filter leads
-  const filteredLeads = leads
-    .filter(lead => {
-      const matchesSearch = !searchQuery || 
-        `${lead.first_name} ${lead.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.email?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-      const matchesSource = sourceFilter === "all" || lead.source === sourceFilter;
-      return matchesSearch && matchesStatus && matchesSource;
-    })
-    .sort((a, b) => {
-      let aVal = a[sortField] ?? "";
-      let bVal = b[sortField] ?? "";
-      if (typeof aVal === "string") aVal = aVal.toLowerCase();
-      if (typeof bVal === "string") bVal = bVal.toLowerCase();
-      if (aVal < bVal) return sortDir === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortDir === "asc" ? 1 : -1;
-      return 0;
-    });
+  const filteredLeads = applyFilters(leads, filters);
 
   return (
     <div className="min-h-screen bg-slate-50">
