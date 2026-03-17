@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Building2, MapPin, DollarSign, Calendar, Mail, Phone, Linkedin, Globe,
   Pencil, Trash2, Plus, CheckCircle2, Circle, Clock, MessageSquare, 
-  PhoneCall, Users, FileText, Send, Search, Sparkles, Check, RefreshCw, UserSearch
+  PhoneCall, Users, FileText, Send, Search, Sparkles, Check, RefreshCw, UserSearch, Zap
 } from "lucide-react";
 import AIEditDialog from "./AIEditDialog";
 import OutreachTrackingList from "@/components/outreach/OutreachTrackingList";
