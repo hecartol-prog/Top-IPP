@@ -201,104 +201,28 @@ export default function Leads() {
           </div>
         </div>
 
-        {/* Filters */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl shadow-sm p-4 mb-6"
-        >
-          <div className="flex flex-col gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                placeholder="Search leads..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2 flex-wrap items-center">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-32 sm:w-36">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="contacted">Contacted</SelectItem>
-                  <SelectItem value="qualified">Qualified</SelectItem>
-                  <SelectItem value="proposal">Proposal</SelectItem>
-                  <SelectItem value="negotiation">Negotiation</SelectItem>
-                  <SelectItem value="won">Won</SelectItem>
-                  <SelectItem value="lost">Lost</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger className="w-32 sm:w-36">
-                  <SelectValue placeholder="Source" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sources</SelectItem>
-                  <SelectItem value="linkedin">LinkedIn</SelectItem>
-                  <SelectItem value="csv_import">CSV Import</SelectItem>
-                  <SelectItem value="referral">Referral</SelectItem>
-                  <SelectItem value="website">Website</SelectItem>
-                  <SelectItem value="trade_show">Trade Show</SelectItem>
-                  <SelectItem value="cold_outreach">Cold Outreach</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-              {/* Sort */}
-              <Select value={sortField} onValueChange={setSortField}>
-                <SelectTrigger className="w-36 sm:w-40">
-                  <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="created_date">Date Added</SelectItem>
-                  <SelectItem value="first_name">Name</SelectItem>
-                  <SelectItem value="company_name">Company</SelectItem>
-                  <SelectItem value="status">Status</SelectItem>
-                  <SelectItem value="priority">Priority</SelectItem>
-                  <SelectItem value="next_follow_up">Follow Up</SelectItem>
-                  <SelectItem value="estimated_value">Value</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="outline" size="icon" onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")} title={sortDir === "asc" ? "Ascending" : "Descending"}>
-                {sortDir === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </Button>
-              {/* View toggle */}
-              <div className="flex border border-slate-200 rounded-lg overflow-hidden">
-                <button onClick={() => setViewMode("grid")} className={`px-3 py-2 ${viewMode === "grid" ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>
-                  <LayoutGrid className="w-4 h-4" />
-                </button>
-                <button onClick={() => setViewMode("list")} className={`px-3 py-2 ${viewMode === "list" ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>
-                  <List className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
+        {/* Filter Bar */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <LeadFilterBar
+            filters={filters}
+            onChange={setFilters}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            totalCount={leads.length}
+            filteredCount={filteredLeads.length}
+          />
         </motion.div>
 
-        {/* Results bar */}
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <p className="text-sm text-slate-500">
-            Showing {filteredLeads.length} of {leads.length} leads
-            {selectedIds.length > 0 && <span className="ml-2 font-medium text-slate-700">· {selectedIds.length} selected</span>}
-          </p>
-          {selectedIds.length > 0 && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => bulkDeleteMutation.mutate(selectedIds)}
-              disabled={bulkDeleteMutation.isPending}
-            >
+        {/* Bulk actions */}
+        {selectedIds.length > 0 && (
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <p className="text-sm font-medium text-slate-700">{selectedIds.length} selected</p>
+            <Button variant="destructive" size="sm" onClick={() => bulkDeleteMutation.mutate(selectedIds)} disabled={bulkDeleteMutation.isPending}>
               <Trash2 className="w-3.5 h-3.5 mr-1.5" />
               Delete {selectedIds.length} selected
             </Button>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Leads Grid / List */}
         {isLoading ? (
