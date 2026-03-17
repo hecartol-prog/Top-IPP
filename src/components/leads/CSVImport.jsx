@@ -528,10 +528,11 @@ export default function LeadCSVImport({ onImportComplete }) {
                       <input type="checkbox" checked={selectedIds.size === previewLeads.length} onChange={toggleAll} />
                     </th>
                     <th className="px-2 py-2 text-left font-semibold text-slate-600">Company</th>
-                    <th className="px-2 py-2 text-left font-semibold text-slate-600">Phone</th>
+                    <th className="px-2 py-2 text-left font-semibold text-slate-600">Contact</th>
                     <th className="px-2 py-2 text-left font-semibold text-slate-600">Email</th>
-                    <th className="px-2 py-2 text-left font-semibold text-slate-600">Country</th>
-                    <th className="px-2 py-2 text-left font-semibold text-slate-600">Language</th>
+                    <th className="px-2 py-2 text-left font-semibold text-slate-600">Phone</th>
+                    <th className="px-2 py-2 text-left font-semibold text-slate-600">Industry</th>
+                    <th className="px-2 py-2 text-left font-semibold text-slate-600">Priority</th>
                   </tr>
                 </thead>
                 <tbody>
