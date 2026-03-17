@@ -376,6 +376,18 @@ For the best contact found, provide:
     setContactSearchLoading(false);
   };
 
+  const handleAutoEnrich = async () => {
+    setAutoEnriching(true);
+    setAutoEnrichResult(null);
+    const res = await base44.functions.invoke('enrichLead', { lead_id: lead.id });
+    setAutoEnriching(false);
+    setAutoEnrichResult(res.data);
+    if (res.data?.fields_updated?.length > 0 && onUpdateLead) {
+      // Reload the lead by re-fetching via page — just notify parent
+      setTimeout(() => window.location.reload(), 1500);
+    }
+  };
+
   const handleApplyContactResult = async () => {
     if (!contactSearchResult || !onUpdateLead) return;
     setContactSaving(true);
