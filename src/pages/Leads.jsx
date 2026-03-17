@@ -25,12 +25,18 @@ import {
 
 export default function Leads() {
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [sourceFilter, setSourceFilter] = useState("all");
-  const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
-  const [sortField, setSortField] = useState("created_date");
-  const [sortDir, setSortDir] = useState("desc");
+  const [filters, setFilters] = useState({
+    search: "",
+    status: "all",
+    source: "all",
+    priority: "all",
+    companySize: "all",
+    enrichment: "all",
+    contacted: "all",
+    sortField: "created_date",
+    sortDir: "desc",
+  });
+  const [viewMode, setViewMode] = useState("grid");
   const [selectedIds, setSelectedIds] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
