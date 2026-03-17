@@ -161,6 +161,8 @@ export default function LeadDetails({ open, onClose, lead, activities = [], onEd
   const [contactSearchResult, setContactSearchResult] = useState(null);
   const [contactSaving, setContactSaving] = useState(false);
   const [contactSaved, setContactSaved] = useState(false);
+  const [autoEnriching, setAutoEnriching] = useState(false);
+  const [autoEnrichResult, setAutoEnrichResult] = useState(null);
 
   if (!lead) return null;
 
