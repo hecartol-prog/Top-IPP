@@ -134,11 +134,6 @@ export default function Leads() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['leads'] }); setSelectedIds([]); }
   });
 
-  const handleSort = (field) => {
-    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSortField(field); setSortDir("asc"); }
-  };
-
   const toggleSelectId = (id) => setSelectedIds(prev =>
     prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
   );
