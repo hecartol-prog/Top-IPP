@@ -424,6 +424,10 @@ For the best contact found, provide:
               </div>
             </div>
             <div className="flex gap-2">
+              <Button size="sm" variant="ghost" className="text-teal-300 hover:bg-white/10 gap-1.5" onClick={handleAutoEnrich} disabled={autoEnriching}>
+                {autoEnriching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                <span className="text-xs hidden sm:inline">{autoEnriching ? 'Enriching…' : 'Enrich'}</span>
+              </Button>
               <Button size="sm" variant="ghost" className="text-violet-300 hover:bg-white/10 gap-1.5" onClick={() => setShowAIEdit(true)}>
                 <Sparkles className="w-4 h-4" />
                 <span className="text-xs hidden sm:inline">AI Edit</span>
