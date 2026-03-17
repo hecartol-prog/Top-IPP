@@ -12,108 +12,138 @@ import { Badge } from "@/components/ui/badge";
 
 const ACCEPTED_TYPES = ".csv,.xlsx,.xls";
 
-const COMPANY_SIZE_MAP = [
-  ["0 a 10", "1-10"], ["1 a 10", "1-10"], ["1-10", "1-10"], ["0-10", "1-10"],
-  ["11 a 50", "11-50"], ["11-50", "11-50"],
-  ["51 a 250", "51-200"], ["51 a 200", "51-200"], ["51-200", "51-200"],
-  ["201 a 500", "201-500"], ["251 a 500", "201-500"], ["201-500", "201-500"],
-  ["501 a 1000", "501-1000"], ["501-1000", "501-1000"],
-  ["1001", "1000+"], ["1000+", "1000+"],
-];
-
-function normalizeCompanySize(raw) {
-  if (!raw) return "";
-  const s = String(raw).trim().toLowerCase();
-  for (const [key, val] of COMPANY_SIZE_MAP) {
-    if (s.includes(key.toLowerCase())) return val;
-  }
-  return "";
-}
-
 function cleanValue(val) {
   if (val === null || val === undefined) return "";
   const s = String(val).trim();
-  if (["sin dato", "n/a", "na", "-", "0"].includes(s.toLowerCase())) return "";
+  if (["sin dato", "n/a", "na", "-", "0", ""].includes(s.toLowerCase())) return "";
   return s;
 }
 
-function getCol(row, ...keys) {
-  // Keys are already normalized to uppercase in parseFileToRows
-  // But also try uppercase here for safety
-  for (const k of keys) {
-    const upper = String(k).trim().toUpperCase();
-    if (row[upper] !== undefined && row[upper] !== null) {
-      const v = cleanValue(row[upper]);
-      if (v) return v;
-    }
-    // also try original key
-    if (row[k] !== undefined && row[k] !== null) {
-      const v = cleanValue(row[k]);
-      if (v) return v;
-    }
+function normalizeCompanySize(raw) {
+  if (!raw) return "";
+  const s = String(raw).replace(/[,\s]/g, "").toLowerCase();
+  const n = parseInt(s);
+  if (!isNaN(n)) {
+    if (n <= 10) return "1-10";
+    if (n <= 50) return "11-50";
+    if (n <= 200) return "51-200";
+    if (n <= 500) return "201-500";
+    if (n <= 1000) return "501-1000";
+    return "1000+";
   }
+  const ranges = [["1-10","1-10"],["11-50","11-50"],["51-200","51-200"],["51-250","51-200"],
+    ["201-500","201-500"],["501-1000","501-1000"],["1000+","1000+"]];
+  for (const [k, v] of ranges) { if (s.includes(k.toLowerCase())) return v; }
   return "";
 }
 
-function rowToLead(row) {
-  const company = getCol(row,
-    "COMPANY", "EMPRESA", "RAZON SOCIAL", "NOMBRE", "NAME", "COMPANY NAME", "COMPAÑIA", "COMPANIA", "RAZÓN SOCIAL"
-  );
-  if (!company) return null;
+// AI-powered column detection: send headers + sample rows, get back field mapping
+async function detectColumnMapping(rows) {
+  const headers = Object.keys(rows[0] || {});
+  const sample = rows.slice(0, 5);
 
-  // Contact person — "Decision Contact" for LATAM file, plus common variants
-  const contactName = getCol(row,
-    "DECISION CONTACT", "CONTACT", "CONTACTO", "PERSON", "PERSONA", "REPRESENTATIVE",
-    "REPRESENTANTE", "CONTACT PERSON", "NOMBRE CONTACTO", "DECISION_CONTACT"
-  );
-  let firstName = "", lastName = "";
-  if (contactName && contactName.toLowerCase() !== company.toLowerCase()) {
-    const parts = contactName.trim().split(/\s+/).filter(Boolean);
-    firstName = parts[0] || "";
-    lastName = parts.slice(1).join(" ") || "";
+  const result = await base44.integrations.Core.InvokeLLM({
+    prompt: `You are analyzing a spreadsheet of B2B business leads/companies for a plastic injection mold manufacturer.
+
+Column headers found: ${JSON.stringify(headers)}
+
+Sample data rows (first 5):
+${JSON.stringify(sample, null, 2)}
+
+Map each column header to exactly one of these lead fields:
+- "company_name" — company/business/organization name
+- "contact_full_name" — full name of contact person (will be split into first/last)
+- "first_name" — contact first name only
+- "last_name" — contact last name only
+- "email" — email address
+- "phone" — phone, mobile, tel number
+- "job_title" — job title, position, role, cargo
+- "website" — website, web, URL
+- "industry" — industry, sector, field, giro, actividad
+- "company_size" — employee count, company size, número empleados
+- "city" — city, ciudad
+- "state" — state, province, estado
+- "country" — country, país
+- "location" — full location/address combining city+state+region
+- "notes" — notes, comments, description, why they need molds, additional info
+- "priority" — priority level
+- "skip" — column doesn't map to any lead field
+
+Also detect the file format:
+- "flat_rows": standard table where each row is one company/lead
+- "card_blocks": companies appear in groups/blocks of rows (label: value style), each block is one company
+- "mixed": uncertain
+
+Return a JSON with column_map (object mapping each header string to a field name) and format ("flat_rows", "card_blocks", or "mixed").`,
+    response_json_schema: {
+      type: "object",
+      properties: {
+        column_map: { type: "object", additionalProperties: { type: "string" } },
+        format: { type: "string" }
+      }
+    }
+  });
+
+  return result || { column_map: {}, format: "flat_rows" };
+}
+
+// Apply AI-detected mapping to a single row
+function applyMappingToRow(row, columnMap, defaultCountry, defaultLanguage) {
+  const get = (field) => {
+    for (const [col, mapped] of Object.entries(columnMap)) {
+      if (mapped === field) {
+        const v = cleanValue(row[col]);
+        if (v) return v;
+      }
+    }
+    return "";
+  };
+
+  const companyName = get("company_name");
+  if (!companyName) return null;
+
+  // Contact name
+  let firstName = get("first_name");
+  let lastName = get("last_name");
+  if (!firstName && !lastName) {
+    const full = get("contact_full_name");
+    if (full && full.toLowerCase() !== companyName.toLowerCase()) {
+      const parts = full.trim().split(/\s+/).filter(Boolean);
+      firstName = parts[0] || "";
+      lastName = parts.slice(1).join(" ") || "";
+    }
   }
 
-  const jobTitle = getCol(row, "TITLE", "CARGO", "PUESTO", "POSITION", "ROLE", "JOB TITLE");
-  const phone = getCol(row, "PHONE", "TELEFONO", "TELÉFONO", "TEL", "CELULAR", "MOBILE");
-  const email = getCol(row, "EMAIL", "CORREO", "E-MAIL", "MAIL");
-  const website = getCol(row, "WEBSITE", "WEB", "SITIO WEB", "URL", "SITIO");
-  const country = getCol(row, "COUNTRY", "PAIS", "PAÍS");
-  const state = getCol(row, "STATE", "ESTADO");
-  const city = getCol(row, "CITY", "CIUDAD");
-  const location = [city, state, country].filter(Boolean).join(", ");
-  const industry = getCol(row,
-    "SECTOR / INDUSTRY", "SECTOR/INDUSTRY", "SECTOR", "INDUSTRY", "INDUSTRIA",
-    "FIELD", "GIRO", "ACTIVIDAD", "RAMO", "SECTOR / INDUSTRIA"
-  );
-  const empRaw = getCol(row,
-    "NO. OF EMPLOYEES", "NO. OF EMPLOYEEES", "EMPLOYEES", "EMPLEADOS", "TRABAJADORES"
-  );
-  const address = getCol(row, "ADDRESS", "DOMICILIO", "CALLE", "DIRECCION", "DIRECCIÓN");
-  const town = getCol(row, "TOWN", "COLONIA", "MUNICIPIO");
-  const whyNeeds = getCol(row, "WHY THEY NEED MOLDS", "WHY THEY NEED MOULD", "NOTES", "NOTAS", "COMENTARIOS", "DESCRIPTION");
-  const priority = getCol(row, "PRIORITY", "PRIORIDAD");
-  const notes = [whyNeeds, address, town].filter(Boolean).join(" | ").slice(0, 500);
+  const city = get("city");
+  const state = get("state");
+  const country = get("country") || defaultCountry;
+  const locationField = get("location");
+  const location = locationField || [city, state, country].filter(Boolean).join(", ");
 
-  const priorityMap = { HIGH: "high", MEDIUM: "medium", LOW: "low", URGENT: "urgent" };
-  const mappedPriority = priorityMap[(priority || "").toUpperCase()] || "medium";
+  const priorityRaw = get("priority").toUpperCase();
+  const priorityMap = { HIGH: "high", MEDIUM: "medium", LOW: "low", URGENT: "urgent", ALTO: "high", MEDIO: "medium", BAJO: "low" };
+  const priority = priorityMap[priorityRaw] || "medium";
+
+  const email = get("email");
+  const phone = get("phone");
 
   return {
     first_name: firstName,
     last_name: lastName,
     email: email.includes("@") ? email : "",
     phone: /\d{4,}/.test(phone) ? phone : "",
-    job_title: jobTitle,
-    company_name: company,
-    company_size: normalizeCompanySize(empRaw),
-    industry,
-    website,
+    job_title: get("job_title"),
+    company_name: companyName,
+    company_size: normalizeCompanySize(get("company_size")),
+    industry: get("industry"),
+    website: get("website"),
     location,
     country,
-    notes,
+    notes: get("notes").slice(0, 500),
     status: "new",
     source: "other",
-    priority: mappedPriority,
-    language: "english",
+    priority,
+    language: defaultLanguage || "english",
   };
 }
 
