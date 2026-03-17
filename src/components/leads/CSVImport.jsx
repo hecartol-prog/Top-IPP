@@ -109,10 +109,24 @@ function parseFileToRows(file) {
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
+        // Find first sheet with actual data (more than 1 row)
+        let sheetName = workbook.SheetNames[0];
+        for (const name of workbook.SheetNames) {
+          const s = workbook.Sheets[name];
+          const r = XLSX.utils.sheet_to_json(s, { defval: "" });
+          if (r.length > 1) { sheetName = name; break; }
+        }
         const sheet = workbook.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-        resolve(rows);
+        // Normalize all keys to UPPERCASE TRIMMED for consistent lookup
+        const normalized = rows.map(row => {
+          const out = {};
+          for (const [k, v] of Object.entries(row)) {
+            out[String(k).trim().toUpperCase()] = v;
+          }
+          return out;
+        });
+        resolve(normalized);
       } catch (err) {
         reject(err);
       }
