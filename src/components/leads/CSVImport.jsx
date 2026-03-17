@@ -564,6 +564,17 @@ export default function LeadCSVImport({ onImportComplete }) {
           </Alert>
         )}
 
+        {(step === "idle" || step === "extracting" || step === "preview") && message && (
+          <Alert className={message.type === "success" ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}>
+            {message.type === "success"
+              ? <CheckCircle2 className="w-4 h-4 inline mr-2 text-emerald-600" />
+              : <AlertCircle className="w-4 h-4 inline mr-2 text-red-600" />}
+            <AlertDescription className={message.type === "success" ? "text-emerald-800" : "text-red-800"}>
+              {message.text}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {(step === "idle" || step === "extracting") && (
           <div className="space-y-3">
             <Input type="file" accept={ACCEPTED_TYPES} onChange={handleFileChange} disabled={step === "extracting"} />
