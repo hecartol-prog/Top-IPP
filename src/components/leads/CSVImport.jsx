@@ -57,49 +57,62 @@ function getCol(row, ...keys) {
 
 function rowToLead(row) {
   const company = getCol(row,
-    "COMPANY ", "COMPANY", "EMPRESA", "RAZON SOCIAL", "NOMBRE", "NAME", "COMPANY NAME"
+    "COMPANY", "EMPRESA", "RAZON SOCIAL", "NOMBRE", "NAME", "COMPANY NAME", "COMPAÑIA", "COMPANIA", "RAZÓN SOCIAL"
   );
   if (!company) return null;
 
-  // Only use dedicated contact columns for person name — never split company name
+  // Contact person — "Decision Contact" for LATAM file, plus common variants
   const contactName = getCol(row,
-    "CONTACT", "CONTACTO", "PERSON", "PERSONA", "REPRESENTATIVE", "REPRESENTANTE", "CONTACT PERSON", "NOMBRE CONTACTO"
+    "DECISION CONTACT", "CONTACT", "CONTACTO", "PERSON", "PERSONA", "REPRESENTATIVE",
+    "REPRESENTANTE", "CONTACT PERSON", "NOMBRE CONTACTO", "DECISION_CONTACT"
   );
   let firstName = "", lastName = "";
   if (contactName && contactName.toLowerCase() !== company.toLowerCase()) {
-    const parts = contactName.split(" ").filter(Boolean);
+    const parts = contactName.trim().split(/\s+/).filter(Boolean);
     firstName = parts[0] || "";
     lastName = parts.slice(1).join(" ") || "";
   }
 
-  const phone = getCol(row, "PHONE", "TELEFONO", "TEL", "CELULAR", "MOBILE");
+  const jobTitle = getCol(row, "TITLE", "CARGO", "PUESTO", "POSITION", "ROLE", "JOB TITLE");
+  const phone = getCol(row, "PHONE", "TELEFONO", "TELÉFONO", "TEL", "CELULAR", "MOBILE");
   const email = getCol(row, "EMAIL", "CORREO", "E-MAIL", "MAIL");
+  const website = getCol(row, "WEBSITE", "WEB", "SITIO WEB", "URL", "SITIO");
+  const country = getCol(row, "COUNTRY", "PAIS", "PAÍS");
   const state = getCol(row, "STATE", "ESTADO");
   const city = getCol(row, "CITY", "CIUDAD");
-  const location = [city, state].filter(Boolean).join(", ");
-  const industry = getCol(row, "FIELD", "GIRO", "ACTIVIDAD", "SECTOR", "INDUSTRIA", "RAMO");
-  const empRaw = getCol(row,
-    "No. OF EMPLOYEEES", "No. OF EMPLOYEES", "EMPLEADOS", "TRABAJADORES", "EMPLOYEES", "No. OF EMPLOYEEES"
+  const location = [city, state, country].filter(Boolean).join(", ");
+  const industry = getCol(row,
+    "SECTOR / INDUSTRY", "SECTOR/INDUSTRY", "SECTOR", "INDUSTRY", "INDUSTRIA",
+    "FIELD", "GIRO", "ACTIVIDAD", "RAMO", "SECTOR / INDUSTRIA"
   );
-  const address = getCol(row, "ADDRESS", "DOMICILIO", "CALLE", "DIRECCION");
+  const empRaw = getCol(row,
+    "NO. OF EMPLOYEES", "NO. OF EMPLOYEEES", "EMPLOYEES", "EMPLEADOS", "TRABAJADORES"
+  );
+  const address = getCol(row, "ADDRESS", "DOMICILIO", "CALLE", "DIRECCION", "DIRECCIÓN");
   const town = getCol(row, "TOWN", "COLONIA", "MUNICIPIO");
-  const notes = [address, town].filter(Boolean).join(", ");
+  const whyNeeds = getCol(row, "WHY THEY NEED MOLDS", "WHY THEY NEED MOULD", "NOTES", "NOTAS", "COMENTARIOS", "DESCRIPTION");
+  const priority = getCol(row, "PRIORITY", "PRIORIDAD");
+  const notes = [whyNeeds, address, town].filter(Boolean).join(" | ").slice(0, 500);
+
+  const priorityMap = { HIGH: "high", MEDIUM: "medium", LOW: "low", URGENT: "urgent" };
+  const mappedPriority = priorityMap[(priority || "").toUpperCase()] || "medium";
 
   return {
     first_name: firstName,
     last_name: lastName,
     email: email.includes("@") ? email : "",
-    phone: /\d{5,}/.test(phone) ? phone : "",
-    job_title: "",
+    phone: /\d{4,}/.test(phone) ? phone : "",
+    job_title: jobTitle,
     company_name: company,
     company_size: normalizeCompanySize(empRaw),
     industry,
-    website: "",
+    website,
     location,
+    country,
     notes,
     status: "new",
     source: "other",
-    country: "",
+    priority: mappedPriority,
     language: "english",
   };
 }
