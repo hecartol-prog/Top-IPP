@@ -2,10 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Search, LayoutGrid, List, Upload, Globe, ArrowUpDown, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Search, Upload, Globe, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import LeadCard from "../components/leads/LeadCard";
 import LeadForm from "../components/leads/LeadForm";
@@ -13,6 +11,7 @@ import LeadDetails from "@/components/leads/LeadDetails.jsx";
 import LeadCSVImport from "../components/leads/CSVImport";
 import WebScraper from "../components/leads/WebScraper";
 import LeadListView from "../components/leads/LeadListView";
+import LeadFilterBar, { applyFilters } from "../components/leads/LeadFilterBar";
 import {
   AlertDialog,
   AlertDialogAction,
