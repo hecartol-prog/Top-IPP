@@ -152,10 +152,12 @@ function parseFileToRows(file) {
 }
 
 // Detect if the file uses a multi-row-per-company format
-// (e.g. Uruguay: company name, then Contacto:, Dirección:, Tel:, etc. on successive rows)
 function isMultiRowFormat(rows) {
   if (!rows || rows.length < 3) return false;
-  const col = Object.keys(rows[0] || {})[1] || Object.keys(rows[0] || {})[0];
+  const keys = Object.keys(rows[0] || {});
+  // If headers include "COMPANY" / "DECISION CONTACT" etc., it's a flat format
+  if (keys.some(k => ["COMPANY", "DECISION CONTACT", "EMAIL", "PHONE", "WEBSITE"].includes(k))) return false;
+  const col = keys[1] || keys[0];
   let multiRowCount = 0;
   for (let i = 0; i < Math.min(rows.length, 20); i++) {
     const val = String(rows[i][col] || "").toLowerCase().trim();
