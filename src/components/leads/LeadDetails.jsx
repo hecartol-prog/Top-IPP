@@ -12,6 +12,7 @@ import {
   PhoneCall, Users, FileText, Send, Search, Sparkles, Check, RefreshCw, UserSearch
 } from "lucide-react";
 import AIEditDialog from "./AIEditDialog";
+import OutreachTrackingList from "@/components/outreach/OutreachTrackingList";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 
@@ -454,6 +455,7 @@ For the best contact found, provide:
               Activities {leadActivities.length > 0 && `(${leadActivities.length})`}
             </TabsTrigger>
             <TabsTrigger value="research" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">AI Research</TabsTrigger>
+            <TabsTrigger value="outreach" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">Outreach</TabsTrigger>
           </TabsList>
 
           {/* Info Tab */}
@@ -807,6 +809,10 @@ For the best contact found, provide:
                 </div>
               )}
             </div>
+          </TabsContent>
+          {/* Outreach Tab */}
+          <TabsContent value="outreach" className="p-4 mt-0">
+            <OutreachTrackingList lead={lead} />
           </TabsContent>
         </Tabs>
       </SheetContent>
