@@ -118,6 +118,27 @@ export function applyFilters(leads, filters) {
         if (filters.enrichment === "partial" && (score < 1 || score >= 7)) return false;
         if (filters.enrichment === "empty" && score > 0) return false;
       }
+      // Language
+      if (filters.language !== "all" && lead.language !== filters.language) return false;
+      // Country (text match)
+      if (filters.country && !(lead.country || "").toLowerCase().includes(filters.country.toLowerCase()) &&
+          !(lead.location || "").toLowerCase().includes(filters.country.toLowerCase())) return false;
+      // Industry (text match)
+      if (filters.industry && !(lead.industry || "").toLowerCase().includes(filters.industry.toLowerCase())) return false;
+      // Job title (text match)
+      if (filters.jobTitle && !(lead.job_title || "").toLowerCase().includes(filters.jobTitle.toLowerCase())) return false;
+      // Has email
+      if (filters.hasEmail === "yes" && !lead.email) return false;
+      if (filters.hasEmail === "no" && lead.email) return false;
+      // Has phone
+      if (filters.hasPhone === "yes" && !lead.phone) return false;
+      if (filters.hasPhone === "no" && lead.phone) return false;
+      // Has website
+      if (filters.hasWebsite === "yes" && !lead.website) return false;
+      if (filters.hasWebsite === "no" && lead.website) return false;
+      // Deal value range
+      if (filters.minValue !== "" && (lead.estimated_value || 0) < Number(filters.minValue)) return false;
+      if (filters.maxValue !== "" && (lead.estimated_value || 0) > Number(filters.maxValue)) return false;
       // Last contacted / follow-up
       if (filters.contacted !== "all") {
         if (filters.contacted === "never") {
