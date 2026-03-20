@@ -60,26 +60,43 @@ export default function AIEditDialog({ open, onClose, lead, onUpdateLead }) {
     setSavedOk(false);
 
     // Stage 1: Verify & correct contact details
+    const contactName = [lead.first_name, lead.last_name].filter(Boolean).join(' ');
+    const industryCtx = [lead.industry, lead.notes].filter(Boolean).join('. ') || 'plastic injection molds, packaging, manufacturing';
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are a B2B data accuracy agent. Research this lead using the web and verify/correct their contact details.
+      prompt: `You are a B2B data accuracy agent specializing in the plastic injection mold and manufacturing industry. Research this lead using the web and verify/correct their contact details.
+
+ANTI-HOMONYM RULES — CRITICAL:
+- This company operates in: plastics, injection molds, packaging, or related manufacturing.
+- ONLY use data that is confirmed to be about THIS specific company: "${lead.company_name}" in this industry.
+- If you find multiple people or companies with the same name, pick ONLY the one that matches this company and industry context.
+- Do NOT use data from a different company or person who happens to share the same name.
+- If you cannot confirm the data belongs to this exact company and person, return null.
+- For LinkedIn: only accept a profile where the person's CURRENT or PAST employer matches "${lead.company_name}" exactly.
+- For email: must belong to the domain of ${lead.website ? lead.website : `"${lead.company_name}"`}, not a generic service.
 
 Current lead data:
-- Name: ${lead.first_name} ${lead.last_name}
+- Name: ${contactName || 'Unknown'}
 - Job Title: ${lead.job_title || 'Unknown'}
 - Company: ${lead.company_name}
+- Industry context: ${industryCtx}
 - Email: ${lead.email || 'Unknown'}
 - Phone: ${lead.phone || 'Unknown'}
 - LinkedIn: ${lead.linkedin_url || 'Unknown'}
 - Website: ${lead.website || 'Unknown'}
 - Location: ${lead.location || 'Unknown'}
 
-Search the web for this person and company. For each field below, provide:
-1. The best/corrected value you found (or null if you couldn't find/verify it)
-2. Confidence: "high", "medium", or "low"
-3. A short reason explaining where you found it
+Search queries to use:
+1. "${lead.company_name} ${lead.location || ''} plastic injection mold"
+2. "${contactName ? contactName + ' ' + lead.company_name : lead.company_name + ' director manager'}"
+3. "${lead.company_name} contact email phone site:${lead.website || 'their website'}"
 
-Only suggest a value if it differs from the current one OR if the current one is missing/Unknown.
-Be conservative — only include fields you actually found evidence for.`,
+For each field below, provide:
+1. The best/corrected value you found (or null if you couldn't confirm it belongs to THIS company/person)
+2. Confidence: "high", "medium", or "low"
+3. A short reason explaining where you found it AND how you confirmed it matches this company
+
+Only suggest a value if it differs from the current one OR if the current one is missing.
+Be conservative — only include fields you actually found confirmed evidence for.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
