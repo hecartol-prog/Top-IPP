@@ -400,6 +400,87 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
                   </SelectContent>
                 </Select>
               </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Language</label>
+                <Select value={filters.language} onValueChange={v => set("language", v)}>
+                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Country</label>
+                <div className="relative">
+                  <Input placeholder="Filter by country..." value={filters.country} onChange={e => set("country", e.target.value)} className="text-sm pr-7" />
+                  {filters.country && <button onClick={() => set("country", "")} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Industry</label>
+                <div className="relative">
+                  <Input placeholder="Filter by industry..." value={filters.industry} onChange={e => set("industry", e.target.value)} className="text-sm pr-7" />
+                  {filters.industry && <button onClick={() => set("industry", "")} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Job Title</label>
+                <div className="relative">
+                  <Input placeholder="Filter by job title..." value={filters.jobTitle} onChange={e => set("jobTitle", e.target.value)} className="text-sm pr-7" />
+                  {filters.jobTitle && <button onClick={() => set("jobTitle", "")} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Deal Value (USD)</label>
+                <div className="flex gap-2">
+                  <Input placeholder="Min" type="number" value={filters.minValue} onChange={e => set("minValue", e.target.value)} className="text-sm" />
+                  <Input placeholder="Max" type="number" value={filters.maxValue} onChange={e => set("maxValue", e.target.value)} className="text-sm" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Contact Data</label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-600">Has Email</span>
+                    <Select value={filters.hasEmail} onValueChange={v => set("hasEmail", v)}>
+                      <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-600">Has Phone</span>
+                    <Select value={filters.hasPhone} onValueChange={v => set("hasPhone", v)}>
+                      <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-600">Has Website</span>
+                    <Select value={filters.hasWebsite} onValueChange={v => set("hasWebsite", v)}>
+                      <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Save view */}
