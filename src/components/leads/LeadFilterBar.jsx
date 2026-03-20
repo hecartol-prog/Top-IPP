@@ -195,6 +195,15 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
     filters.companySize !== "all",
     filters.enrichment !== "all",
     filters.contacted !== "all",
+    filters.language !== "all",
+    !!filters.country,
+    !!filters.industry,
+    !!filters.jobTitle,
+    filters.hasEmail !== "all",
+    filters.hasPhone !== "all",
+    filters.hasWebsite !== "all",
+    filters.minValue !== "",
+    filters.maxValue !== "",
   ].filter(Boolean).length;
 
   const set = (key, value) => onChange({ ...filters, [key]: value });
