@@ -213,29 +213,57 @@ For each field found, return the value, confidence ("high"/"medium"/"low"), and 
 
     const hasContact = lead.first_name || lead.last_name;
 
+    const hasContact = lead.first_name || lead.last_name;
+    const contactNameLocal = [lead.first_name, lead.last_name].filter(Boolean).join(' ');
+    const industryCtxLocal = [lead.industry, lead.notes].filter(Boolean).join('. ') || 'plastic injection molds, packaging, manufacturing';
+
     const prompt = hasContact
-      ? `You are a B2B sales intelligence assistant. Research the contact person at this company and find detailed outreach information.
+      ? `You are a B2B sales intelligence assistant specializing in the plastic injection mold and manufacturing industry.
+
+ANTI-HOMONYM RULES — CRITICAL:
+- You must ONLY find data for "${contactNameLocal}" who works at "${lead.company_name}" in the plastics/injection mold industry.
+- There may be other people named "${contactNameLocal}" in the world. IGNORE all of them unless they are confirmed employees of "${lead.company_name}".
+- For LinkedIn: only accept a profile where the person's current employer is "${lead.company_name}".
+- For email: must match the domain of ${lead.website || `"${lead.company_name}"`}, not a generic provider.
+- If you cannot confirm with high confidence that the data belongs to this exact person at this company, return null.
 
 Company: ${lead.company_name}
-Contact Person: ${lead.first_name} ${lead.last_name}
+Contact Person: ${contactNameLocal}
 Job Title: ${lead.job_title || 'Unknown'}
+Industry: ${industryCtxLocal}
 Website: ${lead.website || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
 
-Search the web and find:
-1. Verified email address for this person
+Search queries to use:
+1. "${contactNameLocal} ${lead.company_name} plastic injection mold"
+2. site:linkedin.com "${contactNameLocal}" "${lead.company_name}"
+3. "${lead.company_name} ${lead.location || ''} contact email"
+
+Find ONLY for this confirmed person at this company:
+1. Verified email address
 2. Phone number (direct or company)
 3. LinkedIn profile URL
 4. Exact job title / role
-5. Best outreach notes: preferred channel, professional background, any relevant context to build rapport`
-      : `You are a B2B sales intelligence assistant. This company has no known contact person. Search for the best decision maker for plastic injection mold manufacturing procurement.
+5. Outreach notes: relevant professional background, why they are important for mold procurement outreach`
+      : `You are a B2B sales intelligence assistant specializing in plastic injection molds and manufacturing procurement.
+
+ANTI-HOMONYM RULES — CRITICAL:
+- Only find decision makers CONFIRMED to work at "${lead.company_name}" (not a company with a similar name).
+- Verify by checking the company's official website, LinkedIn company page, or press releases.
+- Do NOT suggest contacts from different companies that share a similar name.
 
 Company: ${lead.company_name}
-Industry: ${lead.industry || 'Unknown'}
+Industry: ${industryCtxLocal}
 Website: ${lead.website || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
 
-Find the top decision maker: Director General, CEO, General Manager, Purchasing/Procurement Manager, or Operations Director. Provide their full name, title, email, phone, LinkedIn, and why they are the best contact.`;
+Search:
+1. "${lead.company_name} ${lead.location || ''} director CEO manager plastic injection"
+2. site:linkedin.com/company "${lead.company_name}"
+3. "${lead.company_name} ${lead.location || ''} procurement purchasing operations"
+
+Find the top decision maker for plastic injection mold procurement: Director General, CEO, General Manager, Purchasing/Procurement Manager, or Operations Director.
+Only return a person you can confirm works at THIS exact company. Provide their full name, title, email, phone, LinkedIn, and why they are the best contact.`;
 
     const result = await base44.integrations.Core.InvokeLLM({
       prompt,
