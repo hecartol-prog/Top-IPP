@@ -1,90 +1,217 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+
+// --- Validation helpers ---
+function isValidEmail(v) {
+  return typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
+}
+function isValidUrl(v) {
+  if (!v || typeof v !== 'string') return false;
+  try { new URL(v.startsWith('http') ? v : 'https://' + v); return true; } catch { return false; }
+}
+function isValidLinkedIn(v) {
+  return typeof v === 'string' && /linkedin\.com\/(in|company)\/[a-zA-Z0-9\-_%]+/.test(v);
+}
+function isValidPhone(v) {
+  return typeof v === 'string' && v.replace(/[\s\-().+]/g, '').length >= 7;
+}
+function isValidCompanySize(v) {
+  return ["1-10","11-50","51-200","201-500","501-1000","1000+"].includes(v);
+}
+function normalizeUrl(v) {
+  if (!v) return null;
+  v = v.trim();
+  if (!v.startsWith('http')) v = 'https://' + v;
+  try { return new URL(v).href; } catch { return null; }
+}
+
+// --- Step 1: Try to scrape the company website directly ---
+async function fetchWebsiteText(website) {
+  try {
+    const url = website.startsWith('http') ? website : 'https://' + website;
+    const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, redirect: 'follow' });
+    if (!resp.ok) return null;
+    let html = await resp.text();
+    // Strip tags, collapse whitespace
+    return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 8000);
+  } catch {
+    return null;
+  }
+}
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { lead_id, event } = await req.json();
+    const body = await req.json();
+    const { lead_id, event, fields: requestedFields, only_missing } = body;
 
-    // Support being called directly (lead_id) or from entity automation (event.entity_id)
     const id = lead_id || event?.entity_id;
     if (!id) return Response.json({ error: 'lead_id is required' }, { status: 400 });
 
     const lead = await base44.asServiceRole.entities.Lead.get(id);
     if (!lead) return Response.json({ error: 'Lead not found' }, { status: 404 });
 
-    // Determine which fields are missing
-    const fieldsToEnrich = [];
-    if (!lead.linkedin_url) fieldsToEnrich.push('linkedin_url');
-    if (!lead.phone) fieldsToEnrich.push('phone');
-    if (!lead.email) fieldsToEnrich.push('email');
-    if (!lead.industry) fieldsToEnrich.push('industry');
-    if (!lead.company_size) fieldsToEnrich.push('company_size');
-    if (!lead.location) fieldsToEnrich.push('location');
-    if (!lead.website) fieldsToEnrich.push('website');
-    if (!lead.job_title) fieldsToEnrich.push('job_title');
-    if (!lead.notes) fieldsToEnrich.push('notes');
+    const allFields = ['email','phone','website','linkedin_url','job_title','industry','company_size','location','country','notes'];
+    const targetFields = requestedFields?.length > 0 ? requestedFields : allFields;
 
-    // Nothing to enrich
+    // Determine which fields to enrich
+    const fieldsToEnrich = targetFields.filter(f => {
+      if (only_missing === false) return true; // force-refresh all
+      return !lead[f]; // default: only missing
+    });
+
     if (fieldsToEnrich.length === 0) {
-      return Response.json({ success: true, message: 'Lead already fully enriched', updated: {} });
+      return Response.json({ success: true, message: 'Nothing to enrich', fields_updated: [] });
     }
 
     const contactName = [lead.first_name, lead.last_name].filter(Boolean).join(' ');
+    const companyDomain = lead.website
+      ? (() => { try { return new URL(lead.website.startsWith('http') ? lead.website : 'https://' + lead.website).hostname; } catch { return null; } })()
+      : null;
 
-    const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      prompt: `You are a B2B sales intelligence researcher. Research this lead online and fill in the missing fields.
+    // --- Step 1: Extract directly from website if available ---
+    let websiteData = {};
+    if (lead.website && fieldsToEnrich.some(f => ['email','phone','location','industry','company_size','notes'].includes(f))) {
+      const siteText = await fetchWebsiteText(lead.website);
+      if (siteText) {
+        const siteResult = await base44.asServiceRole.integrations.Core.InvokeLLM({
+          prompt: `Extract factual company information ONLY from the following website text. 
+Do NOT guess or invent anything. If a field is not explicitly present in the text, return null.
 
-Lead info:
-- Name: ${contactName || 'Unknown'}
-- Job Title: ${lead.job_title || 'Unknown'}
+Company: ${lead.company_name}
+Contact: ${contactName || 'Unknown'}
+
+Website text:
+${siteText}
+
+Extract ONLY what is explicitly stated in the text above. 
+- email: company contact email (must contain @, must match domain ${companyDomain || 'of the company'})
+- phone: company phone number (must be a real number with digits)
+- location: city/country where the company is headquartered (only if explicitly stated)
+- industry: the business sector/industry (only if explicitly stated)
+- company_size: employee count (use ONLY: "1-10","11-50","51-200","201-500","501-1000","1000+")
+- notes: 2-3 sentence factual summary of what the company does, based strictly on the website text
+
+Return null for anything not explicitly present.`,
+          response_json_schema: {
+            type: "object",
+            properties: {
+              email: { type: "string" },
+              phone: { type: "string" },
+              location: { type: "string" },
+              industry: { type: "string" },
+              company_size: { type: "string" },
+              notes: { type: "string" }
+            }
+          }
+        });
+        // Only accept fields from website that pass validation
+        if (siteResult.email && isValidEmail(siteResult.email)) websiteData.email = siteResult.email.trim();
+        if (siteResult.phone && isValidPhone(siteResult.phone)) websiteData.phone = siteResult.phone.trim();
+        if (siteResult.location && siteResult.location.length > 2) websiteData.location = siteResult.location.trim();
+        if (siteResult.industry && siteResult.industry.length > 2) websiteData.industry = siteResult.industry.trim();
+        if (siteResult.company_size && isValidCompanySize(siteResult.company_size)) websiteData.company_size = siteResult.company_size;
+        if (siteResult.notes && siteResult.notes.length > 20) websiteData.notes = siteResult.notes.trim();
+      }
+    }
+
+    // --- Step 2: Internet search for fields still missing ---
+    const stillMissing = fieldsToEnrich.filter(f => !websiteData[f]);
+
+    let searchData = {};
+    if (stillMissing.length > 0) {
+      const searchResult = await base44.asServiceRole.integrations.Core.InvokeLLM({
+        model: "gemini_3_flash",
+        add_context_from_internet: true,
+        prompt: `You are a B2B data researcher. Find VERIFIED information about this company/person from the web.
+
+CRITICAL RULES — strictly follow these to avoid hallucination:
+1. ONLY return data you found on a real, publicly accessible web page.
+2. For each sensitive field (email, phone, linkedin_url), you MUST provide the source_url where you found it.
+3. If you are not at least 85% confident a field is correct, return null for that field.
+4. Do NOT guess, infer, or construct data. Only report what you actually found.
+5. Email addresses: must be from a verifiable source (company website, LinkedIn, press release). Do NOT construct email patterns.
+6. Phone: must be explicitly listed on a website. Do NOT guess area codes.
+7. LinkedIn URL: must be a real linkedin.com/in/ or linkedin.com/company/ URL you actually found.
+8. Website: must be the official company website domain you found.
+
+Lead to research:
 - Company: ${lead.company_name}
-- Website: ${lead.website || 'Unknown'}
-- Industry: ${lead.industry || 'Unknown'}
-- Location: ${lead.location || 'Unknown'}
-- Email: ${lead.email || 'Unknown'}
-- Phone: ${lead.phone || 'Unknown'}
-- Company Size: ${lead.company_size || 'Unknown'}
-- LinkedIn: ${lead.linkedin_url || 'Unknown'}
+- Contact: ${contactName || 'None known'}
+- Job Title: ${lead.job_title || 'Unknown'}
+- Known website: ${lead.website || 'Unknown'}
+- Known location: ${lead.location || 'Unknown'}
+- Known industry: ${lead.industry || 'Unknown'}
 
-Fields to find: ${fieldsToEnrich.join(', ')}
+Fields needed: ${stillMissing.join(', ')}
 
-Search for:
-1. "${lead.company_name}${contactName ? ' ' + contactName : ''} LinkedIn"
-2. "${lead.company_name} contact phone email"
-3. "${lead.company_name} company revenue employees size industry"
+Search queries to use:
+1. "${lead.company_name} official website contact"
+2. "${contactName ? contactName + ' ' + lead.company_name + ' LinkedIn' : lead.company_name + ' LinkedIn company'}"
+3. "${lead.company_name} ${lead.location || ''} employees industry"
 
-Rules:
-- Only return fields you found with reasonable confidence (skip uncertain ones entirely)
-- For linkedin_url: must be a real linkedin.com/in/ or linkedin.com/company/ URL
-- For phone: include country code if detectable
-- For company_size: use ONLY one of: "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+"
-- For notes: write 2-3 sentences summarizing the company, what they do, and their potential manufacturing/procurement needs
-- Return null for any field you cannot find with confidence`,
-      add_context_from_internet: true,
-      model: "gemini_3_flash",
-      response_json_schema: {
-        type: "object",
-        properties: {
-          linkedin_url: { type: "string" },
-          phone: { type: "string" },
-          email: { type: "string" },
-          industry: { type: "string" },
-          company_size: { type: "string" },
-          location: { type: "string" },
-          website: { type: "string" },
-          job_title: { type: "string" },
-          notes: { type: "string" }
+Return the found data plus source_urls for sensitive fields.`,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            email: { type: "string" },
+            email_source_url: { type: "string" },
+            phone: { type: "string" },
+            phone_source_url: { type: "string" },
+            website: { type: "string" },
+            linkedin_url: { type: "string" },
+            linkedin_source_url: { type: "string" },
+            job_title: { type: "string" },
+            industry: { type: "string" },
+            company_size: { type: "string" },
+            location: { type: "string" },
+            country: { type: "string" },
+            notes: { type: "string" }
+          }
+        }
+      });
+
+      // Validate each field strictly before accepting
+      if (stillMissing.includes('email') && isValidEmail(searchResult.email)) {
+        // Extra check: if company domain known, email should match it
+        const emailDomain = searchResult.email.split('@')[1]?.toLowerCase();
+        if (!companyDomain || emailDomain === companyDomain || (searchResult.email_source_url && isValidUrl(searchResult.email_source_url))) {
+          searchData.email = searchResult.email.trim().toLowerCase();
         }
       }
-    });
-
-    // Build update object — only include fields that were missing AND found
-    const updates = {};
-    for (const field of fieldsToEnrich) {
-      const val = result[field];
-      if (val && val !== 'null' && val !== 'Unknown' && val.trim() !== '') {
-        updates[field] = val;
+      if (stillMissing.includes('phone') && isValidPhone(searchResult.phone) && searchResult.phone_source_url) {
+        searchData.phone = searchResult.phone.trim();
       }
+      if (stillMissing.includes('website') && isValidUrl(searchResult.website)) {
+        searchData.website = normalizeUrl(searchResult.website);
+      }
+      if (stillMissing.includes('linkedin_url') && isValidLinkedIn(searchResult.linkedin_url)) {
+        searchData.linkedin_url = searchResult.linkedin_url.trim();
+      }
+      if (stillMissing.includes('job_title') && searchResult.job_title?.length > 1) {
+        searchData.job_title = searchResult.job_title.trim();
+      }
+      if (stillMissing.includes('industry') && searchResult.industry?.length > 2) {
+        searchData.industry = searchResult.industry.trim();
+      }
+      if (stillMissing.includes('company_size') && isValidCompanySize(searchResult.company_size)) {
+        searchData.company_size = searchResult.company_size;
+      }
+      if (stillMissing.includes('location') && searchResult.location?.length > 2) {
+        searchData.location = searchResult.location.trim();
+      }
+      if (stillMissing.includes('country') && searchResult.country?.length > 1) {
+        searchData.country = searchResult.country.trim();
+      }
+      if (stillMissing.includes('notes') && searchResult.notes?.length > 20) {
+        searchData.notes = searchResult.notes.trim();
+      }
+    }
+
+    // Merge: website data takes priority over search data for overlapping fields
+    const updates = {};
+    for (const f of fieldsToEnrich) {
+      const val = websiteData[f] || searchData[f];
+      if (val) updates[f] = val;
     }
 
     if (Object.keys(updates).length > 0) {
