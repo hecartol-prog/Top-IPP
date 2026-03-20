@@ -57,6 +57,16 @@ const CONTACTED_OPTIONS = [
   { value: "never", label: "Never Contacted" },
 ];
 
+const LANGUAGE_OPTIONS = [
+  { value: "all", label: "Any Language" },
+  { value: "english", label: "English" },
+  { value: "spanish", label: "Spanish" },
+  { value: "portuguese", label: "Portuguese" },
+  { value: "french", label: "French" },
+  { value: "german", label: "German" },
+  { value: "other", label: "Other" },
+];
+
 const DEFAULT_FILTERS = {
   search: "",
   status: "all",
@@ -65,6 +75,15 @@ const DEFAULT_FILTERS = {
   companySize: "all",
   enrichment: "all",
   contacted: "all",
+  language: "all",
+  country: "",
+  industry: "",
+  jobTitle: "",
+  hasEmail: "all",
+  hasPhone: "all",
+  hasWebsite: "all",
+  minValue: "",
+  maxValue: "",
   sortField: "created_date",
   sortDir: "desc",
 };
