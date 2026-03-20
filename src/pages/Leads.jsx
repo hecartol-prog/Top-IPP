@@ -210,6 +210,17 @@ export default function Leads() {
             </motion.p>
           </div>
           <div className="flex gap-2 flex-wrap">
+            <Button
+              onClick={handleExportExcel}
+              variant="outline"
+              size="sm"
+              disabled={filteredLeads.length === 0}
+            >
+              <Download className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">
+                {selectedIds.length > 0 ? `Export ${selectedIds.length} Selected` : `Export ${filteredLeads.length}`}
+              </span>
+            </Button>
             <Button 
               onClick={() => setShowScraper(true)}
               variant="outline"
