@@ -74,24 +74,25 @@ Deno.serve(async (req) => {
       const siteText = await fetchWebsiteText(lead.website);
       if (siteText) {
         const siteResult = await base44.asServiceRole.integrations.Core.InvokeLLM({
-          prompt: `Extract factual company information ONLY from the following website text. 
+          prompt: `Extract factual company information ONLY from the following website text for a company in the plastic injection mold / manufacturing / packaging industry.
 Do NOT guess or invent anything. If a field is not explicitly present in the text, return null.
 
 Company: ${lead.company_name}
 Contact: ${contactName || 'Unknown'}
+Expected industry: plastic injection molds, packaging, manufacturing
 
 Website text:
 ${siteText}
 
-Extract ONLY what is explicitly stated in the text above. 
-- email: company contact email (must contain @, must match domain ${companyDomain || 'of the company'})
-- phone: company phone number (must be a real number with digits)
+Extract ONLY what is explicitly stated in the text above.
+- email: company contact email (must contain @, must match domain ${companyDomain || 'of the company'}, not a generic provider)
+- phone: company phone number (must be a real number with digits, explicitly listed on the page)
 - location: city/country where the company is headquartered (only if explicitly stated)
 - industry: the business sector/industry (only if explicitly stated)
 - company_size: employee count (use ONLY: "1-10","11-50","51-200","201-500","501-1000","1000+")
-- notes: 2-3 sentence factual summary of what the company does, based strictly on the website text
+- notes: 2-3 sentence factual summary of what the company does and their manufacturing capabilities, based strictly on the website text
 
-Return null for anything not explicitly present.`,
+Return null for anything not explicitly present. Do not infer or construct data.`,
           response_json_schema: {
             type: "object",
             properties: {
