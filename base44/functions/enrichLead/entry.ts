@@ -123,17 +123,25 @@ Return null for anything not explicitly present. Do not infer or construct data.
       const searchResult = await base44.asServiceRole.integrations.Core.InvokeLLM({
         model: "gemini_3_flash",
         add_context_from_internet: true,
-        prompt: `You are a B2B data researcher. Find VERIFIED information about this company/person from the web.
+        prompt: `You are a B2B data researcher specializing in the plastic injection mold and manufacturing industry. Find VERIFIED information about this company/person from the web.
 
-CRITICAL RULES — strictly follow these to avoid hallucination:
+ANTI-HOMONYM RULES — CRITICAL:
+- This company operates in: plastics, injection molds, packaging, or related manufacturing.
+- There may be OTHER companies or people with the same name in different industries. IGNORE them entirely.
+- Only return data you can confirm belongs to "${lead.company_name}" in the plastics/manufacturing industry.
+- For LinkedIn: only accept a profile where the person's employer is "${lead.company_name}" and their industry/role relates to plastics or manufacturing.
+- For email: must belong to the domain of ${lead.website ? lead.website : `"${lead.company_name}"`}, not a generic provider like gmail.
+- If the data could belong to a namesake company or person, return null — do not guess.
+
+ACCURACY RULES:
 1. ONLY return data you found on a real, publicly accessible web page.
 2. For each sensitive field (email, phone, linkedin_url), you MUST provide the source_url where you found it.
-3. If you are not at least 85% confident a field is correct, return null for that field.
-4. Do NOT guess, infer, or construct data. Only report what you actually found.
-5. Email addresses: must be from a verifiable source (company website, LinkedIn, press release). Do NOT construct email patterns.
+3. If you are not at least 85% confident the field belongs to THIS exact company and person, return null.
+4. Do NOT guess, infer, or construct data. Only report what you actually found and confirmed.
+5. Email: must be from a verifiable source. Do NOT construct email patterns (e.g. firstname@company.com).
 6. Phone: must be explicitly listed on a website. Do NOT guess area codes.
-7. LinkedIn URL: must be a real linkedin.com/in/ or linkedin.com/company/ URL you actually found.
-8. Website: must be the official company website domain you found.
+7. LinkedIn URL: must be a real linkedin.com/in/ or linkedin.com/company/ URL where the company or person is confirmed.
+8. Website: must be the official company domain, confirmed to be for this plastics/manufacturing company.
 
 Lead to research:
 - Company: ${lead.company_name}
@@ -141,16 +149,16 @@ Lead to research:
 - Job Title: ${lead.job_title || 'Unknown'}
 - Known website: ${lead.website || 'Unknown'}
 - Known location: ${lead.location || 'Unknown'}
-- Known industry: ${lead.industry || 'Unknown'}
+- Known industry: ${lead.industry || 'plastic injection molds, manufacturing'}
 
 Fields needed: ${stillMissing.join(', ')}
 
 Search queries to use:
-1. "${lead.company_name} official website contact"
-2. "${contactName ? contactName + ' ' + lead.company_name + ' LinkedIn' : lead.company_name + ' LinkedIn company'}"
-3. "${lead.company_name} ${lead.location || ''} employees industry"
+1. "${lead.company_name} ${lead.location || ''} plastic injection mold official website contact"
+2. "${contactName ? contactName + ' ' + lead.company_name + ' LinkedIn plastic' : lead.company_name + ' plastic injection LinkedIn company'}"
+3. "${lead.company_name} ${lead.location || ''} employees industry manufacturing"
 
-Return the found data plus source_urls for sensitive fields.`,
+Return the found data plus source_urls for sensitive fields, and explain how you confirmed this is the right company (not a namesake).`,
         response_json_schema: {
           type: "object",
           properties: {
