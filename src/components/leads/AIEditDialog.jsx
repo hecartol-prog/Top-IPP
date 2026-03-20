@@ -122,23 +122,33 @@ Be conservative — only include fields you actually found confirmed evidence fo
 
     // Stage 2: Google search for additional missing/unverified fields
     setLoadingStage("google");
-    const contactName = [lead.first_name, lead.last_name].filter(Boolean).join(' ');
     const allFields = ['email', 'phone', 'linkedin_url', 'website', 'job_title', 'location', 'first_name', 'last_name'];
     const stillMissing = allFields.filter(key => !lead[key] && !cleaned[key]);
 
     if (stillMissing.length > 0) {
       const googleResult = await base44.integrations.Core.InvokeLLM({
-        prompt: `Search Google specifically for:
-1. "${contactName ? contactName + ' ' + lead.company_name : lead.company_name} contact details"
-2. "${lead.company_name} ${contactName || 'director manager'} email phone LinkedIn"
+        prompt: `Search Google specifically for verified contact data of this company in the plastic injection mold / manufacturing industry.
+
+ANTI-HOMONYM RULES — CRITICAL:
+- Only return data confirmed to belong to "${lead.company_name}" in the plastics/manufacturing industry.
+- If multiple companies or people share this name, ONLY use results that explicitly mention this company or industry.
+- Do NOT infer, construct, or guess emails, phone numbers, or LinkedIn profiles.
+- For LinkedIn: only accept if the profile shows "${lead.company_name}" as employer.
+
+Search queries:
+1. "${contactName ? contactName + ' ' + lead.company_name + ' plastic injection mold' : lead.company_name + ' plastic injection mold contact'}"
+2. "${lead.company_name} ${lead.location || ''} email phone director"
+3. site:linkedin.com "${lead.company_name}" ${contactName || 'manager director'}
 
 Company: ${lead.company_name}
 Contact: ${contactName || 'Unknown'}
+Industry: plastic injection molds, packaging, manufacturing
 Website: ${lead.website || 'Unknown'}
+Location: ${lead.location || 'Unknown'}
 
 I need to find: ${stillMissing.join(', ')}
 
-For each field found via Google search results, return the value, confidence ("high"/"medium"/"low"), and which search result you found it in.`,
+For each field found, return the value, confidence ("high"/"medium"/"low"), and explicitly state HOW you confirmed it belongs to this exact company and person (not a namesake).`,
         add_context_from_internet: true,
         response_json_schema: {
           type: "object",
