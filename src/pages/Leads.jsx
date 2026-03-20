@@ -275,10 +275,20 @@ export default function Leads() {
         {selectedIds.length > 0 && (
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <p className="text-sm font-medium text-slate-700">{selectedIds.length} selected</p>
-            <Button variant="destructive" size="sm" onClick={() => bulkDeleteMutation.mutate(selectedIds)} disabled={bulkDeleteMutation.isPending}>
-              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-              Delete {selectedIds.length} selected
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="bg-violet-600 hover:bg-violet-700 text-white"
+                onClick={() => setShowBatchEnrich(true)}
+              >
+                <Zap className="w-3.5 h-3.5 mr-1.5" />
+                Enrich {selectedIds.length} with AI
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => bulkDeleteMutation.mutate(selectedIds)} disabled={bulkDeleteMutation.isPending}>
+                <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                Delete {selectedIds.length}
+              </Button>
+            </div>
           </div>
         )}
 
