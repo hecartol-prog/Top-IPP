@@ -152,6 +152,41 @@ export default function Leads() {
 
   const filteredLeads = applyFilters(leads, filters);
 
+  const handleExportExcel = () => {
+    const leadsToExport = selectedIds.length > 0
+      ? filteredLeads.filter(l => selectedIds.includes(l.id))
+      : filteredLeads;
+
+    const rows = leadsToExport.map(l => ({
+      "First Name": l.first_name || "",
+      "Last Name": l.last_name || "",
+      "Email": l.email || "",
+      "Phone": l.phone || "",
+      "Job Title": l.job_title || "",
+      "Company": l.company_name || "",
+      "Company Size": l.company_size || "",
+      "Industry": l.industry || "",
+      "Website": l.website || "",
+      "Location": l.location || "",
+      "Country": l.country || "",
+      "Status": l.status || "",
+      "Priority": l.priority || "",
+      "Source": l.source || "",
+      "Language": l.language || "",
+      "LinkedIn": l.linkedin_url || "",
+      "Estimated Value": l.estimated_value || "",
+      "Tags": (l.tags || []).join(", "),
+      "Notes": l.notes || "",
+      "Next Follow Up": l.next_follow_up || "",
+      "Last Contacted": l.last_contacted || "",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Leads");
+    XLSX.writeFile(wb, `leads_export_${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
