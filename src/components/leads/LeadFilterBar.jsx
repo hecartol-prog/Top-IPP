@@ -323,7 +323,7 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80 p-4 space-y-4" align="end">
+          <PopoverContent className="w-80 p-4 space-y-4 max-h-[80vh] overflow-y-auto" align="end">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-sm text-slate-900">Advanced Filters</h3>
               {activeFilterCount > 0 && (
