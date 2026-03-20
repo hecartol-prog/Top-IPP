@@ -538,6 +538,15 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
           {filters.companySize !== "all" && <FilterChip label={`Size: ${filters.companySize}`} onRemove={() => set("companySize", "all")} />}
           {filters.enrichment !== "all" && <FilterChip label={`Enrichment: ${ENRICHMENT_OPTIONS.find(o => o.value === filters.enrichment)?.label}`} onRemove={() => set("enrichment", "all")} />}
           {filters.contacted !== "all" && <FilterChip label={`Contacted: ${CONTACTED_OPTIONS.find(o => o.value === filters.contacted)?.label}`} onRemove={() => set("contacted", "all")} />}
+          {filters.language !== "all" && <FilterChip label={`Language: ${filters.language}`} onRemove={() => set("language", "all")} />}
+          {filters.country && <FilterChip label={`Country: ${filters.country}`} onRemove={() => set("country", "")} />}
+          {filters.industry && <FilterChip label={`Industry: ${filters.industry}`} onRemove={() => set("industry", "")} />}
+          {filters.jobTitle && <FilterChip label={`Title: ${filters.jobTitle}`} onRemove={() => set("jobTitle", "")} />}
+          {filters.hasEmail !== "all" && <FilterChip label={`Email: ${filters.hasEmail}`} onRemove={() => set("hasEmail", "all")} />}
+          {filters.hasPhone !== "all" && <FilterChip label={`Phone: ${filters.hasPhone}`} onRemove={() => set("hasPhone", "all")} />}
+          {filters.hasWebsite !== "all" && <FilterChip label={`Website: ${filters.hasWebsite}`} onRemove={() => set("hasWebsite", "all")} />}
+          {filters.minValue !== "" && <FilterChip label={`Min $${filters.minValue}`} onRemove={() => set("minValue", "")} />}
+          {filters.maxValue !== "" && <FilterChip label={`Max $${filters.maxValue}`} onRemove={() => set("maxValue", "")} />}
           <button onClick={clearAll} className="text-xs text-slate-400 hover:text-rose-500 ml-1 flex items-center gap-0.5">
             <X className="w-3 h-3" /> Clear all
           </button>
