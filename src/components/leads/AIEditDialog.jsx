@@ -212,8 +212,6 @@ For each field found, return the value, confidence ("high"/"medium"/"low"), and 
     setContactSavedOk(false);
 
     const hasContact = lead.first_name || lead.last_name;
-
-    const hasContact = lead.first_name || lead.last_name;
     const contactNameLocal = [lead.first_name, lead.last_name].filter(Boolean).join(' ');
     const industryCtxLocal = [lead.industry, lead.notes].filter(Boolean).join('. ') || 'plastic injection molds, packaging, manufacturing';
 
