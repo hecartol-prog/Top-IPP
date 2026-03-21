@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     const errors = [];
 
     // Check existing leads to avoid duplicates
-    const existingLeads = await base44.entities.Lead.list();
+    const existingLeads = await serviceBase44.entities.Lead.list();
     const existingEmails = new Set(existingLeads.map(l => l.email?.toLowerCase()));
 
     // Create leads from LeadIQ prospects
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
       }
 
       try {
-        await base44.entities.Lead.create({
+        await serviceBase44.entities.Lead.create({
           first_name: prospect.firstName || '',
           last_name: prospect.lastName || '',
           email: prospect.email,
