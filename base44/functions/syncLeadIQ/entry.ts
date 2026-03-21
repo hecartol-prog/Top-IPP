@@ -3,8 +3,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    // Scheduled automation — no user session, use service role
+    const serviceBase44 = base44.asServiceRole;
 
     const apiKey = Deno.env.get('LEADIQ_API_KEY');
     const apiSecret = Deno.env.get('LEADIQ_API_SECRET');
