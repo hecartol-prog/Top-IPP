@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
     const decodedSecret = atob(apiSecret);
 
     // Fetch all lists from LeadIQ
-    const listsRes = await fetch('https://api.leadiq.io/v2/lists', {
+    const listsRes = await fetch('https://api.leadiq.com/v2/lists', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
