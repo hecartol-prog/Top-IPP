@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
       let hasMore = true;
       
       while (hasMore) {
-        const prospectRes = await fetch(`https://api.leadiq.io/v2/lists/${list.id}/prospects?offset=${offset}&limit=100`, {
+        const prospectRes = await fetch(`https://api.leadiq.com/v2/lists/${list.id}/prospects?offset=${offset}&limit=100`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${apiKey}`,
