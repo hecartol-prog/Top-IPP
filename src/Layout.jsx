@@ -63,18 +63,18 @@ export default function Layout({ children, currentPageName }) {
       `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-6 border-b border-slate-100">
+          <div className="flex items-center justify-between h-16 px-6 border-b border-blue-900/50">
             <Link to={createPageUrl('Dashboard')} className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-sm">PM</span>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden bg-blue-800">
+                <span className="text-white font-bold text-sm">MW</span>
               </div>
               <div>
-                <span className="font-bold text-slate-900 text-lg tracking-tight">Moldwise CRM</span>
-                <p className="text-[10px] text-slate-400 -mt-0.5">Lead Management</p>
+                <span className="font-bold text-white text-lg tracking-tight">Moldwise CRM</span>
+                <p className="text-[10px] text-blue-300 -mt-0.5">Lead Management</p>
               </div>
             </Link>
             <button 
-              className="lg:hidden text-slate-400 hover:text-slate-600"
+              className="lg:hidden text-blue-300 hover:text-white"
               onClick={() => setSidebarOpen(false)}
             >
               <X className="w-5 h-5" />
