@@ -4,12 +4,12 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { motion } from "framer-motion";
 
 const stageColors = {
-  new: "#3b82f6",
-  contacted: "#a855f7",
-  qualified: "#f59e0b",
-  proposal: "#06b6d4",
-  negotiation: "#f97316",
-  won: "#10b981",
+  new: "#93c5fd",
+  contacted: "#60a5fa",
+  qualified: "#3b82f6",
+  proposal: "#2563eb",
+  negotiation: "#1d4ed8",
+  won: "#1e3a8a",
   lost: "#94a3b8"
 };
 
