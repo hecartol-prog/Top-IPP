@@ -92,12 +92,12 @@ export default function Layout({ children, currentPageName }) {
                   className={`
                     flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
                     ${isActive 
-                      ? 'bg-slate-900 text-white shadow-md' 
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-blue-100 hover:bg-blue-800/60 hover:text-white'
                     }
                   `}
                 >
-                  <item.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                  <item.icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-blue-300'}`} />
                   {item.name}
                 </Link>
               );
