@@ -128,6 +128,8 @@ export function applyFilters(leads, filters) {
       if (filters.industry && !(lead.industry || "").toLowerCase().includes(filters.industry.toLowerCase())) return false;
       // Job title (text match)
       if (filters.jobTitle && !(lead.job_title || "").toLowerCase().includes(filters.jobTitle.toLowerCase())) return false;
+      // Company name (text match)
+      if (filters.companyName && !(lead.company_name || "").toLowerCase().includes(filters.companyName.toLowerCase())) return false;
       // Has email
       if (filters.hasEmail === "yes" && !lead.email) return false;
       if (filters.hasEmail === "no" && lead.email) return false;
