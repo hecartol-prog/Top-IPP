@@ -407,6 +407,14 @@ export default function Leads() {
         onUpdateLead={(updatedLead) => updateMutation.mutate({ id: updatedLead.id, data: updatedLead, keepDetailsOpen: true })}
       />
 
+      {/* Duplicate Checker */}
+      <DuplicateChecker
+        open={showDuplicates}
+        onClose={() => setShowDuplicates(false)}
+        leads={leads}
+        onComplete={() => queryClient.invalidateQueries({ queryKey: ['leads'] })}
+      />
+
       {/* Batch Enrich Dialog */}
       <BatchEnrichDialog
         open={showBatchEnrich}
