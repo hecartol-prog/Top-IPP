@@ -14,6 +14,7 @@ import WebScraper from "../components/leads/WebScraper";
 import LeadListView from "../components/leads/LeadListView";
 import LeadFilterBar, { applyFilters } from "../components/leads/LeadFilterBar";
 import BatchEnrichDialog from "../components/leads/BatchEnrichDialog";
+import DuplicateChecker from "../components/leads/DuplicateChecker";
 import {
   AlertDialog,
   AlertDialogAction,
