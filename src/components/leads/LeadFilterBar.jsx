@@ -554,6 +554,7 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
           {filters.country && <FilterChip label={`Country: ${filters.country}`} onRemove={() => set("country", "")} />}
           {filters.industry && <FilterChip label={`Industry: ${filters.industry}`} onRemove={() => set("industry", "")} />}
           {filters.jobTitle && <FilterChip label={`Title: ${filters.jobTitle}`} onRemove={() => set("jobTitle", "")} />}
+          {filters.companyName && <FilterChip label={`Company: ${filters.companyName}`} onRemove={() => set("companyName", "")} />}
           {filters.hasEmail !== "all" && <FilterChip label={`Email: ${filters.hasEmail}`} onRemove={() => set("hasEmail", "all")} />}
           {filters.hasPhone !== "all" && <FilterChip label={`Phone: ${filters.hasPhone}`} onRemove={() => set("hasPhone", "all")} />}
           {filters.hasWebsite !== "all" && <FilterChip label={`Website: ${filters.hasWebsite}`} onRemove={() => set("hasWebsite", "all")} />}
