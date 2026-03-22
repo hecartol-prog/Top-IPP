@@ -235,6 +235,14 @@ export default function Leads() {
                 {selectedIds.length > 0 ? `Export ${selectedIds.length} Selected` : `Export ${filteredLeads.length}`}
               </span>
             </Button>
+            <Button
+              onClick={() => setShowDuplicates(true)}
+              variant="outline"
+              size="sm"
+            >
+              <Copy className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Check Duplicates</span>
+            </Button>
             <Button 
               onClick={() => setShowScraper(true)}
               variant="outline"
