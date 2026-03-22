@@ -105,23 +105,23 @@ export default function Layout({ children, currentPageName }) {
           </nav>
 
           {/* Integration Status */}
-          <div className="px-4 py-4 border-t border-slate-100">
-            <div className="bg-slate-50 rounded-xl p-4">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-3">Integrations</p>
+          <div className="px-4 py-4 border-t border-blue-900/50">
+            <div className="bg-blue-900/40 rounded-xl p-4">
+              <p className="text-xs font-medium text-blue-300 uppercase tracking-wide mb-3">Integrations</p>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Linkedin className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm text-slate-600">LinkedIn</span>
+                    <Linkedin className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm text-blue-100">LinkedIn</span>
                   </div>
-                  <span className="text-xs text-emerald-600 font-medium">✓ Connected</span>
+                  <span className="text-xs text-emerald-400 font-medium">✓ Connected</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 bg-orange-500 rounded text-white text-[9px] font-bold flex items-center justify-center">HS</span>
-                    <span className="text-sm text-slate-600">HubSpot</span>
+                    <span className="text-sm text-blue-100">HubSpot</span>
                   </div>
-                  <span className="text-xs text-emerald-600 font-medium">✓ Connected</span>
+                  <span className="text-xs text-emerald-400 font-medium">✓ Connected</span>
                 </div>
               </div>
             </div>
