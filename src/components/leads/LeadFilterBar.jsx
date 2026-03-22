@@ -200,6 +200,7 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
     !!filters.country,
     !!filters.industry,
     !!filters.jobTitle,
+    !!filters.companyName,
     filters.hasEmail !== "all",
     filters.hasPhone !== "all",
     filters.hasWebsite !== "all",
