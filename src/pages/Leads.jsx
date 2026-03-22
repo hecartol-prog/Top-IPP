@@ -58,6 +58,7 @@ export default function Leads() {
   const [editingLead, setEditingLead] = useState(null);
   const [deletingLead, setDeletingLead] = useState(null);
   const [showBatchEnrich, setShowBatchEnrich] = useState(false);
+  const [showDuplicates, setShowDuplicates] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
