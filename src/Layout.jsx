@@ -158,7 +158,7 @@ export default function Layout({ children, currentPageName }) {
       {/* Main Content */}
       <div className="lg:pl-64">
         {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-blue-100">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
             <button
               className="lg:hidden p-2 -ml-2 text-slate-600 hover:text-slate-900"
