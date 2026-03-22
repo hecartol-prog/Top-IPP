@@ -65,11 +65,11 @@ export default function Layout({ children, currentPageName }) {
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-blue-900/50">
             <Link to={createPageUrl('Dashboard')} className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden bg-blue-800">
-                <span className="text-white font-bold text-sm">MW</span>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden bg-gray-200 shrink-0">
+                <img src="https://media.base44.com/images/public/69735534c3f88d9fd4f7f50c/143178d5e_logoTop.jpg" alt="Top Mold Logo" className="w-full h-full object-contain" />
               </div>
               <div>
-                <span className="font-bold text-white text-lg tracking-tight">Moldwise CRM</span>
+                <span className="font-bold text-white text-lg tracking-tight">Top Mold CRM</span>
                 <p className="text-[10px] text-blue-300 -mt-0.5">Lead Management</p>
               </div>
             </Link>
