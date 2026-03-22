@@ -4,12 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Trash2, CheckCircle, Copy } from "lucide-react";
+import { AlertTriangle, Trash2, CheckCircle, Copy, Loader2 } from "lucide-react";
 
 function findDuplicates(leads) {
   const groups = [];
-
-  // Group by email
   const byEmail = {};
   leads.forEach(lead => {
     if (lead.email) {
@@ -19,7 +17,6 @@ function findDuplicates(leads) {
     }
   });
 
-  // Group by full name + company
   const byNameCompany = {};
   leads.forEach(lead => {
     const name = `${lead.first_name || ""} ${lead.last_name || ""}`.toLowerCase().trim();
@@ -59,32 +56,59 @@ function findDuplicates(leads) {
 
 export default function DuplicateChecker({ open, onClose, leads, onComplete }) {
   const queryClient = useQueryClient();
-  const [deletingId, setDeletingId] = useState(null);
   const [dismissed, setDismissed] = useState(new Set());
+  const [selected, setSelected] = useState(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const duplicateGroups = useMemo(() => findDuplicates(leads), [leads]);
   const visibleGroups = duplicateGroups.filter(g =>
     !g.leads.every(l => dismissed.has(l.id))
   );
 
+  // All visible lead IDs (excluding dismissed)
+  const allVisibleIds = visibleGroups.flatMap(g => g.leads.filter(l => !dismissed.has(l.id)).map(l => l.id));
+
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Lead.delete(id),
-    onSuccess: (_, id) => {
-      setDeletingId(null);
-      setDismissed(prev => new Set([...prev, id]));
+    mutationFn: async (ids) => {
+      for (const id of ids) await base44.entities.Lead.delete(id);
+    },
+    onSuccess: (_, ids) => {
+      setDismissed(prev => new Set([...prev, ...ids]));
+      setSelected(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n; });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       onComplete?.();
+      setBulkDeleting(false);
     }
   });
 
-  const handleDelete = (id) => {
-    setDeletingId(id);
-    deleteMutation.mutate(id);
+  const toggleSelect = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allVisibleIds.every(id => selected.has(id))) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(allVisibleIds));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    setBulkDeleting(true);
+    deleteMutation.mutate([...selected]);
   };
 
   const handleDismissGroup = (group) => {
     setDismissed(prev => new Set([...prev, ...group.leads.map(l => l.id)]));
+    setSelected(prev => { const n = new Set(prev); group.leads.forEach(l => n.delete(l.id)); return n; });
   };
+
+  const selectedCount = selected.size;
+  const allSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selected.has(id));
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -111,7 +135,7 @@ export default function DuplicateChecker({ open, onClose, leads, onComplete }) {
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                 <p className="text-sm text-amber-800">
                   Found <strong>{visibleGroups.length}</strong> duplicate group{visibleGroups.length > 1 ? "s" : ""}.
-                  Keep the record you want and delete the others.
+                  Check the contacts you want to delete, then click "Delete Selected".
                 </p>
               </div>
 
@@ -128,7 +152,18 @@ export default function DuplicateChecker({ open, onClose, leads, onComplete }) {
                   </div>
                   <div className="divide-y divide-slate-100">
                     {group.leads.filter(l => !dismissed.has(l.id)).map((lead, li) => (
-                      <div key={lead.id} className="flex items-center justify-between px-4 py-3 gap-3">
+                      <div
+                        key={lead.id}
+                        className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors ${selected.has(lead.id) ? "bg-red-50" : ""}`}
+                        onClick={() => toggleSelect(lead.id)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected.has(lead.id)}
+                          onChange={() => toggleSelect(lead.id)}
+                          onClick={e => e.stopPropagation()}
+                          className="w-4 h-4 accent-red-500 shrink-0"
+                        />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="font-medium text-slate-900 text-sm truncate">
@@ -141,19 +176,7 @@ export default function DuplicateChecker({ open, onClose, leads, onComplete }) {
                           <p className="text-xs text-slate-500 truncate">{lead.company_name}</p>
                           {lead.email && <p className="text-xs text-slate-400 truncate">{lead.email}</p>}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <Badge variant="outline" className="text-xs capitalize">{lead.status}</Badge>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            disabled={deletingId === lead.id}
-                            onClick={() => handleDelete(lead.id)}
-                            className="h-7 px-2 text-xs"
-                          >
-                            <Trash2 className="w-3 h-3 mr-1" />
-                            {deletingId === lead.id ? "Deleting..." : "Delete"}
-                          </Button>
-                        </div>
+                        <Badge variant="outline" className="text-xs capitalize shrink-0">{lead.status}</Badge>
                       </div>
                     ))}
                   </div>
@@ -163,9 +186,44 @@ export default function DuplicateChecker({ open, onClose, leads, onComplete }) {
           )}
         </div>
 
-        <div className="pt-4 border-t border-slate-100 flex justify-end">
-          <Button variant="outline" onClick={onClose}>Close</Button>
-        </div>
+        {visibleGroups.length > 0 && (
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 accent-red-500"
+                />
+                Select all ({allVisibleIds.length})
+              </label>
+              {selectedCount > 0 && (
+                <span className="text-xs text-red-600 font-medium">{selectedCount} selected</span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>Close</Button>
+              <Button
+                variant="destructive"
+                disabled={selectedCount === 0 || bulkDeleting}
+                onClick={handleBulkDelete}
+              >
+                {bulkDeleting ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Deleting...</>
+                ) : (
+                  <><Trash2 className="w-4 h-4 mr-2" />Delete {selectedCount > 0 ? selectedCount : ""} Selected</>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {visibleGroups.length === 0 && (
+          <div className="pt-4 border-t border-slate-100 flex justify-end">
+            <Button variant="outline" onClick={onClose}>Close</Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
