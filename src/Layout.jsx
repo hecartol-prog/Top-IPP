@@ -51,7 +51,7 @@ export default function Layout({ children, currentPageName }) {
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-blue-950/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
