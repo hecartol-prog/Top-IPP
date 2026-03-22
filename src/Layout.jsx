@@ -128,20 +128,20 @@ export default function Layout({ children, currentPageName }) {
           </div>
 
           {/* User Profile */}
-          <div className="p-4 border-t border-slate-100">
+          <div className="p-4 border-t border-blue-900/50">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors">
-                  <Avatar className="w-9 h-9 bg-gradient-to-br from-teal-500 to-teal-600">
-                    <AvatarFallback className="bg-gradient-to-br from-teal-500 to-teal-600 text-white text-sm font-medium">
+                <button className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-800/50 transition-colors">
+                  <Avatar className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-700">
+                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-700 text-white text-sm font-medium">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 text-left">
-                    <p className="text-sm font-medium text-slate-900 truncate">{user?.full_name || 'User'}</p>
-                    <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+                    <p className="text-sm font-medium text-white truncate">{user?.full_name || 'User'}</p>
+                    <p className="text-xs text-blue-300 truncate">{user?.email}</p>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                  <ChevronDown className="w-4 h-4 text-blue-300" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
