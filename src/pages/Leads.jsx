@@ -39,6 +39,7 @@ export default function Leads() {
     country: "",
     industry: "",
     jobTitle: "",
+    companyName: "",
     hasEmail: "all",
     hasPhone: "all",
     hasWebsite: "all",
