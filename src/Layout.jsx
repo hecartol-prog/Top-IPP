@@ -47,7 +47,7 @@ export default function Layout({ children, currentPageName }) {
   const initials = user?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-blue-50/40">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
