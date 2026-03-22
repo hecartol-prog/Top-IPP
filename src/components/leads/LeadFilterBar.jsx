@@ -440,6 +440,14 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
               </div>
 
               <div>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Company Name</label>
+                <div className="relative">
+                  <Input placeholder="Filter by company name..." value={filters.companyName} onChange={e => set("companyName", e.target.value)} className="text-sm pr-7" />
+                  {filters.companyName && <button onClick={() => set("companyName", "")} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>}
+                </div>
+              </div>
+
+              <div>
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Deal Value (USD)</label>
                 <div className="flex gap-2">
                   <Input placeholder="Min" type="number" value={filters.minValue} onChange={e => set("minValue", e.target.value)} className="text-sm" />
