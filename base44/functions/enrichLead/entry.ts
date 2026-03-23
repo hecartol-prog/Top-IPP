@@ -1,7 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
 
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
-
 // --- Validation helpers ---
 function isValidEmail(v) {
   return typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
