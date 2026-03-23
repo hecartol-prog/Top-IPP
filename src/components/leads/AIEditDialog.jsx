@@ -47,7 +47,8 @@ export default function AIEditDialog({ open, onClose, lead, onUpdateLead }) {
     properties: {
       suggested: { type: "string" },
       confidence: { type: "string" },
-      reason: { type: "string" }
+      reason: { type: "string" },
+      source_url: { type: "string" }
     }
   };
 
@@ -59,44 +60,43 @@ export default function AIEditDialog({ open, onClose, lead, onUpdateLead }) {
     setRejected({});
     setSavedOk(false);
 
-    // Stage 1: Verify & correct contact details
     const contactName = [lead.first_name, lead.last_name].filter(Boolean).join(' ');
     const industryCtx = [lead.industry, lead.notes].filter(Boolean).join('. ') || 'plastic injection molds, packaging, manufacturing';
-    const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are a B2B data accuracy agent specializing in the plastic injection mold and manufacturing industry. Research this lead using the web and verify/correct their contact details.
 
-ANTI-HOMONYM RULES — CRITICAL:
-- This company operates in: plastics, injection molds, packaging, or related manufacturing.
-- ONLY use data that is confirmed to be about THIS specific company: "${lead.company_name}" in this industry.
-- If you find multiple people or companies with the same name, pick ONLY the one that matches this company and industry context.
-- Do NOT use data from a different company or person who happens to share the same name.
-- If you cannot confirm the data belongs to this exact company and person, return null.
-- For LinkedIn: only accept a profile where the person's CURRENT or PAST employer matches "${lead.company_name}" exactly.
-- For email: must belong to the domain of ${lead.website ? lead.website : `"${lead.company_name}"`}, not a generic service.
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `You are a B2B data accuracy agent. Research this lead using the web.
+
+⚠️ HALLUCINATION PREVENTION — MOST IMPORTANT RULE:
+- You MUST ONLY return data you actually found on a real web page RIGHT NOW during this search.
+- For EVERY field you return, you MUST provide the exact source_url (a real URL like https://...) where you found it.
+- If you did NOT find a real web page with this information, return null — DO NOT guess, invent, or infer ANY value.
+- "Michael Robinson", "John Smith", or any generic-sounding name you didn't find on a real page = return null.
+- If source_url is null or empty, the field WILL BE DISCARDED. Do not waste it on invented data.
+- Invented emails, phone numbers, or LinkedIn URLs = return null.
+
+ANTI-HOMONYM RULES:
+- ONLY use data confirmed to be about "${lead.company_name}" in plastics/manufacturing industry.
+- If you find multiple companies or people with the same name, ONLY use results matching this company AND this industry.
+- For LinkedIn: only accept if the profile shows "${lead.company_name}" as employer.
+- For email: must belong to the domain of ${lead.website || `"${lead.company_name}"`}, not gmail/yahoo etc.
 
 Current lead data:
 - Name: ${contactName || 'Unknown'}
 - Job Title: ${lead.job_title || 'Unknown'}
 - Company: ${lead.company_name}
-- Industry context: ${industryCtx}
+- Industry: ${industryCtx}
 - Email: ${lead.email || 'Unknown'}
 - Phone: ${lead.phone || 'Unknown'}
 - LinkedIn: ${lead.linkedin_url || 'Unknown'}
 - Website: ${lead.website || 'Unknown'}
 - Location: ${lead.location || 'Unknown'}
 
-Search queries to use:
-1. "${lead.company_name} ${lead.location || ''} plastic injection mold"
-2. "${contactName ? contactName + ' ' + lead.company_name : lead.company_name + ' director manager'}"
-3. "${lead.company_name} contact email phone site:${lead.website || 'their website'}"
+For each field, only return a value if:
+1. You found it on a REAL web page (provide source_url)
+2. It differs from or fills in the current data
+3. You are confident it belongs to THIS exact company and person
 
-For each field below, provide:
-1. The best/corrected value you found (or null if you couldn't confirm it belongs to THIS company/person)
-2. Confidence: "high", "medium", or "low"
-3. A short reason explaining where you found it AND how you confirmed it matches this company
-
-Only suggest a value if it differs from the current one OR if the current one is missing.
-Be conservative — only include fields you actually found confirmed evidence for.`,
+Return null for everything you did not find on a real page.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
@@ -115,63 +115,14 @@ Be conservative — only include fields you actually found confirmed evidence fo
 
     const cleaned = {};
     Object.entries(result).forEach(([key, val]) => {
-      if (val?.suggested && val.suggested !== lead[key] && val.suggested !== 'Unknown' && val.suggested !== 'null') {
+      // Require source_url for name fields and sensitive fields to prevent hallucination
+      const requiresSource = ['first_name', 'last_name', 'email', 'phone', 'linkedin_url'].includes(key);
+      const hasSource = val?.source_url && val.source_url.startsWith('http');
+      if (requiresSource && !hasSource) return; // discard if no real source
+      if (val?.suggested && val.suggested !== lead[key] && val.suggested !== 'Unknown' && val.suggested !== 'null' && val.suggested !== 'N/A') {
         cleaned[key] = { ...val, current: lead[key] };
       }
     });
-
-    // Stage 2: Google search for additional missing/unverified fields
-    setLoadingStage("google");
-    const allFields = ['email', 'phone', 'linkedin_url', 'website', 'job_title', 'location', 'first_name', 'last_name'];
-    const stillMissing = allFields.filter(key => !lead[key] && !cleaned[key]);
-
-    if (stillMissing.length > 0) {
-      const googleResult = await base44.integrations.Core.InvokeLLM({
-        prompt: `Search Google specifically for verified contact data of this company in the plastic injection mold / manufacturing industry.
-
-ANTI-HOMONYM RULES — CRITICAL:
-- Only return data confirmed to belong to "${lead.company_name}" in the plastics/manufacturing industry.
-- If multiple companies or people share this name, ONLY use results that explicitly mention this company or industry.
-- Do NOT infer, construct, or guess emails, phone numbers, or LinkedIn profiles.
-- For LinkedIn: only accept if the profile shows "${lead.company_name}" as employer.
-
-Search queries:
-1. "${contactName ? contactName + ' ' + lead.company_name + ' plastic injection mold' : lead.company_name + ' plastic injection mold contact'}"
-2. "${lead.company_name} ${lead.location || ''} email phone director"
-3. site:linkedin.com "${lead.company_name}" ${contactName || 'manager director'}
-
-Company: ${lead.company_name}
-Contact: ${contactName || 'Unknown'}
-Industry: plastic injection molds, packaging, manufacturing
-Website: ${lead.website || 'Unknown'}
-Location: ${lead.location || 'Unknown'}
-
-I need to find: ${stillMissing.join(', ')}
-
-For each field found, return the value, confidence ("high"/"medium"/"low"), and explicitly state HOW you confirmed it belongs to this exact company and person (not a namesake).`,
-        add_context_from_internet: true,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            email: fieldSchema,
-            phone: fieldSchema,
-            linkedin_url: fieldSchema,
-            website: fieldSchema,
-            job_title: fieldSchema,
-            location: fieldSchema,
-            first_name: fieldSchema,
-            last_name: fieldSchema,
-          }
-        }
-      });
-
-      // Merge google results for still-missing fields (don't overwrite stage 1 results)
-      Object.entries(googleResult).forEach(([key, val]) => {
-        if (!cleaned[key] && val?.suggested && val.suggested !== lead[key] && val.suggested !== 'Unknown' && val.suggested !== 'null') {
-          cleaned[key] = { ...val, current: lead[key], source: 'google' };
-        }
-      });
-    }
 
     setLoadingStage(null);
     setSuggestions(cleaned);
