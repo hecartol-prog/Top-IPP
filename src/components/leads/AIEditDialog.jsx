@@ -175,50 +175,47 @@ Only suggest a value if it improves on or fills in the current data.`,
     const industryCtxLocal = [lead.industry, lead.notes].filter(Boolean).join('. ') || 'plastic injection molds, packaging, manufacturing';
 
     const prompt = hasContact
-      ? `You are a B2B sales intelligence assistant specializing in the plastic injection mold and manufacturing industry.
+      ? `You are a B2B sales intelligence assistant. Browse the web NOW to find real contact details.
 
-⚠️ HALLUCINATION PREVENTION — MOST IMPORTANT RULE:
-- You MUST ONLY return data you actually found on a real web page RIGHT NOW during this search.
-- For name, email, phone, linkedin_url: you MUST provide the exact source_url where you found it.
-- If you did NOT find this person on a real page, return null for ALL fields — DO NOT invent names, emails or profiles.
-- If the name you found does not match "${contactNameLocal}" at "${lead.company_name}", return null.
-
-ANTI-HOMONYM RULES:
-- ONLY find data for "${contactNameLocal}" who works at "${lead.company_name}" in plastics/injection mold industry.
-- Ignore any other person with the same name at a different company.
-- For LinkedIn: only accept if profile shows "${lead.company_name}" as employer.
-- For email: must match domain of ${lead.website || `"${lead.company_name}"`}, not gmail/yahoo etc.
+Browse these sources:
+1. LinkedIn: search "${contactNameLocal} ${lead.company_name}"
+2. Company website: ${lead.website || `search "${lead.company_name}"`}
+3. Google: "${contactNameLocal} ${lead.company_name} email LinkedIn"
 
 Company: ${lead.company_name}
-Contact Person: ${contactNameLocal}
+Contact: ${contactNameLocal}
 Job Title: ${lead.job_title || 'Unknown'}
-Industry: ${industryCtxLocal}
 Website: ${lead.website || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
+Industry: ${industryCtxLocal}
 
-Only return real data found on actual web pages. Return null for everything you did not find.`
-      : `You are a B2B sales intelligence assistant specializing in plastic injection molds and manufacturing procurement.
+STRICT RULES:
+1. ONLY return data you actually found on a real page during this search.
+2. Provide source_url for every field — the real page URL where you found it.
+3. If you did not find real data for a field, return null. Never invent or guess.
+4. Email must match company domain (not gmail/hotmail). LinkedIn must be a real URL you visited.
+5. For confidence: "high" = found on official page, "medium" = found on directory. Never return "low".`
+      : `You are a B2B sales intelligence assistant. Browse the web NOW to find the key decision maker at this company.
 
-⚠️ HALLUCINATION PREVENTION — MOST IMPORTANT RULE:
-- You MUST ONLY return a person you actually found on a real web page RIGHT NOW during this search.
-- You MUST provide source_url for the person's name — a real URL where you found them listed at this company.
-- If you did NOT find a real person at "${lead.company_name}" on a real page, return null for ALL fields.
-- Do NOT invent names like "Michael Robinson", "John Smith" or any generic name. Return null instead.
-- If source_url is empty or null, the result will be discarded.
-
-ANTI-HOMONYM RULES:
-- Only find decision makers CONFIRMED to work at "${lead.company_name}" (not a company with a similar name).
-- Verify by checking the company's official website, LinkedIn company page, or press releases.
+Browse these sources:
+1. Company website: ${lead.website || `search "${lead.company_name}"`} — look for "About", "Team", "Contact" pages
+2. LinkedIn company page: search "site:linkedin.com/company ${lead.company_name}"
+3. Google: "${lead.company_name} ${lead.location || ''} CEO director manager contact"
 
 Company: ${lead.company_name}
-Industry: ${industryCtxLocal}
 Website: ${lead.website || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
+Industry: ${industryCtxLocal}
 
-Find the top decision maker for plastic injection mold procurement at THIS company only.
-Only return a real person you found on an actual web page. Provide source_url where you found them.`;
+STRICT RULES:
+1. ONLY return a real person you actually found listed at this company on a real page right now.
+2. Provide source_url — the real URL where you found this person.
+3. If you did NOT find a real person, return null for ALL fields. Do NOT invent names.
+4. Do not return generic names. Only return a person explicitly listed at "${lead.company_name}".
+5. For confidence: "high" = found on company's own website or LinkedIn. "medium" = found on a directory.`;
 
     const result = await base44.integrations.Core.InvokeLLM({
+      model: "gemini_3_flash",
       prompt,
       add_context_from_internet: true,
       response_json_schema: {
@@ -237,13 +234,13 @@ Only return a real person you found on an actual web page. Provide source_url wh
       }
     });
 
-    // Discard result if no real source_url for the person's name (hallucination prevention)
+    // Discard if name returned but no real source_url (hallucination prevention)
     const hasRealSource = result?.source_url && result.source_url.startsWith('http');
     const hasName = result?.first_name || result?.last_name;
     if (hasName && !hasRealSource) {
       setContactResult({ _no_data: true });
     } else {
-      setContactResult(result);
+      setContactResult(result?.first_name || result?.last_name ? result : { _no_data: true });
     }
     setContactLoading(false);
   };
