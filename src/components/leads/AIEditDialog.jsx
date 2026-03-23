@@ -468,6 +468,9 @@ Only return a real person you found on an actual web page. Provide source_url wh
                     <p className="text-xs text-slate-600 whitespace-pre-wrap">{contactResult.outreach_notes}</p>
                   </div>
                 )}
+                {contactResult.source_url && (
+                  <div className="flex gap-2 pt-1"><span className="text-xs font-semibold text-indigo-400 w-16 uppercase">Source</span><a href={contactResult.source_url} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-500 hover:underline break-all truncate">{contactResult.source_url}</a></div>
+                )}
                 {contactResult.confidence && (
                   <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-1 ${
                     contactResult.confidence === 'high' ? 'bg-emerald-100 text-emerald-700' :
