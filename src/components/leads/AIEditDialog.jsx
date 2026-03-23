@@ -52,6 +52,22 @@ export default function AIEditDialog({ open, onClose, lead, onUpdateLead }) {
     }
   };
 
+  // Validate that a suggested value looks real, not hallucinated
+  const isLikelyReal = (key, val) => {
+    if (!val?.suggested) return false;
+    const s = val.suggested.trim();
+    if (!s || s === 'Unknown' || s === 'null' || s === 'N/A' || s === 'None') return false;
+    if (key === 'email') return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s) && !s.includes('example') && !s.includes('test@');
+    if (key === 'phone') return s.replace(/[\s\-().+]/g, '').length >= 7;
+    if (key === 'linkedin_url') return s.includes('linkedin.com/');
+    if (key === 'website') return s.startsWith('http') || s.includes('.');
+    // For names: require either high confidence OR a source_url (to block hallucinated names)
+    if (key === 'first_name' || key === 'last_name') {
+      return val.confidence === 'high' && (val.source_url?.startsWith('http') || val.reason?.length > 20);
+    }
+    return true;
+  };
+
   const handleRunAI = async () => {
     setLoading(true);
     setLoadingStage("verify");
@@ -63,41 +79,37 @@ export default function AIEditDialog({ open, onClose, lead, onUpdateLead }) {
     const contactName = [lead.first_name, lead.last_name].filter(Boolean).join(' ');
     const industryCtx = [lead.industry, lead.notes].filter(Boolean).join('. ') || 'plastic injection molds, packaging, manufacturing';
 
+    // Single pass: use gemini with web browsing for best results
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are a B2B data accuracy agent. Research this lead using the web.
-
-⚠️ HALLUCINATION PREVENTION — MOST IMPORTANT RULE:
-- You MUST ONLY return data you actually found on a real web page RIGHT NOW during this search.
-- For EVERY field you return, you MUST provide the exact source_url (a real URL like https://...) where you found it.
-- If you did NOT find a real web page with this information, return null — DO NOT guess, invent, or infer ANY value.
-- "Michael Robinson", "John Smith", or any generic-sounding name you didn't find on a real page = return null.
-- If source_url is null or empty, the field WILL BE DISCARDED. Do not waste it on invented data.
-- Invented emails, phone numbers, or LinkedIn URLs = return null.
-
-ANTI-HOMONYM RULES:
-- ONLY use data confirmed to be about "${lead.company_name}" in plastics/manufacturing industry.
-- If you find multiple companies or people with the same name, ONLY use results matching this company AND this industry.
-- For LinkedIn: only accept if the profile shows "${lead.company_name}" as employer.
-- For email: must belong to the domain of ${lead.website || `"${lead.company_name}"`}, not gmail/yahoo etc.
-
-Current lead data:
-- Name: ${contactName || 'Unknown'}
-- Job Title: ${lead.job_title || 'Unknown'}
-- Company: ${lead.company_name}
-- Industry: ${industryCtx}
-- Email: ${lead.email || 'Unknown'}
-- Phone: ${lead.phone || 'Unknown'}
-- LinkedIn: ${lead.linkedin_url || 'Unknown'}
-- Website: ${lead.website || 'Unknown'}
-- Location: ${lead.location || 'Unknown'}
-
-For each field, only return a value if:
-1. You found it on a REAL web page (provide source_url)
-2. It differs from or fills in the current data
-3. You are confident it belongs to THIS exact company and person
-
-Return null for everything you did not find on a real page.`,
+      model: "gemini_3_flash",
       add_context_from_internet: true,
+      prompt: `You are a B2B data researcher. Browse the web NOW to find real, verified data about this company and contact.
+
+Browse these sources:
+1. The company's official website: ${lead.website || `search for "${lead.company_name}"`}
+2. LinkedIn: search "${lead.company_name}" company page and contacts
+3. Google: "${lead.company_name} ${lead.location || ''} contact email phone"
+4. Any directory or business listing mentioning this company
+
+Company: ${lead.company_name}
+Contact: ${contactName || 'Unknown'}
+Job Title: ${lead.job_title || 'Unknown'}
+Website: ${lead.website || 'not known'}
+Location: ${lead.location || 'not known'}
+Industry: ${industryCtx}
+
+STRICT RULES — NO EXCEPTIONS:
+1. ONLY return data you actually browsed and found on a real page right now.
+2. For each field you return, provide the source_url of the page where you found it.
+3. If you did NOT find something on a real page = return null. Never invent or guess.
+4. For names (first_name, last_name): only return if you found this person LISTED at ${lead.company_name} on a real page.
+5. For email: must match the company domain (not gmail/hotmail/yahoo).
+6. For LinkedIn: must be a real linkedin.com/in/ or linkedin.com/company/ URL you actually visited.
+7. confidence = "high" only if you found it directly on the company's own site or official LinkedIn page.
+8. confidence = "medium" if found on a third-party directory.
+9. confidence = "low" = do not return it at all.
+
+Only suggest a value if it improves on or fills in the current data.`,
       response_json_schema: {
         type: "object",
         properties: {
@@ -115,13 +127,9 @@ Return null for everything you did not find on a real page.`,
 
     const cleaned = {};
     Object.entries(result).forEach(([key, val]) => {
-      // Require source_url for name fields and sensitive fields to prevent hallucination
-      const requiresSource = ['first_name', 'last_name', 'email', 'phone', 'linkedin_url'].includes(key);
-      const hasSource = val?.source_url && val.source_url.startsWith('http');
-      if (requiresSource && !hasSource) return; // discard if no real source
-      if (val?.suggested && val.suggested !== lead[key] && val.suggested !== 'Unknown' && val.suggested !== 'null' && val.suggested !== 'N/A') {
-        cleaned[key] = { ...val, current: lead[key] };
-      }
+      if (!isLikelyReal(key, val)) return;
+      if (val.suggested === lead[key]) return; // no change
+      cleaned[key] = { ...val, current: lead[key] };
     });
 
     setLoadingStage(null);
