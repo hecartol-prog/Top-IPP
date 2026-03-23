@@ -169,12 +169,17 @@ Return null for everything you did not find on a real page.`,
     const prompt = hasContact
       ? `You are a B2B sales intelligence assistant specializing in the plastic injection mold and manufacturing industry.
 
-ANTI-HOMONYM RULES — CRITICAL:
-- You must ONLY find data for "${contactNameLocal}" who works at "${lead.company_name}" in the plastics/injection mold industry.
-- There may be other people named "${contactNameLocal}" in the world. IGNORE all of them unless they are confirmed employees of "${lead.company_name}".
-- For LinkedIn: only accept a profile where the person's current employer is "${lead.company_name}".
-- For email: must match the domain of ${lead.website || `"${lead.company_name}"`}, not a generic provider.
-- If you cannot confirm with high confidence that the data belongs to this exact person at this company, return null.
+⚠️ HALLUCINATION PREVENTION — MOST IMPORTANT RULE:
+- You MUST ONLY return data you actually found on a real web page RIGHT NOW during this search.
+- For name, email, phone, linkedin_url: you MUST provide the exact source_url where you found it.
+- If you did NOT find this person on a real page, return null for ALL fields — DO NOT invent names, emails or profiles.
+- If the name you found does not match "${contactNameLocal}" at "${lead.company_name}", return null.
+
+ANTI-HOMONYM RULES:
+- ONLY find data for "${contactNameLocal}" who works at "${lead.company_name}" in plastics/injection mold industry.
+- Ignore any other person with the same name at a different company.
+- For LinkedIn: only accept if profile shows "${lead.company_name}" as employer.
+- For email: must match domain of ${lead.website || `"${lead.company_name}"`}, not gmail/yahoo etc.
 
 Company: ${lead.company_name}
 Contact Person: ${contactNameLocal}
@@ -183,36 +188,27 @@ Industry: ${industryCtxLocal}
 Website: ${lead.website || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
 
-Search queries to use:
-1. "${contactNameLocal} ${lead.company_name} plastic injection mold"
-2. site:linkedin.com "${contactNameLocal}" "${lead.company_name}"
-3. "${lead.company_name} ${lead.location || ''} contact email"
-
-Find ONLY for this confirmed person at this company:
-1. Verified email address
-2. Phone number (direct or company)
-3. LinkedIn profile URL
-4. Exact job title / role
-5. Outreach notes: relevant professional background, why they are important for mold procurement outreach`
+Only return real data found on actual web pages. Return null for everything you did not find.`
       : `You are a B2B sales intelligence assistant specializing in plastic injection molds and manufacturing procurement.
 
-ANTI-HOMONYM RULES — CRITICAL:
+⚠️ HALLUCINATION PREVENTION — MOST IMPORTANT RULE:
+- You MUST ONLY return a person you actually found on a real web page RIGHT NOW during this search.
+- You MUST provide source_url for the person's name — a real URL where you found them listed at this company.
+- If you did NOT find a real person at "${lead.company_name}" on a real page, return null for ALL fields.
+- Do NOT invent names like "Michael Robinson", "John Smith" or any generic name. Return null instead.
+- If source_url is empty or null, the result will be discarded.
+
+ANTI-HOMONYM RULES:
 - Only find decision makers CONFIRMED to work at "${lead.company_name}" (not a company with a similar name).
 - Verify by checking the company's official website, LinkedIn company page, or press releases.
-- Do NOT suggest contacts from different companies that share a similar name.
 
 Company: ${lead.company_name}
 Industry: ${industryCtxLocal}
 Website: ${lead.website || 'Unknown'}
 Location: ${lead.location || 'Unknown'}
 
-Search:
-1. "${lead.company_name} ${lead.location || ''} director CEO manager plastic injection"
-2. site:linkedin.com/company "${lead.company_name}"
-3. "${lead.company_name} ${lead.location || ''} procurement purchasing operations"
-
-Find the top decision maker for plastic injection mold procurement: Director General, CEO, General Manager, Purchasing/Procurement Manager, or Operations Director.
-Only return a person you can confirm works at THIS exact company. Provide their full name, title, email, phone, LinkedIn, and why they are the best contact.`;
+Find the top decision maker for plastic injection mold procurement at THIS company only.
+Only return a real person you found on an actual web page. Provide source_url where you found them.`;
 
     const result = await base44.integrations.Core.InvokeLLM({
       prompt,
@@ -227,12 +223,20 @@ Only return a person you can confirm works at THIS exact company. Provide their 
           phone: { type: "string" },
           linkedin_url: { type: "string" },
           outreach_notes: { type: "string" },
-          confidence: { type: "string" }
+          confidence: { type: "string" },
+          source_url: { type: "string" }
         }
       }
     });
 
-    setContactResult(result);
+    // Discard result if no real source_url for the person's name (hallucination prevention)
+    const hasRealSource = result?.source_url && result.source_url.startsWith('http');
+    const hasName = result?.first_name || result?.last_name;
+    if (hasName && !hasRealSource) {
+      setContactResult({ _no_data: true });
+    } else {
+      setContactResult(result);
+    }
     setContactLoading(false);
   };
 
