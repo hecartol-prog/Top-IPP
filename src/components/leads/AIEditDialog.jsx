@@ -436,7 +436,15 @@ Only return a real person you found on an actual web page. Provide source_url wh
             </div>
           )}
 
-          {contactResult && !contactLoading && (
+          {contactResult?._no_data && !contactLoading && (
+            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg text-sm text-slate-600">
+              <AlertCircle className="w-5 h-5 text-slate-400 flex-shrink-0" />
+              No verified contact found — could not confirm a real person at this company from public web sources.
+              <button className="ml-auto text-xs text-slate-400 hover:text-slate-600 underline" onClick={() => setContactResult(null)}>Try again</button>
+            </div>
+          )}
+
+          {contactResult && !contactResult._no_data && !contactLoading && (
             <div className="space-y-3">
               <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 space-y-2">
                 {(contactResult.first_name || contactResult.last_name) && (
