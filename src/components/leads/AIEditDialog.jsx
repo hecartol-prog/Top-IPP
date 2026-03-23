@@ -354,6 +354,7 @@ Only return a real person you found on an actual web page. Provide source_url wh
                               )}
                               <p className="text-sm font-medium text-slate-900 break-all">{s.suggested}</p>
                               <p className="text-xs text-slate-400 mt-1">{s.reason}</p>
+                              {s.source_url && <a href={s.source_url} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-400 hover:underline truncate block mt-0.5">{s.source_url}</a>}
                               <div className="mt-1.5">{confidenceBadge(s.confidence)}</div>
                             </div>
                           </div>
