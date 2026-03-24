@@ -206,6 +206,12 @@ export default function Outreach() {
         lead={composeLead || leads[0]}
         onSent={handleSent}
       />
+
+      <CampaignBuilderDialog
+        open={showCampaign}
+        onClose={() => setShowCampaign(false)}
+        onComplete={() => queryClient.invalidateQueries({ queryKey: ['email-outreach'] })}
+      />
     </div>
   );
 }
