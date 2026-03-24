@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles, Send, RefreshCw, Eye, EyeOff, Mail } from "lucide-react";
+import { Sparkles, Send, RefreshCw, Eye, EyeOff, Mail, Paperclip, X } from "lucide-react";
 
 export default function ComposeEmailDialog({ open, onClose, lead, onSent }) {
   const [campaignName, setCampaignName] = useState("Manual Outreach");
@@ -17,6 +17,9 @@ export default function ComposeEmailDialog({ open, onClose, lead, onSent }) {
   const [sending, setSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [sentOk, setSentOk] = useState(false);
+  const [attachments, setAttachments] = useState([]); // [{name, url, type, size}]
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef();
 
   const { data: templates = [] } = useQuery({
     queryKey: ['email-templates'],
@@ -27,16 +30,14 @@ export default function ComposeEmailDialog({ open, onClose, lead, onSent }) {
     if (!open) {
       setSubject(""); setBody(""); setSelectedTemplateId("");
       setSentOk(false); setPersonalizing(false); setSending(false);
+      setAttachments([]);
     }
   }, [open]);
 
   const handleTemplateSelect = (id) => {
     setSelectedTemplateId(id);
     const tpl = templates.find(t => t.id === id);
-    if (tpl) {
-      setSubject(tpl.subject || "");
-      setBody(tpl.body || "");
-    }
+    if (tpl) { setSubject(tpl.subject || ""); setBody(tpl.body || ""); }
   };
 
   const handlePersonalize = async () => {
@@ -74,6 +75,24 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
     setPersonalizing(false);
   };
 
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploading(true);
+    for (const file of files) {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setAttachments(prev => [...prev, { name: file.name, url: file_url, type: file.type, size: file.size }]);
+    }
+    setUploading(false);
+    fileInputRef.current.value = "";
+  };
+
+  const removeAttachment = (idx) => setAttachments(prev => prev.filter((_, i) => i !== idx));
+
+  const formatSize = (bytes) => bytes < 1024 * 1024
+    ? `${(bytes / 1024).toFixed(0)} KB`
+    : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
   const handleSend = async () => {
     if (!lead?.email || !subject || !body) return;
     setSending(true);
@@ -84,7 +103,8 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
       subject,
       body,
       campaign_name: campaignName,
-      sequence_step: 1
+      sequence_step: 1,
+      attachments: attachments.map(a => ({ name: a.name, url: a.url, type: a.type }))
     });
     setSending(false);
     setSentOk(true);
@@ -150,14 +170,11 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Body</label>
-                <div className="flex gap-2">
-                  <button onClick={() => setShowPreview(!showPreview)} className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-700">
-                    {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    {showPreview ? "Edit" : "Preview"}
-                  </button>
-                </div>
+                <button onClick={() => setShowPreview(!showPreview)} className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-700">
+                  {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  {showPreview ? "Edit" : "Preview"}
+                </button>
               </div>
-
               {showPreview ? (
                 <div
                   className="min-h-[180px] p-3 border border-slate-200 rounded-md bg-slate-50 text-sm text-slate-700"
@@ -174,6 +191,43 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
               )}
             </div>
 
+            {/* Attachments */}
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Attachments</label>
+              <div className="mt-1 space-y-2">
+                {attachments.map((att, idx) => (
+                  <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+                    <Paperclip className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="flex-1 truncate text-slate-700">{att.name}</span>
+                    <span className="text-xs text-slate-400 shrink-0">{formatSize(att.size)}</span>
+                    <button onClick={() => removeAttachment(idx)} className="text-slate-400 hover:text-rose-500 shrink-0">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current.click()}
+                  disabled={uploading}
+                  className="gap-2"
+                >
+                  {uploading
+                    ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Uploading...</>
+                    : <><Paperclip className="w-3.5 h-3.5" />Add Attachment</>
+                  }
+                </Button>
+              </div>
+            </div>
+
             {/* AI Personalize */}
             <Button
               onClick={handlePersonalize}
@@ -181,11 +235,10 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
               variant="outline"
               className="w-full border-violet-200 text-violet-700 hover:bg-violet-50"
             >
-              {personalizing ? (
-                <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Personalizing...</>
-              ) : (
-                <><Sparkles className="w-4 h-4 mr-2" />AI Personalize for {lead?.first_name || 'Lead'}</>
-              )}
+              {personalizing
+                ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Personalizing...</>
+                : <><Sparkles className="w-4 h-4 mr-2" />AI Personalize for {lead?.first_name || 'Lead'}</>
+              }
             </Button>
 
             {!lead?.email && (
@@ -200,11 +253,10 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
                 disabled={sending || !lead?.email || !subject || !body}
                 className="flex-1 bg-teal-600 hover:bg-teal-700"
               >
-                {sending ? (
-                  <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Sending...</>
-                ) : (
-                  <><Send className="w-4 h-4 mr-2" />Send with Tracking</>
-                )}
+                {sending
+                  ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Sending...</>
+                  : <><Send className="w-4 h-4 mr-2" />Send with Tracking</>
+                }
               </Button>
               <Button variant="outline" onClick={onClose}>Cancel</Button>
             </div>

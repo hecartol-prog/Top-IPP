@@ -5,7 +5,7 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    const { lead_id, lead_email, lead_name, subject, body, campaign_name, sequence_step } = await req.json();
+    const { lead_id, lead_email, lead_name, subject, body, campaign_name, sequence_step, attachments } = await req.json();
 
     if (!lead_email) return Response.json({ error: 'lead_email is required' }, { status: 400 });
     if (!subject)    return Response.json({ error: 'subject is required' }, { status: 400 });
