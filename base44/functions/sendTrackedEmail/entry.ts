@@ -75,11 +75,26 @@ Deno.serve(async (req) => {
           greetingTimeout: 10000,
           socketTimeout: 10000,
         });
+        // Build attachment list
+        const mailAttachments = [];
+        if (attachments && attachments.length > 0) {
+          for (const att of attachments) {
+            const res = await fetch(att.url);
+            const buffer = await res.arrayBuffer();
+            mailAttachments.push({
+              filename: att.name,
+              content: Buffer.from(buffer),
+              contentType: att.type || 'application/octet-stream',
+            });
+          }
+        }
+
         await transporter.sendMail({
           from: `"Top Industrial Molds & Plastics" <${smtpUser}>`,
           to: lead_email,
           subject,
           html: htmlBody,
+          attachments: mailAttachments,
         });
         sent = true;
         break;
