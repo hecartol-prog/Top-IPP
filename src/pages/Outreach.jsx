@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import ComposeEmailDialog from "@/components/outreach/ComposeEmailDialog";
+import CampaignBuilderDialog from "@/components/outreach/CampaignBuilderDialog";
 import { format } from "date-fns";
 import {
   Mail, Plus, Eye, MousePointer, Send, Search,
-  TrendingUp, CheckCircle, BarChart3, RefreshCw
+  TrendingUp, CheckCircle, BarChart3, RefreshCw, Users
 } from "lucide-react";
 
 const statusConfig = {
