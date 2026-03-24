@@ -1,4 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+import nodemailer from 'npm:nodemailer@6.9.9';
 
 Deno.serve(async (req) => {
   try {
@@ -9,6 +10,17 @@ Deno.serve(async (req) => {
     const { lead_id, lead_email, lead_name, subject, body, campaign_name, sequence_step } = await req.json();
 
     if (!lead_email) return Response.json({ error: 'lead_email is required' }, { status: 400 });
+    if (!subject)    return Response.json({ error: 'subject is required' }, { status: 400 });
+    if (!body)       return Response.json({ error: 'body is required' }, { status: 400 });
+
+    const smtpHost = Deno.env.get('SMTP_HOST');
+    const smtpPort = parseInt(Deno.env.get('SMTP_PORT') || '587');
+    const smtpUser = Deno.env.get('SMTP_USER');
+    const smtpPass = Deno.env.get('SMTP_PASS');
+
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      return Response.json({ error: 'SMTP credentials not configured' }, { status: 500 });
+    }
 
     const tracking_id = crypto.randomUUID();
     const appId = Deno.env.get('BASE44_APP_ID');
@@ -27,7 +39,7 @@ Deno.serve(async (req) => {
     const pixelUrl = `${trackingBaseUrl}?tracking_id=${tracking_id}&type=open`;
     const htmlBody = `${trackedBody}<img src="${pixelUrl}" width="1" height="1" style="display:none;visibility:hidden;opacity:0;" alt="" />`;
 
-    // Save record first
+    // Save outreach record first
     const record = await base44.asServiceRole.entities.EmailOutreach.create({
       lead_id,
       lead_email,
@@ -43,11 +55,26 @@ Deno.serve(async (req) => {
       click_count: 0
     });
 
-    // Send the email
-    await base44.integrations.Core.SendEmail({
+    // Create SMTP transporter
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
+
+    // Send via SMTP
+    await transporter.sendMail({
+      from: `"Top Mold" <${smtpUser}>`,
       to: lead_email,
       subject,
-      body: htmlBody
+      html: htmlBody,
     });
 
     return Response.json({ success: true, record });
