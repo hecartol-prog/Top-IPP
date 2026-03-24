@@ -23,6 +23,7 @@ const statusConfig = {
 
 export default function Outreach() {
   const [showCompose, setShowCompose] = useState(false);
+  const [showCampaign, setShowCampaign] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [composeLead, setComposeLead] = useState(null);
