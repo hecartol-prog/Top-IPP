@@ -53,31 +53,42 @@ Deno.serve(async (req) => {
       click_count: 0
     });
 
-    // Create SMTP transporter
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-      tls: {
-        rejectUnauthorized: false,
-        ciphers: 'SSLv3'
-      },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 15000,
-    });
+    // Try SSL port 465 first, fall back to non-SSL port 26
+    const smtpConfigs = [
+      { port: smtpPort, secure: smtpPort === 465 },
+      { port: 26,  secure: false },
+      { port: 587, secure: false },
+    ];
 
-    // Send via SMTP
-    await transporter.sendMail({
-      from: `"Top Mold" <${smtpUser}>`,
-      to: lead_email,
-      subject,
-      html: htmlBody,
-    });
+    let lastError = null;
+    let sent = false;
+
+    for (const cfg of smtpConfigs) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: cfg.port,
+          secure: cfg.secure,
+          auth: { user: smtpUser, pass: smtpPass },
+          tls: { rejectUnauthorized: false },
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 10000,
+        });
+        await transporter.sendMail({
+          from: `"Top Mold" <${smtpUser}>`,
+          to: lead_email,
+          subject,
+          html: htmlBody,
+        });
+        sent = true;
+        break;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+
+    if (!sent) throw lastError;
 
     return Response.json({ success: true, record });
   } catch (error) {
