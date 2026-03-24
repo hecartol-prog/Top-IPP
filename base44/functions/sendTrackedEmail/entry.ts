@@ -63,8 +63,12 @@ Deno.serve(async (req) => {
         pass: smtpPass,
       },
       tls: {
-        rejectUnauthorized: false
-      }
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3'
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 15000,
     });
 
     // Send via SMTP
