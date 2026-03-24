@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
           socketTimeout: 10000,
         });
         await transporter.sendMail({
-          from: `"Top Mold" <${smtpUser}>`,
+          from: `"Top Industrial Molds & Plastics" <${smtpUser}>`,
           to: lead_email,
           subject,
           html: htmlBody,
