@@ -71,6 +71,10 @@ export default function Outreach() {
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="w-4 h-4" />
           </Button>
+          <Button variant="outline" onClick={() => setShowCampaign(true)} className="border-teal-200 text-teal-700 hover:bg-teal-50">
+            <Users className="w-4 h-4 mr-2" />
+            Campaign
+          </Button>
           <Button onClick={() => { setComposeLead(null); setShowCompose(true); }} className="bg-teal-600 hover:bg-teal-700">
             <Plus className="w-4 h-4 mr-2" />
             Compose
