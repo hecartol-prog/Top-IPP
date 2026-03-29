@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import AIEditDialog from "./AIEditDialog";
 import OutreachTrackingList from "@/components/outreach/OutreachTrackingList";
+import HunterPanel from "./HunterPanel";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 
@@ -487,6 +488,7 @@ For the best contact found, provide:
             </TabsTrigger>
             <TabsTrigger value="research" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">AI Research</TabsTrigger>
             <TabsTrigger value="outreach" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">Outreach</TabsTrigger>
+            <TabsTrigger value="hunter" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">🎯 Hunter</TabsTrigger>
           </TabsList>
 
           {/* Info Tab */}
@@ -844,6 +846,14 @@ For the best contact found, provide:
           {/* Outreach Tab */}
           <TabsContent value="outreach" className="p-4 mt-0">
             <OutreachTrackingList lead={lead} />
+          </TabsContent>
+
+          {/* Hunter Tab */}
+          <TabsContent value="hunter" className="p-4 mt-0">
+            <HunterPanel
+              lead={lead}
+              onApplyEmail={(email) => onUpdateLead && onUpdateLead({ ...lead, email })}
+            />
           </TabsContent>
         </Tabs>
       </SheetContent>
