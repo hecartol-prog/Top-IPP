@@ -853,6 +853,7 @@ For the best contact found, provide:
             <HunterPanel
               lead={lead}
               onApplyEmail={(email) => onUpdateLead && onUpdateLead({ ...lead, email })}
+              onApplyLead={(updates) => onUpdateLead && onUpdateLead({ ...lead, ...updates })}
             />
           </TabsContent>
         </Tabs>
