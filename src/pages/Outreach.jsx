@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import ComposeEmailDialog from "@/components/outreach/ComposeEmailDialog";
+import ComposeEmailDialog from "@/components/outreach/ComposeEmailDialog.jsx";
 import CampaignBuilderDialog from "@/components/outreach/CampaignBuilderDialog";
 import { format } from "date-fns";
 import {
