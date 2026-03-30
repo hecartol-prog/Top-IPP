@@ -24,7 +24,8 @@ export default function WebScraper({ onImportComplete }) {
   const [message, setMessage]             = useState(null);
   const [pagesScraped, setPagesScraped]   = useState(null);
 
-  const handleScrape = async () => {
+  const handleScrape = async (e) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
     if (!url.trim()) return;
     setScraping(true);
     setMessage({ type: "info", text: mode === "deep" ? "Apify is crawling the site (this may take 1-2 min)..." : "Fetching page content..." });
@@ -106,13 +107,14 @@ export default function WebScraper({ onImportComplete }) {
           <Input
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !scraping && handleScrape()}
+            onKeyDown={(e) => { if (e.key === "Enter" && !scraping) { e.preventDefault(); handleScrape(e); } }}
             placeholder="https://directory.com/companies/ or any company/contact page..."
             className="pl-10"
             disabled={scraping}
           />
         </div>
         <Button
+          type="button"
           onClick={handleScrape}
           disabled={!url.trim() || scraping}
           className="bg-slate-900 hover:bg-slate-800 shrink-0"
@@ -131,6 +133,7 @@ export default function WebScraper({ onImportComplete }) {
           {MODES.map(({ value, icon: Icon, label, desc }) => (
             <button
               key={value}
+              type="button"
               onClick={() => setMode(value)}
               disabled={scraping}
               className={`relative flex flex-col items-center gap-1 p-3 rounded-xl border-2 text-center transition-all ${
@@ -192,7 +195,7 @@ export default function WebScraper({ onImportComplete }) {
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Extracted Leads</CardTitle>
               <div className="flex items-center gap-3">
-                <button onClick={toggleAll} className="text-sm text-slate-500 hover:text-slate-800 underline">
+                <button type="button" onClick={toggleAll} className="text-sm text-slate-500 hover:text-slate-800 underline">
                   {selectedLeads.length === extractedLeads.length ? "Deselect all" : "Select all"}
                 </button>
                 <Badge variant="secondary">{selectedLeads.length} selected</Badge>
@@ -210,7 +213,7 @@ export default function WebScraper({ onImportComplete }) {
                   <Checkbox
                     checked={selectedLeads.includes(index)}
                     onCheckedChange={() => toggleLead(index)}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
                   />
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center text-white text-sm font-bold shrink-0">
                     {((lead.company_name || lead.first_name || "?")[0]).toUpperCase()}
@@ -236,6 +239,7 @@ export default function WebScraper({ onImportComplete }) {
             </div>
             <div className="p-4 border-t border-slate-100">
               <Button
+                type="button"
                 onClick={handleImport}
                 disabled={selectedLeads.length === 0 || importing}
                 className="w-full bg-teal-600 hover:bg-teal-700"
