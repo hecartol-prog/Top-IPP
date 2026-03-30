@@ -28,7 +28,7 @@ export default function WebScraper({ onImportComplete }) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     if (!url.trim()) return;
     setScraping(true);
-    setMessage({ type: "info", text: mode === "deep" ? "Apify is crawling the site (this may take 1-2 min)..." : "Fetching page content..." });
+    setMessage({ type: "info", text: mode === "deep" ? "Crawling site pages (may take 2-3 min for JS-heavy sites)..." : "Fetching and extracting leads (may take 1-3 min)..." });
     setExtractedLeads([]);
     setSelectedLeads([]);
     setPagesScraped(null);
