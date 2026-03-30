@@ -64,7 +64,7 @@ export default function Leads() {
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
-    queryFn: () => base44.entities.Lead.list('-created_date', 1000)
+    queryFn: () => base44.entities.Lead.list('-created_date', 10000)
   });
 
   const { data: activities = [] } = useQuery({
