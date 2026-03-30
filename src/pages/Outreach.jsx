@@ -306,7 +306,7 @@ export default function Outreach() {
       <ComposeEmailDialog
         open={showCompose}
         onClose={() => { setShowCompose(false); setComposeLead(null); }}
-        lead={composeLead || leads[0]}
+        lead={composeLead || null}
         onSent={handleSent}
       />
 

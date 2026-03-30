@@ -6,9 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles, Send, RefreshCw, Eye, EyeOff, Mail, Paperclip, X } from "lucide-react";
+import { Sparkles, Send, RefreshCw, Eye, EyeOff, Mail, Paperclip, X, Search, ChevronLeft } from "lucide-react";
 
-export default function ComposeEmailDialog({ open, onClose, lead, onSent }) {
+export default function ComposeEmailDialog({ open, onClose, lead: propLead, onSent }) {
+  const [step, setStep] = useState(propLead ? "compose" : "pick_lead"); // "pick_lead" | "compose"
+  const [selectedLead, setSelectedLead] = useState(propLead || null);
+  const [leadSearch, setLeadSearch] = useState("");
   const [campaignName, setCampaignName] = useState("Manual Outreach");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -17,7 +20,7 @@ export default function ComposeEmailDialog({ open, onClose, lead, onSent }) {
   const [sending, setSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [sentOk, setSentOk] = useState(false);
-  const [attachments, setAttachments] = useState([]); // [{name, url, type, size}]
+  const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef();
 
@@ -26,13 +29,30 @@ export default function ComposeEmailDialog({ open, onClose, lead, onSent }) {
     queryFn: () => base44.entities.EmailTemplate.list()
   });
 
+  const { data: allLeads = [] } = useQuery({
+    queryKey: ['leads'],
+    queryFn: () => base44.entities.Lead.list('-created_date', 500)
+  });
+
   useEffect(() => {
     if (!open) {
       setSubject(""); setBody(""); setSelectedTemplateId("");
       setSentOk(false); setPersonalizing(false); setSending(false);
-      setAttachments([]);
+      setAttachments([]); setLeadSearch("");
+      setStep(propLead ? "compose" : "pick_lead");
+      setSelectedLead(propLead || null);
     }
-  }, [open]);
+  }, [open, propLead]);
+
+  const lead = selectedLead;
+
+  const filteredLeads = allLeads.filter(l => {
+    const q = leadSearch.toLowerCase();
+    return !q ||
+      `${l.first_name} ${l.last_name}`.toLowerCase().includes(q) ||
+      l.email?.toLowerCase().includes(q) ||
+      l.company_name?.toLowerCase().includes(q);
+  });
 
   const handleTemplateSelect = (id) => {
     setSelectedTemplateId(id);
@@ -118,16 +138,53 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="w-5 h-5 text-teal-600" />
-            Compose Email
-            {lead && (
+            {step === "pick_lead" ? "Select a Lead" : "Compose Email"}
+            {step === "compose" && lead && (
               <Badge variant="secondary" className="ml-1 text-xs font-normal">
-                To: {lead.first_name} {lead.last_name} &lt;{lead.email}&gt;
+                To: {lead.first_name} {lead.last_name} {lead.email ? `<${lead.email}>` : "(no email)"}
               </Badge>
             )}
           </DialogTitle>
         </DialogHeader>
 
-        {sentOk ? (
+        {/* Lead Picker Step */}
+        {step === "pick_lead" && (
+          <div className="mt-2 space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                value={leadSearch}
+                onChange={e => setLeadSearch(e.target.value)}
+                placeholder="Search by name, email, or company..."
+                className="pl-9"
+                autoFocus
+              />
+            </div>
+            <div className="border border-slate-200 rounded-lg overflow-y-auto max-h-[55vh]">
+              {filteredLeads.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-8">No leads found</p>
+              ) : filteredLeads.map(l => (
+                <button
+                  key={l.id}
+                  onClick={() => { setSelectedLead(l); setStep("compose"); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-semibold text-sm shrink-0">
+                    {(l.first_name?.[0] || "?").toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{l.first_name} {l.last_name}</p>
+                    <p className="text-xs text-slate-400 truncate">{l.company_name}{l.email ? ` · ${l.email}` : " · no email"}</p>
+                  </div>
+                  {!l.email && <span className="text-xs text-amber-500 shrink-0">No email</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Compose Step */}
+        {step === "compose" && sentOk && (
           <div className="py-10 text-center space-y-2">
             <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
               <Send className="w-6 h-6 text-emerald-600" />
@@ -135,7 +192,8 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
             <p className="font-semibold text-slate-800">Email sent successfully!</p>
             <p className="text-sm text-slate-500">Open & click tracking is active.</p>
           </div>
-        ) : (
+        )}
+        {step === "compose" && !sentOk && (
           <div className="space-y-4 mt-2">
             {/* Campaign name */}
             <div>
@@ -248,6 +306,14 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
             )}
 
             <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setStep("pick_lead")}
+                className="gap-1.5"
+              >
+                <ChevronLeft className="w-4 h-4" /> Change Lead
+              </Button>
               <Button
                 onClick={handleSend}
                 disabled={sending || !lead?.email || !subject || !body}
