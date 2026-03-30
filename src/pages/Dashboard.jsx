@@ -8,6 +8,7 @@ import StatCard from "../components/dashboard/StatCard";
 import RecentLeads from "../components/dashboard/RecentLeads";
 import PipelineChart from "../components/dashboard/PipelineChart";
 import MITWidget from "../components/dashboard/MITWidget";
+import TodayActionsWidget from "../components/dashboard/TodayActionsWidget";
 import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -102,8 +103,9 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Right Column - MITs + Follow-ups */}
+          {/* Right Column - Today Actions + MITs + Follow-ups */}
           <div className="space-y-6">
+            <TodayActionsWidget />
             <MITWidget />
             <motion.div
               initial={{ opacity: 0, y: 20 }}

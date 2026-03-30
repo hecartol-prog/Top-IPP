@@ -1,0 +1,196 @@
+{
+  "name": "Lead",
+  "type": "object",
+  "properties": {
+    "first_name": {
+      "type": "string",
+      "description": "Lead's first name"
+    },
+    "last_name": {
+      "type": "string",
+      "description": "Lead's last name"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Lead's email address"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Lead's phone number"
+    },
+    "job_title": {
+      "type": "string",
+      "description": "Lead's job title"
+    },
+    "company_name": {
+      "type": "string",
+      "description": "Company name"
+    },
+    "company_size": {
+      "type": "string",
+      "enum": [
+        "1-10",
+        "11-50",
+        "51-200",
+        "201-500",
+        "501-1000",
+        "1000+"
+      ],
+      "description": "Company size range"
+    },
+    "industry": {
+      "type": "string",
+      "description": "Industry sector"
+    },
+    "linkedin_url": {
+      "type": "string",
+      "description": "LinkedIn profile URL"
+    },
+    "website": {
+      "type": "string",
+      "description": "Company website"
+    },
+    "country": {
+      "type": "string",
+      "description": "Country of the lead/company"
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "english",
+        "spanish",
+        "portuguese",
+        "french",
+        "german",
+        "other"
+      ],
+      "default": "english",
+      "description": "Preferred contact language"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "contacted",
+        "qualified",
+        "proposal",
+        "negotiation",
+        "won",
+        "lost"
+      ],
+      "default": "new",
+      "description": "Lead status in pipeline"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "apollo",
+        "linkedin",
+        "referral",
+        "manual",
+        "leadiq",
+        "website",
+        "trade_show",
+        "cold_outreach",
+        "other"
+      ],
+      "description": "Lead source"
+    },
+    "estimated_value": {
+      "type": "number",
+      "description": "Estimated deal value in USD"
+    },
+    "mold_potential_value": {
+      "type": "number",
+      "description": "Estimated mold potential value in USD"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about the lead"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tags for categorization"
+    },
+    "location": {
+      "type": "string",
+      "description": "Lead's location/region"
+    },
+    "assigned_to": {
+      "type": "string",
+      "description": "Email of assigned team member"
+    },
+    "last_contacted": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Date of last contact"
+    },
+    "last_activity_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Date of last activity"
+    },
+    "next_follow_up": {
+      "type": "string",
+      "format": "date",
+      "description": "Next follow-up date"
+    },
+    "next_action": {
+      "type": "string",
+      "description": "Next best action for this lead"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium",
+      "description": "Lead priority level"
+    },
+    "icp_score": {
+      "type": "number",
+      "description": "Ideal Customer Profile score 1-5"
+    },
+    "temperature": {
+      "type": "string",
+      "enum": [
+        "cold",
+        "warm",
+        "hot",
+        "at_risk",
+        "opportunity"
+      ],
+      "default": "cold",
+      "description": "Lead temperature based on engagement"
+    },
+    "trigger_event": {
+      "type": "string",
+      "description": "Event that triggered this lead (e.g. job change, funding)"
+    },
+    "sequence_id": {
+      "type": "string",
+      "description": "Current outreach campaign/sequence ID"
+    },
+    "sequence_step": {
+      "type": "number",
+      "description": "Current step in the outreach sequence"
+    },
+    "sequence_next_send": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Next scheduled sequence send date"
+    }
+  },
+  "required": [
+    "first_name",
+    "last_name",
+    "company_name"
+  ]
+}

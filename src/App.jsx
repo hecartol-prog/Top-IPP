@@ -10,6 +10,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Tasks from './pages/Tasks';
 import Templates from './pages/Templates';
 import Outreach from './pages/Outreach.jsx';
+import Sequences from './pages/Sequences.jsx';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -64,6 +65,7 @@ const AuthenticatedApp = () => {
       <Route path="/Tasks" element={<LayoutWrapper currentPageName="Tasks"><Tasks /></LayoutWrapper>} />
       <Route path="/Templates" element={<LayoutWrapper currentPageName="Templates"><Templates /></LayoutWrapper>} />
       <Route path="/Outreach" element={<LayoutWrapper currentPageName="Outreach"><Outreach /></LayoutWrapper>} />
+      <Route path="/Sequences" element={<LayoutWrapper currentPageName="Sequences"><Sequences /></LayoutWrapper>} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

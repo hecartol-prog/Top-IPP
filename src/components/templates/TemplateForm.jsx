@@ -16,6 +16,14 @@ export default function TemplateForm({ template, onClose }) {
     subject: template?.subject || "",
     body: template?.body || "",
     notes: template?.notes || "",
+    icp_type: template?.icp_type || "",
+    buyer_role: template?.buyer_role || "",
+    industry: template?.industry || "",
+    pain_point: template?.pain_point || "",
+    trigger_event: template?.trigger_event || "",
+    offer_type: template?.offer_type || "",
+    cta_type: template?.cta_type || "",
+    funnel_stage: template?.funnel_stage || "",
   });
 
   const mutation = useMutation({
@@ -104,6 +112,16 @@ export default function TemplateForm({ template, onClose }) {
         onChange={(e) => setForm({ ...form, body: e.target.value })}
         required
       />
+
+      {/* Playbook fields */}
+      <div className="grid grid-cols-2 gap-3">
+        <Input placeholder="ICP Type (e.g. OEM Manufacturer)" value={form.icp_type} onChange={(e) => setForm({ ...form, icp_type: e.target.value })} />
+        <Input placeholder="Buyer Role (e.g. Procurement Manager)" value={form.buyer_role} onChange={(e) => setForm({ ...form, buyer_role: e.target.value })} />
+        <Input placeholder="Pain Point addressed" value={form.pain_point} onChange={(e) => setForm({ ...form, pain_point: e.target.value })} />
+        <Input placeholder="CTA Type (e.g. Schedule Call)" value={form.cta_type} onChange={(e) => setForm({ ...form, cta_type: e.target.value })} />
+        <Input placeholder="Offer Type (e.g. Free Sample)" value={form.offer_type} onChange={(e) => setForm({ ...form, offer_type: e.target.value })} />
+        <Input placeholder="Trigger Event (e.g. New product launch)" value={form.trigger_event} onChange={(e) => setForm({ ...form, trigger_event: e.target.value })} />
+      </div>
 
       <Input
         placeholder="Usage notes (optional)"

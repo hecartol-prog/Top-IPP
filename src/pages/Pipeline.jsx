@@ -132,13 +132,22 @@ export default function Pipeline() {
   };
 
   // Calculate pipeline stats
-  const STAGE_PROBS = { new: 5, contacted: 15, qualified: 30, proposal: 50, negotiation: 70, won: 100, lost: 0 };
+  const STAGE_PROBS = { new: 5, contacted: 5, qualified: 20, proposal: 50, negotiation: 80, won: 100, lost: 0 };
   const totalValue = leads.reduce((sum, lead) => sum + (lead.estimated_value || 0), 0);
   const weightedTotal = leads.reduce((sum, lead) => {
     const prob = STAGE_PROBS[lead.status] || 0;
     return sum + Math.round((lead.estimated_value || 0) * prob / 100);
   }, 0);
   const activeDeals = leads.filter(l => !['won', 'lost'].includes(l.status)).length;
+
+  // Stall detection: deals not updated in 10+ days
+  const stalledDeals = leads.filter(l => {
+    if (['won', 'lost', 'new'].includes(l.status)) return false;
+    const updated = l.updated_date ? new Date(l.updated_date) : null;
+    if (!updated) return false;
+    const daysSince = Math.floor((new Date() - updated) / (1000 * 60 * 60 * 24));
+    return daysSince >= 10;
+  });
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -162,7 +171,7 @@ export default function Pipeline() {
               Drag and drop leads to update their status
             </motion.p>
           </div>
-          <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex items-center gap-3 sm:gap-5 flex-wrap">
             <div className="text-right">
               <p className="text-xs sm:text-sm text-slate-500">Active Deals</p>
               <p className="text-xl sm:text-2xl font-bold text-slate-900">{activeDeals}</p>
@@ -172,9 +181,15 @@ export default function Pipeline() {
               <p className="text-xl sm:text-2xl font-bold text-emerald-600">${totalValue.toLocaleString()}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs sm:text-sm text-slate-500">Weighted Value</p>
+              <p className="text-xs sm:text-sm text-slate-500">Weighted Forecast</p>
               <p className="text-xl sm:text-2xl font-bold text-teal-600">${weightedTotal.toLocaleString()}</p>
             </div>
+            {stalledDeals.length > 0 && (
+              <div className="text-right">
+                <p className="text-xs sm:text-sm text-amber-500">Stalled Deals</p>
+                <p className="text-xl sm:text-2xl font-bold text-amber-600">{stalledDeals.length}</p>
+              </div>
+            )}
           </div>
         </div>
 

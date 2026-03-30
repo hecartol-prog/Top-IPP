@@ -4,7 +4,7 @@ import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { 
   LayoutDashboard, Users, Kanban, Building2,
-  Menu, X, LogOut, ChevronDown, Linkedin, Plug, CheckSquare, FileText, MailOpen
+  Menu, X, LogOut, ChevronDown, Linkedin, Plug, CheckSquare, FileText, MailOpen, Zap
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ const navigation = [
   { name: "Companies", href: "Companies", icon: Building2 },
   { name: "Templates", href: "Templates", icon: FileText },
   { name: "Outreach", href: "Outreach", icon: MailOpen },
+  { name: "Sequences", href: "Sequences", icon: Zap },
   { name: "Integrations", href: "Integrations", icon: Plug },
 ];
 

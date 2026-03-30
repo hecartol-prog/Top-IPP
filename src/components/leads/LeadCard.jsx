@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Building2, MapPin, DollarSign, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
+import LeadTemperatureBadge from "./LeadTemperatureBadge";
 
 const statusColors = {
   new: "bg-blue-100 text-blue-700 border-blue-200",
@@ -90,10 +91,13 @@ export default function LeadCard({ lead, onClick }) {
               )}
             </div>
 
-            <div className="mt-3 flex items-center justify-between">
-              <Badge className={`${statusColors[lead.status]} border text-xs font-medium`}>
-                {lead.status?.replace('_', ' ')}
-              </Badge>
+            <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Badge className={`${statusColors[lead.status]} border text-xs font-medium`}>
+                  {lead.status?.replace('_', ' ')}
+                </Badge>
+                {lead.temperature && <LeadTemperatureBadge temperature={lead.temperature} />}
+              </div>
               {lead.next_follow_up && (
                 <div className="flex items-center gap-1.5 text-xs text-slate-400">
                   <Calendar className="w-3 h-3" />

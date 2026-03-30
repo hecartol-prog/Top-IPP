@@ -1,0 +1,118 @@
+{
+  "name": "EmailTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Template name"
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "new",
+        "contacted",
+        "qualified",
+        "proposal",
+        "negotiation",
+        "won",
+        "lost"
+      ],
+      "description": "Pipeline stage this template belongs to"
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "english",
+        "spanish"
+      ],
+      "default": "english",
+      "description": "Template language"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "email",
+        "call_script"
+      ],
+      "default": "email",
+      "description": "Template type"
+    },
+    "subject": {
+      "type": "string",
+      "description": "Email subject line"
+    },
+    "body": {
+      "type": "string",
+      "description": "Template body content with placeholders like {{first_name}}, {{company_name}}"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Usage notes or tips"
+    },
+    "icp_type": {
+      "type": "string",
+      "description": "Target ICP type (e.g. OEM Manufacturer, Contract Manufacturer)"
+    },
+    "buyer_role": {
+      "type": "string",
+      "description": "Target buyer role (e.g. Procurement Manager, Engineering Director)"
+    },
+    "industry": {
+      "type": "string",
+      "description": "Target industry"
+    },
+    "pain_point": {
+      "type": "string",
+      "description": "Pain point addressed in this template"
+    },
+    "trigger_event": {
+      "type": "string",
+      "description": "Trigger event this template is designed for"
+    },
+    "offer_type": {
+      "type": "string",
+      "description": "Type of offer made (e.g. Free Sample, Quote, Demo)"
+    },
+    "cta_type": {
+      "type": "string",
+      "description": "Call to action type (e.g. Schedule Call, Reply, Click Link)"
+    },
+    "funnel_stage": {
+      "type": "string",
+      "enum": [
+        "awareness",
+        "consideration",
+        "decision",
+        "retention"
+      ],
+      "description": "Funnel stage"
+    },
+    "times_sent": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of times this template was used"
+    },
+    "reply_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of replies received"
+    },
+    "positive_replies": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of positive replies"
+    },
+    "deals_won": {
+      "type": "number",
+      "default": 0,
+      "description": "Deals won using this template"
+    }
+  },
+  "required": [
+    "name",
+    "stage",
+    "language",
+    "type",
+    "body"
+  ]
+}

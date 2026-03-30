@@ -1,0 +1,72 @@
+{
+  "name": "OutreachCampaign",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Campaign name"
+    },
+    "target_industry": {
+      "type": "string",
+      "description": "Target industry for this campaign"
+    },
+    "description": {
+      "type": "string",
+      "description": "Campaign description and goal"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "paused",
+        "completed"
+      ],
+      "default": "active",
+      "description": "Campaign status"
+    },
+    "steps": {
+      "type": "array",
+      "description": "Sequence steps",
+      "items": {
+        "type": "object",
+        "properties": {
+          "step_number": {
+            "type": "number"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "email",
+              "linkedin"
+            ]
+          },
+          "delay_days": {
+            "type": "number"
+          },
+          "template_id": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "enrolled_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of leads enrolled"
+    },
+    "reply_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Replies received"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

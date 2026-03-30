@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Copy, Check, Pencil, Trash2, ChevronDown, ChevronUp, Send, MessageSquare, Trophy } from "lucide-react";
 
 export default function TemplateCard({ template, stages, onEdit, onDelete }) {
   const [copied, setCopied] = useState(false);
@@ -57,6 +57,38 @@ export default function TemplateCard({ template, stages, onEdit, onDelete }) {
               >
                 {expanded ? <><ChevronUp className="w-3 h-3" /> Collapse</> : <><ChevronDown className="w-3 h-3" /> Read full template</>}
               </button>
+            )}
+
+            {/* Performance metrics */}
+            {(template.times_sent > 0 || template.reply_count > 0 || template.deals_won > 0) && (
+              <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
+                <span className="flex items-center gap-1 text-xs text-slate-500">
+                  <Send className="w-3 h-3" /> {template.times_sent || 0} sent
+                </span>
+                <span className="flex items-center gap-1 text-xs text-slate-500">
+                  <MessageSquare className="w-3 h-3" /> {template.reply_count || 0} replies
+                </span>
+                {template.times_sent > 0 && (
+                  <span className="text-xs text-slate-400">
+                    ({Math.round(((template.reply_count || 0) / template.times_sent) * 100)}% reply rate)
+                  </span>
+                )}
+                {template.deals_won > 0 && (
+                  <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                    <Trophy className="w-3 h-3" /> {template.deals_won} won
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Playbook metadata */}
+            {(template.icp_type || template.buyer_role || template.pain_point) && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {template.icp_type && <Badge variant="outline" className="text-[10px] text-slate-500">{template.icp_type}</Badge>}
+                {template.buyer_role && <Badge variant="outline" className="text-[10px] text-slate-500">{template.buyer_role}</Badge>}
+                {template.pain_point && <Badge variant="outline" className="text-[10px] text-violet-600 border-violet-200">{template.pain_point}</Badge>}
+                {template.cta_type && <Badge variant="outline" className="text-[10px] text-teal-600 border-teal-200">CTA: {template.cta_type}</Badge>}
+              </div>
             )}
 
             {template.notes && (

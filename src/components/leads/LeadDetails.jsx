@@ -14,7 +14,9 @@ import {
 import AIEditDialog from "./AIEditDialog";
 import OutreachTrackingList from "@/components/outreach/OutreachTrackingList";
 import HunterPanel from "./HunterPanel";
-import { format } from "date-fns";
+import AddToSequenceDialog from "@/components/outreach/AddToSequenceDialog";
+import LeadTemperatureBadge from "./LeadTemperatureBadge";
+import { format, differenceInDays } from "date-fns";
 import { base44 } from "@/api/base44Client";
 
 const statusColors = {
@@ -153,6 +155,7 @@ function AddActivityForm({ leadId, onActivityCreate, onClose }) {
 export default function LeadDetails({ open, onClose, lead, activities = [], onEdit, onDelete, onActivityCreate, onUpdateLead }) {
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showAIEdit, setShowAIEdit] = useState(false);
+  const [showSequence, setShowSequence] = useState(false);
   const [researchLoading, setResearchLoading] = useState(false);
   const [researchStage, setResearchStage] = useState(null); // "initial" | "google"
   const [enrichedFields, setEnrichedFields] = useState(null);
@@ -172,10 +175,25 @@ export default function LeadDetails({ open, onClose, lead, activities = [], onEd
     .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
 
   const handleStatusChange = (newStatus) => {
+    let temperature = lead.temperature || 'cold';
+    if (['proposal', 'negotiation'].includes(newStatus)) temperature = 'opportunity';
+    if (newStatus === 'won') temperature = 'hot';
     if (onUpdateLead) {
-      onUpdateLead({ ...lead, status: newStatus });
+      onUpdateLead({ ...lead, status: newStatus, temperature });
     }
   };
+
+  const handleActivityCreateWithTracking = async (data) => {
+    // Update last_activity_date on lead and bump temperature on positive reply
+    const updates = { last_activity_date: new Date().toISOString() };
+    if (data.outcome === 'positive') updates.temperature = 'hot';
+    if (onUpdateLead) onUpdateLead({ ...lead, ...updates });
+    if (onActivityCreate) await onActivityCreate(data);
+  };
+
+  const daysSinceActivity = lead.last_activity_date
+    ? differenceInDays(new Date(), new Date(lead.last_activity_date))
+    : null;
 
   // Fields that can be enriched and their display labels
   const enrichableFields = [
@@ -425,6 +443,10 @@ For the best contact found, provide:
               </div>
             </div>
             <div className="flex gap-2">
+              <Button size="sm" variant="ghost" className="text-violet-200 hover:bg-white/10 gap-1.5" onClick={() => setShowSequence(true)}>
+                <Zap className="w-4 h-4" />
+                <span className="text-xs hidden sm:inline">Sequence</span>
+              </Button>
               <Button size="sm" variant="ghost" className="text-teal-300 hover:bg-white/10 gap-1.5" onClick={handleAutoEnrich} disabled={autoEnriching}>
                 {autoEnriching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                 <span className="text-xs hidden sm:inline">{autoEnriching ? 'Enriching…' : 'Enrich'}</span>
@@ -466,6 +488,7 @@ For the best contact found, provide:
                 ))}
               </SelectContent>
             </Select>
+            {lead.temperature && <LeadTemperatureBadge temperature={lead.temperature} />}
             {lead.priority && (
               <Badge className="bg-white/10 text-white border-white/20 text-xs">
                 {lead.priority} priority
@@ -474,6 +497,16 @@ For the best contact found, provide:
             {lead.estimated_value && (
               <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30 text-xs">
                 ${lead.estimated_value.toLocaleString()}
+              </Badge>
+            )}
+            {daysSinceActivity !== null && daysSinceActivity >= 14 && (
+              <Badge className="bg-amber-500/20 text-amber-300 border-amber-400/30 text-xs">
+                {daysSinceActivity}d no activity
+              </Badge>
+            )}
+            {lead.icp_score && (
+              <Badge className="bg-blue-500/20 text-blue-300 border-blue-400/30 text-xs">
+                ICP {lead.icp_score}/5
               </Badge>
             )}
           </div>
@@ -493,6 +526,37 @@ For the best contact found, provide:
 
           {/* Info Tab */}
           <TabsContent value="info" className="p-4 space-y-4 mt-0">
+            {/* Next Action Banner */}
+            {lead.next_action && (
+              <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <Zap className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Next Best Action</p>
+                  <p className="text-sm text-amber-900 mt-0.5">{lead.next_action}</p>
+                </div>
+              </div>
+            )}
+            {lead.trigger_event && (
+              <div className="flex items-start gap-3 p-3 bg-violet-50 border border-violet-200 rounded-xl">
+                <Search className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Trigger Event</p>
+                  <p className="text-sm text-violet-900 mt-0.5">{lead.trigger_event}</p>
+                </div>
+              </div>
+            )}
+            {/* Sequence status */}
+            {lead.sequence_id && (
+              <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <Zap className="w-4 h-4 text-violet-500 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Active Sequence</p>
+                  <p className="text-sm text-slate-700">Step {lead.sequence_step || 1}
+                    {lead.sequence_next_send && ` · Next: ${format(new Date(lead.sequence_next_send), 'MMM d')}`}
+                  </p>
+                </div>
+              </div>
+            )}
             {/* Contact */}
             <div>
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Contact</h3>
@@ -611,7 +675,7 @@ For the best contact found, provide:
                 className="text-xs"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" />
-                Add Activity
+                Log Activity
               </Button>
             </div>
 
@@ -619,7 +683,7 @@ For the best contact found, provide:
               <div className="mb-4">
                 <AddActivityForm
                   leadId={lead.id}
-                  onActivityCreate={onActivityCreate}
+                  onActivityCreate={handleActivityCreateWithTracking}
                   onClose={() => setShowAddActivity(false)}
                 />
               </div>
@@ -864,6 +928,13 @@ For the best contact found, provide:
           onClose={() => setShowAIEdit(false)}
           lead={lead}
           onUpdateLead={onUpdateLead}
+        />
+      )}
+      {lead && (
+        <AddToSequenceDialog
+          open={showSequence}
+          onClose={() => setShowSequence(false)}
+          lead={lead}
         />
       )}
     </Sheet>

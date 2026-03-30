@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Pencil, Trash2, Building2, MapPin, Mail, Phone, Globe, Calendar } from "lucide-react";
 import { format } from "date-fns";
+import LeadTemperatureBadge from "./LeadTemperatureBadge";
 
 const statusColors = {
   new: "bg-blue-100 text-blue-700 border-blue-200",
@@ -103,7 +104,7 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
               <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Website</th>
               <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Country</th>
               <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Language</th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Status</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Status / Temp</th>
               <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Priority</th>
               <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Follow Up</th>
               <th className="px-3 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap sticky right-0 z-20 bg-slate-50">Actions</th>
@@ -185,9 +186,12 @@ export default function LeadListView({ leads, selectedIds, onToggleSelect, onTog
                   </td>
 
                   <td className="px-3 py-3 whitespace-nowrap">
-                    <Badge className={`${statusColors[lead.status] || statusColors.new} border text-xs font-medium`}>
-                      {lead.status?.replace("_", " ") || "new"}
-                    </Badge>
+                    <div className="flex flex-col gap-1">
+                      <Badge className={`${statusColors[lead.status] || statusColors.new} border text-xs font-medium w-fit`}>
+                        {lead.status?.replace("_", " ") || "new"}
+                      </Badge>
+                      {lead.temperature && <LeadTemperatureBadge temperature={lead.temperature} />}
+                    </div>
                   </td>
 
                   <td className="px-3 py-3 whitespace-nowrap">
