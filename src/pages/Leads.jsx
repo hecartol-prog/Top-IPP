@@ -59,6 +59,8 @@ export default function Leads() {
   const [deletingLead, setDeletingLead] = useState(null);
   const [showBatchEnrich, setShowBatchEnrich] = useState(false);
   const [showDuplicates, setShowDuplicates] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 50;
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['leads'],
@@ -165,6 +167,11 @@ export default function Leads() {
   };
 
   const filteredLeads = applyFilters(leads, filters);
+  const totalPages = Math.ceil(filteredLeads.length / PAGE_SIZE);
+  const paginatedLeads = filteredLeads.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Reset to page 1 when filters change
+  React.useEffect(() => { setCurrentPage(1); }, [filters]);
 
   const handleExportExcel = () => {
     const leadsToExport = selectedIds.length > 0
@@ -328,7 +335,7 @@ export default function Leads() {
             style={{ maxHeight: "calc(100vh - 320px)", minHeight: "300px" }}
           >
             <LeadListView
-              leads={filteredLeads}
+              leads={paginatedLeads}
               selectedIds={selectedIds}
               onToggleSelect={toggleSelectId}
               onToggleAll={toggleSelectAll}
@@ -341,7 +348,7 @@ export default function Leads() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <AnimatePresence>
-              {filteredLeads.map((lead, index) => (
+              {paginatedLeads.map((lead, index) => (
                 <motion.div
                   key={lead.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -356,6 +363,54 @@ export default function Leads() {
                 </motion.div>
               ))}
             </AnimatePresence>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200">
+            <p className="text-sm text-slate-500">
+              Showing {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, filteredLeads.length)} of {filteredLeads.length} leads
+            </p>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                .reduce((acc, p, idx, arr) => {
+                  if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...');
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, idx) => p === '...' ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-slate-400 text-sm">…</span>
+                ) : (
+                  <Button
+                    key={p}
+                    variant={currentPage === p ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(p)}
+                    className="min-w-[36px]"
+                  >
+                    {p}
+                  </Button>
+                ))
+              }
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </div>
