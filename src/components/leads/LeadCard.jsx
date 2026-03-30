@@ -2,7 +2,7 @@ import React from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Building2, MapPin, DollarSign, Calendar } from "lucide-react";
+import { Building2, MapPin, DollarSign, Calendar, Zap } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import LeadTemperatureBadge from "./LeadTemperatureBadge";
@@ -92,11 +92,19 @@ export default function LeadCard({ lead, onClick }) {
             </div>
 
             <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge className={`${statusColors[lead.status]} border text-xs font-medium`}>
                   {lead.status?.replace('_', ' ')}
                 </Badge>
                 {lead.temperature && <LeadTemperatureBadge temperature={lead.temperature} />}
+                {lead.apollo_enrichment_status === "enriched" && (
+                  <Badge className="bg-blue-50 text-blue-600 border-blue-200 text-xs flex items-center gap-0.5">
+                    <Zap className="w-2.5 h-2.5" /> Enriched
+                  </Badge>
+                )}
+                {lead.apollo_enrichment_status === "failed" && (
+                  <Badge className="bg-rose-50 text-rose-500 border-rose-200 text-xs">No match</Badge>
+                )}
               </div>
               {lead.next_follow_up && (
                 <div className="flex items-center gap-1.5 text-xs text-slate-400">

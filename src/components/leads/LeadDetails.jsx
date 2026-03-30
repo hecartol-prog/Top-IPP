@@ -12,6 +12,7 @@ import {
   PhoneCall, Users, FileText, Send, Search, Sparkles, Check, RefreshCw, UserSearch, Zap
 } from "lucide-react";
 import AIEditDialog from "./AIEditDialog";
+import ApolloEnrichPanel from "./ApolloEnrichPanel";
 import OutreachTrackingList from "@/components/outreach/OutreachTrackingList";
 import HunterPanel from "./HunterPanel";
 import AddToSequenceDialog from "@/components/outreach/AddToSequenceDialog";
@@ -522,6 +523,7 @@ For the best contact found, provide:
             <TabsTrigger value="research" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">AI Research</TabsTrigger>
             <TabsTrigger value="outreach" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">Outreach</TabsTrigger>
             <TabsTrigger value="hunter" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">🎯 Hunter</TabsTrigger>
+            <TabsTrigger value="apollo" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">🚀 Apollo</TabsTrigger>
           </TabsList>
 
           {/* Info Tab */}
@@ -919,6 +921,17 @@ For the best contact found, provide:
               onApplyEmail={(email) => onUpdateLead && onUpdateLead({ ...lead, email })}
               onApplyLead={(updates) => onUpdateLead && onUpdateLead({ ...lead, ...updates })}
             />
+          </TabsContent>
+
+          {/* Apollo Tab */}
+          <TabsContent value="apollo" className="p-4 mt-0">
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-slate-700 mb-1">Apollo.io Enrichment</h3>
+              <p className="text-xs text-slate-500">
+                Fetch verified contact & company intelligence from Apollo.io and fill missing lead fields automatically.
+              </p>
+            </div>
+            <ApolloEnrichPanel lead={lead} onUpdateLead={onUpdateLead} />
           </TabsContent>
         </Tabs>
       </SheetContent>

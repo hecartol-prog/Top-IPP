@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { base44 } from "@/api/base44Client";
-import { Zap, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
+import { Zap, CheckCircle2, XCircle, Loader2, AlertCircle, Rocket } from "lucide-react";
 
 const ENRICHABLE_FIELDS = [
   { key: "email", label: "Email" },
@@ -20,12 +20,13 @@ const ENRICHABLE_FIELDS = [
 ];
 
 export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) {
+  const [enrichMode, setEnrichMode] = useState("apollo"); // "apollo" | "ai"
   const [selectedFields, setSelectedFields] = useState(
     new Set(["email", "phone", "website", "industry"])
   );
   const [onlyMissing, setOnlyMissing] = useState(true);
   const [running, setRunning] = useState(false);
-  const [results, setResults] = useState(null); // [{id, name, status, fields_updated}]
+  const [results, setResults] = useState(null);
   const [current, setCurrent] = useState(0);
 
   const toggleField = (key) => {
@@ -46,11 +47,12 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
       const lead = leads[i];
       setCurrent(i + 1);
       try {
-        const response = await base44.functions.invoke("enrichLead", {
-          lead_id: lead.id,
-          fields: Array.from(selectedFields),
-          only_missing: onlyMissing,
-        });
+        const fnName = enrichMode === "apollo" ? "apolloEnrich" : "enrichLead";
+        const payload = enrichMode === "apollo"
+          ? { lead_id: lead.id, only_missing: onlyMissing }
+          : { lead_id: lead.id, fields: Array.from(selectedFields), only_missing: onlyMissing };
+
+        const response = await base44.functions.invoke(fnName, payload);
         res.push({
           id: lead.id,
           name: `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || lead.company_name,
@@ -66,6 +68,8 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
         });
       }
       setResults([...res]);
+      // Rate limit: small delay between requests
+      if (i < leads.length - 1) await new Promise(r => setTimeout(r, 800));
     }
 
     setRunning(false);
@@ -97,21 +101,47 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
 
         {!results ? (
           <div className="space-y-4">
-            {/* Field selection */}
+            {/* Mode selection */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Fields to enrich</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Enrichment source</p>
               <div className="grid grid-cols-2 gap-2">
-                {ENRICHABLE_FIELDS.map(f => (
-                  <label key={f.key} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-slate-50 border border-slate-100">
-                    <Checkbox
-                      checked={selectedFields.has(f.key)}
-                      onCheckedChange={() => toggleField(f.key)}
-                    />
-                    <span className="text-sm text-slate-700">{f.label}</span>
-                  </label>
-                ))}
+                <button
+                  onClick={() => setEnrichMode("apollo")}
+                  className={`p-3 rounded-lg border text-left transition-all ${enrichMode === "apollo" ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Rocket className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-semibold text-slate-800">Apollo.io</span>
+                  </div>
+                  <p className="text-xs text-slate-500">Verified contact & company data</p>
+                </button>
+                <button
+                  onClick={() => setEnrichMode("ai")}
+                  className={`p-3 rounded-lg border text-left transition-all ${enrichMode === "ai" ? "border-violet-500 bg-violet-50" : "border-slate-200 hover:bg-slate-50"}`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Zap className="w-4 h-4 text-violet-600" />
+                    <span className="text-sm font-semibold text-slate-800">AI Web Search</span>
+                  </div>
+                  <p className="text-xs text-slate-500">Google-powered AI research</p>
+                </button>
               </div>
             </div>
+
+            {/* Field selection (AI mode only) */}
+            {enrichMode === "ai" && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Fields to enrich</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {ENRICHABLE_FIELDS.map(f => (
+                    <label key={f.key} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-slate-50 border border-slate-100">
+                      <Checkbox checked={selectedFields.has(f.key)} onCheckedChange={() => toggleField(f.key)} />
+                      <span className="text-sm text-slate-700">{f.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Only missing toggle */}
             <label className="flex items-center gap-2 cursor-pointer">
@@ -122,17 +152,19 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
             <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-amber-700">
-                This uses AI web search to enrich each lead one at a time. It may take a while for large batches.
+                {enrichMode === "apollo"
+                  ? "Apollo.io enrichment is fast and uses verified data. Rate-limited to avoid throttling."
+                  : "AI web search enriches each lead one at a time. May take a while for large batches."}
               </p>
             </div>
 
             <div className="flex gap-2 pt-1">
               <Button
                 onClick={handleRun}
-                disabled={selectedFields.size === 0}
-                className="flex-1 bg-violet-600 hover:bg-violet-700"
+                disabled={enrichMode === "ai" && selectedFields.size === 0}
+                className={`flex-1 ${enrichMode === "apollo" ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-700"}`}
               >
-                <Zap className="w-4 h-4 mr-2" />
+                {enrichMode === "apollo" ? <Rocket className="w-4 h-4 mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
                 Enrich {leads.length} Lead{leads.length !== 1 ? "s" : ""}
               </Button>
               <Button variant="outline" onClick={handleClose}>Cancel</Button>

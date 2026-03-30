@@ -186,6 +186,56 @@
       "type": "string",
       "format": "date-time",
       "description": "Next scheduled sequence send date"
+    },
+    "apollo_email_status": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "likely_to_engage",
+        "risky",
+        "do_not_email",
+        "unknown"
+      ],
+      "description": "Apollo email verification status"
+    },
+    "company_linkedin": {
+      "type": "string",
+      "description": "Company LinkedIn URL from Apollo"
+    },
+    "revenue_range": {
+      "type": "string",
+      "description": "Estimated annual revenue range"
+    },
+    "company_description": {
+      "type": "string",
+      "description": "Short company description from Apollo"
+    },
+    "technologies_used": {
+      "type": "string",
+      "description": "Technologies used by the company (comma-separated)"
+    },
+    "apollo_contact_id": {
+      "type": "string",
+      "description": "Apollo.io contact ID"
+    },
+    "apollo_org_id": {
+      "type": "string",
+      "description": "Apollo.io organization ID"
+    },
+    "apollo_last_enriched": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last enriched via Apollo timestamp"
+    },
+    "apollo_enrichment_status": {
+      "type": "string",
+      "enum": [
+        "not_enriched",
+        "enriched",
+        "failed"
+      ],
+      "default": "not_enriched",
+      "description": "Apollo enrichment status"
     }
   },
   "required": [
