@@ -130,7 +130,6 @@ export default function BatchEditDialog({ open, onClose, leads, onComplete }) {
       const patch = {};
       for (const [key, value] of fieldsToPatch) {
         if (key === "tags") {
-          // Merge tags with existing ones
           const existing = lead.tags || [];
           const merged = [...new Set([...existing, ...value])];
           patch.tags = merged;
@@ -142,7 +141,6 @@ export default function BatchEditDialog({ open, onClose, leads, onComplete }) {
     }
     setSaving(false);
     setDone(true);
-    if (onComplete) onComplete();
   };
 
   const handleClose = () => {
@@ -178,7 +176,7 @@ export default function BatchEditDialog({ open, onClose, leads, onComplete }) {
                 Updated {leads.length} lead{leads.length !== 1 ? "s" : ""} successfully!
               </span>
             </div>
-            <Button className="w-full" variant="outline" onClick={handleClose}>
+            <Button className="w-full" variant="outline" onClick={() => { if (onComplete) onComplete(); handleClose(); }}>
               Close
             </Button>
           </div>

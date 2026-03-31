@@ -486,6 +486,7 @@ export default function Leads() {
         onClose={() => setShowBatchEdit(false)}
         leads={filteredLeads.filter(l => selectedIds.includes(l.id))}
         onComplete={() => { queryClient.invalidateQueries({ queryKey: ['leads'] }); setSelectedIds([]); setShowBatchEdit(false); }}
+
       />
 
       {/* Batch Enrich Dialog */}
