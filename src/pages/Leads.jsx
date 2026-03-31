@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Upload, Globe, Trash2, Search, Download, Zap, Copy } from "lucide-react";
+import { Plus, Upload, Globe, Trash2, Search, Download, Zap, Copy, Edit3 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { motion, AnimatePresence } from "framer-motion";
 import LeadCard from "../components/leads/LeadCard";
@@ -14,6 +14,7 @@ import WebScraper from "../components/leads/WebScraper";
 import LeadListView from "../components/leads/LeadListView";
 import LeadFilterBar, { applyFilters } from "../components/leads/LeadFilterBar";
 import BatchEnrichDialog from "../components/leads/BatchEnrichDialog";
+import BatchEditDialog from "../components/leads/BatchEditDialog";
 import DuplicateChecker from "../components/leads/DuplicateChecker";
 import {
   AlertDialog,
@@ -58,6 +59,7 @@ export default function Leads() {
   const [editingLead, setEditingLead] = useState(null);
   const [deletingLead, setDeletingLead] = useState(null);
   const [showBatchEnrich, setShowBatchEnrich] = useState(false);
+  const [showBatchEdit, setShowBatchEdit] = useState(false);
   const [showDuplicates, setShowDuplicates] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 50;
@@ -296,6 +298,14 @@ export default function Leads() {
             <div className="flex gap-2">
               <Button
                 size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => setShowBatchEdit(true)}
+              >
+                <Edit3 className="w-3.5 h-3.5 mr-1.5" />
+                Edit {selectedIds.length}
+              </Button>
+              <Button
+                size="sm"
                 className="bg-violet-600 hover:bg-violet-700 text-white"
                 onClick={() => setShowBatchEnrich(true)}
               >
@@ -468,6 +478,14 @@ export default function Leads() {
         onClose={() => setShowDuplicates(false)}
         leads={leads}
         onComplete={() => queryClient.invalidateQueries({ queryKey: ['leads'] })}
+      />
+
+      {/* Batch Edit Dialog */}
+      <BatchEditDialog
+        open={showBatchEdit}
+        onClose={() => setShowBatchEdit(false)}
+        leads={filteredLeads.filter(l => selectedIds.includes(l.id))}
+        onComplete={() => { queryClient.invalidateQueries({ queryKey: ['leads'] }); setSelectedIds([]); setShowBatchEdit(false); }}
       />
 
       {/* Batch Enrich Dialog */}
