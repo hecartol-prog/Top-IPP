@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Upload, Globe, Trash2, Search, Download, Zap, Copy, Edit3 } from "lucide-react";
+import { Plus, Upload, Globe, Trash2, Search, Download, Zap, Copy, Edit3, ClipboardPaste } from "lucide-react";
 import * as XLSX from "xlsx";
 import { motion, AnimatePresence } from "framer-motion";
 import LeadCard from "../components/leads/LeadCard";
@@ -16,6 +16,7 @@ import LeadFilterBar, { applyFilters } from "../components/leads/LeadFilterBar";
 import BatchEnrichDialog from "../components/leads/BatchEnrichDialog";
 import BatchEditDialog from "../components/leads/BatchEditDialog";
 import DuplicateChecker from "../components/leads/DuplicateChecker";
+import PasteLeadDialog from "../components/leads/PasteLeadDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +61,8 @@ export default function Leads() {
   const [deletingLead, setDeletingLead] = useState(null);
   const [showBatchEnrich, setShowBatchEnrich] = useState(false);
   const [showBatchEdit, setShowBatchEdit] = useState(false);
+  const [showPaste, setShowPaste] = useState(false);
+  const [pastedLeadData, setPastedLeadData] = useState(null);
   const [showDuplicates, setShowDuplicates] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 50;
@@ -268,8 +271,16 @@ export default function Leads() {
               <Upload className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Import CSV</span>
             </Button>
+            <Button
+              onClick={() => setShowPaste(true)}
+              variant="outline"
+              size="sm"
+            >
+              <ClipboardPaste className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Paste Lead</span>
+            </Button>
             <Button 
-              onClick={() => { setEditingLead(null); setShowForm(true); }}
+              onClick={() => { setEditingLead(null); setPastedLeadData(null); setShowForm(true); }}
               className="bg-slate-900 hover:bg-slate-800"
               size="sm"
             >
@@ -451,11 +462,22 @@ export default function Leads() {
         </DialogContent>
       </Dialog>
 
+      {/* Paste Lead Dialog */}
+      <PasteLeadDialog
+        open={showPaste}
+        onClose={() => setShowPaste(false)}
+        onParsed={(data) => {
+          setPastedLeadData(data);
+          setEditingLead(null);
+          setShowForm(true);
+        }}
+      />
+
       {/* Lead Form Modal */}
       <LeadForm
         open={showForm}
-        onClose={() => { setShowForm(false); setEditingLead(null); }}
-        lead={editingLead}
+        onClose={() => { setShowForm(false); setEditingLead(null); setPastedLeadData(null); }}
+        lead={editingLead || pastedLeadData}
         onSave={handleSave}
         isLoading={createMutation.isPending || updateMutation.isPending}
       />
