@@ -241,43 +241,48 @@ export default function Leads() {
               variant="outline"
               size="sm"
               disabled={filteredLeads.length === 0}
+              title="Export leads"
             >
-              <Download className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">
-                {selectedIds.length > 0 ? `Export ${selectedIds.length} Selected` : `Export ${filteredLeads.length}`}
+              <Download className="w-4 h-4 lg:mr-2" />
+              <span className="hidden lg:inline">
+                {selectedIds.length > 0 ? `Export ${selectedIds.length}` : `Export ${filteredLeads.length}`}
               </span>
             </Button>
             <Button
               onClick={() => setShowDuplicates(true)}
               variant="outline"
               size="sm"
+              title="Check Duplicates"
             >
-              <Copy className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Check Duplicates</span>
+              <Copy className="w-4 h-4 lg:mr-2" />
+              <span className="hidden lg:inline">Duplicates</span>
             </Button>
             <Button 
               onClick={() => setShowScraper(true)}
               variant="outline"
               size="sm"
+              title="Scrape Website"
             >
-              <Globe className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Scrape Website</span>
+              <Globe className="w-4 h-4 lg:mr-2" />
+              <span className="hidden lg:inline">Scrape</span>
             </Button>
             <Button 
               onClick={() => setShowImport(true)}
               variant="outline"
               size="sm"
+              title="Import CSV"
             >
-              <Upload className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Import CSV</span>
+              <Upload className="w-4 h-4 lg:mr-2" />
+              <span className="hidden lg:inline">Import</span>
             </Button>
             <Button
               onClick={() => setShowPaste(true)}
               variant="outline"
               size="sm"
+              title="Paste Lead Info"
             >
               <ClipboardPaste className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Paste Lead</span>
+              <span className="hidden lg:inline">Paste Lead</span>
             </Button>
             <Button 
               onClick={() => { setEditingLead(null); setPastedLeadData(null); setShowForm(true); }}

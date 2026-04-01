@@ -427,40 +427,38 @@ For the best contact found, provide:
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto p-0" side="right">
+      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto p-0 max-w-full" side="right">
         {/* Header */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 text-white">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <Avatar className="w-14 h-14">
-                <AvatarFallback className="bg-white/20 text-white text-lg font-bold">
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-4 sm:p-6 text-white">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <Avatar className="w-11 h-11 sm:w-14 sm:h-14 shrink-0">
+                <AvatarFallback className="bg-white/20 text-white text-base sm:text-lg font-bold">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <h2 className="text-xl font-bold">{lead.first_name} {lead.last_name}</h2>
-                <p className="text-slate-300 text-sm">{lead.job_title}</p>
-                <p className="text-slate-400 text-sm font-medium mt-0.5">{lead.company_name}</p>
+              <div className="min-w-0">
+                <h2 className="text-base sm:text-xl font-bold truncate">{lead.first_name} {lead.last_name}</h2>
+                <p className="text-slate-300 text-xs sm:text-sm truncate">{lead.job_title}</p>
+                <p className="text-slate-400 text-xs sm:text-sm font-medium mt-0.5 truncate">{lead.company_name}</p>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="ghost" className="text-violet-200 hover:bg-white/10 gap-1.5" onClick={() => setShowSequence(true)}>
-                <Zap className="w-4 h-4" />
-                <span className="text-xs hidden sm:inline">Sequence</span>
+            <div className="flex gap-1 shrink-0">
+              <Button size="sm" variant="ghost" className="text-violet-200 hover:bg-white/10 gap-1 px-2" onClick={() => setShowSequence(true)}>
+                <Zap className="w-3.5 h-3.5" />
+                <span className="text-xs hidden md:inline">Seq</span>
               </Button>
-              <Button size="sm" variant="ghost" className="text-teal-300 hover:bg-white/10 gap-1.5" onClick={handleAutoEnrich} disabled={autoEnriching}>
-                {autoEnriching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                <span className="text-xs hidden sm:inline">{autoEnriching ? 'Enriching…' : 'Enrich'}</span>
+              <Button size="sm" variant="ghost" className="text-teal-300 hover:bg-white/10 px-2" onClick={handleAutoEnrich} disabled={autoEnriching}>
+                {autoEnriching ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
               </Button>
-              <Button size="sm" variant="ghost" className="text-violet-300 hover:bg-white/10 gap-1.5" onClick={() => setShowAIEdit(true)}>
-                <Sparkles className="w-4 h-4" />
-                <span className="text-xs hidden sm:inline">AI Edit</span>
+              <Button size="sm" variant="ghost" className="text-violet-300 hover:bg-white/10 px-2" onClick={() => setShowAIEdit(true)}>
+                <Sparkles className="w-3.5 h-3.5" />
               </Button>
-              <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => onEdit(lead)}>
-                <Pencil className="w-4 h-4" />
+              <Button size="sm" variant="ghost" className="text-white hover:bg-white/10 px-2" onClick={() => onEdit(lead)}>
+                <Pencil className="w-3.5 h-3.5" />
               </Button>
-              <Button size="sm" variant="ghost" className="text-rose-300 hover:bg-white/10" onClick={() => { onClose(); onDelete(lead); }}>
-                <Trash2 className="w-4 h-4" />
+              <Button size="sm" variant="ghost" className="text-rose-300 hover:bg-white/10 px-2" onClick={() => { onClose(); onDelete(lead); }}>
+                <Trash2 className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
@@ -515,15 +513,23 @@ For the best contact found, provide:
 
         {/* Content */}
         <Tabs defaultValue="info" className="flex-1">
-          <TabsList className="w-full rounded-none border-b bg-white px-4 justify-start gap-0 h-auto p-0">
-            <TabsTrigger value="info" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">Info</TabsTrigger>
-            <TabsTrigger value="activities" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">
-              Activities {leadActivities.length > 0 && `(${leadActivities.length})`}
-            </TabsTrigger>
-            <TabsTrigger value="research" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">AI Research</TabsTrigger>
-            <TabsTrigger value="outreach" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">Outreach</TabsTrigger>
-            <TabsTrigger value="hunter" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">🎯 Hunter</TabsTrigger>
-            <TabsTrigger value="apollo" className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-4 text-sm">🚀 Apollo</TabsTrigger>
+          <TabsList className="w-full rounded-none border-b bg-white justify-start gap-0 h-auto p-0 overflow-x-auto flex-nowrap scrollbar-none">
+            {[
+              { value: "info", label: "Info" },
+              { value: "activities", label: leadActivities.length > 0 ? `Activity (${leadActivities.length})` : "Activity" },
+              { value: "research", label: "AI Research" },
+              { value: "outreach", label: "Outreach" },
+              { value: "hunter", label: "🎯 Hunter" },
+              { value: "apollo", label: "🚀 Apollo" },
+            ].map(tab => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-slate-900 data-[state=active]:bg-transparent py-3 px-3 text-xs sm:text-sm whitespace-nowrap shrink-0"
+              >
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           {/* Info Tab */}

@@ -126,12 +126,12 @@ export default function PipelineBoard({ leads, onLeadClick, onStatusChange }) {
         </div>
       )}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4 min-h-[600px]">
+        <div className="flex gap-3 overflow-x-auto pb-4 min-h-[600px] -mx-1 px-1">
           {PIPELINE_STAGES.map(stage => {
             const stageLeads = getLeadsByStatus(stage.id);
             const weighted = getWeightedValue(stage);
             return (
-              <div key={stage.id} className="flex-shrink-0 w-72">
+              <div key={stage.id} className="flex-shrink-0 w-60 sm:w-64 lg:w-72">
                 {/* Stage Header */}
                 <div className="flex items-center justify-between mb-3 px-1">
                   <div className="flex items-center gap-2">

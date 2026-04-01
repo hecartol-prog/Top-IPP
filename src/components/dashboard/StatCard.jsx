@@ -17,13 +17,13 @@ export default function StatCard({ title, value, subtitle, icon: Icon, trend, tr
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <Card className="p-6 bg-white border-0 shadow-sm hover:shadow-md transition-all duration-300">
+      <Card className="p-4 sm:p-6 bg-white border-0 shadow-sm hover:shadow-md transition-all duration-300">
         <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-500 tracking-wide uppercase">
+          <div className="space-y-1.5">
+            <p className="text-xs sm:text-sm font-medium text-slate-500 tracking-wide uppercase">
               {title}
             </p>
-            <p className="text-3xl font-bold text-slate-900 tracking-tight">
+            <p className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
               {value}
             </p>
             {subtitle && (

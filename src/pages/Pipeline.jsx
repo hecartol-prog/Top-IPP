@@ -171,23 +171,23 @@ export default function Pipeline() {
               Drag and drop leads to update their status
             </motion.p>
           </div>
-          <div className="flex items-center gap-3 sm:gap-5 flex-wrap">
-            <div className="text-right">
-              <p className="text-xs sm:text-sm text-slate-500">Active Deals</p>
-              <p className="text-xl sm:text-2xl font-bold text-slate-900">{activeDeals}</p>
+          <div className="grid grid-cols-3 sm:flex sm:items-center gap-3 sm:gap-5">
+            <div className="text-center sm:text-right bg-white sm:bg-transparent rounded-lg p-2 sm:p-0 shadow-sm sm:shadow-none border border-slate-100 sm:border-0">
+              <p className="text-xs text-slate-500">Active</p>
+              <p className="text-lg sm:text-2xl font-bold text-slate-900">{activeDeals}</p>
             </div>
-            <div className="text-right">
-              <p className="text-xs sm:text-sm text-slate-500">Total Pipeline</p>
-              <p className="text-xl sm:text-2xl font-bold text-emerald-600">${totalValue.toLocaleString()}</p>
+            <div className="text-center sm:text-right bg-white sm:bg-transparent rounded-lg p-2 sm:p-0 shadow-sm sm:shadow-none border border-slate-100 sm:border-0">
+              <p className="text-xs text-slate-500">Pipeline</p>
+              <p className="text-lg sm:text-2xl font-bold text-emerald-600">${(totalValue/1000).toFixed(0)}k</p>
             </div>
-            <div className="text-right">
-              <p className="text-xs sm:text-sm text-slate-500">Weighted Forecast</p>
-              <p className="text-xl sm:text-2xl font-bold text-teal-600">${weightedTotal.toLocaleString()}</p>
+            <div className="text-center sm:text-right bg-white sm:bg-transparent rounded-lg p-2 sm:p-0 shadow-sm sm:shadow-none border border-slate-100 sm:border-0">
+              <p className="text-xs text-slate-500">Forecast</p>
+              <p className="text-lg sm:text-2xl font-bold text-teal-600">${(weightedTotal/1000).toFixed(0)}k</p>
             </div>
             {stalledDeals.length > 0 && (
-              <div className="text-right">
-                <p className="text-xs sm:text-sm text-amber-500">Stalled Deals</p>
-                <p className="text-xl sm:text-2xl font-bold text-amber-600">{stalledDeals.length}</p>
+              <div className="text-center sm:text-right bg-amber-50 sm:bg-transparent rounded-lg p-2 sm:p-0 shadow-sm sm:shadow-none border border-amber-100 sm:border-0">
+                <p className="text-xs text-amber-500">Stalled</p>
+                <p className="text-lg sm:text-2xl font-bold text-amber-600">{stalledDeals.length}</p>
               </div>
             )}
           </div>

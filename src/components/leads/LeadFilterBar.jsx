@@ -264,69 +264,38 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
       )}
 
       {/* Main filter row */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        {/* Search */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input
-            placeholder="Search by name, company, email..."
-            value={filters.search}
-            onChange={e => set("search", e.target.value)}
-            className="pl-10"
-          />
-          {filters.search && (
-            <button onClick={() => set("search", "")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
+      <div className="flex flex-col gap-2">
+        {/* Top row: search + controls */}
+        <div className="flex gap-2">
+          {/* Search */}
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Input
+              placeholder="Search leads..."
+              value={filters.search}
+              onChange={e => set("search", e.target.value)}
+              className="pl-10"
+            />
+            {filters.search && (
+              <button onClick={() => set("search", "")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
 
-        {/* Status */}
-        <Select value={filters.status} onValueChange={v => set("status", v)}>
-          <SelectTrigger className="w-36 shrink-0">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="new">New</SelectItem>
-            <SelectItem value="contacted">Contacted</SelectItem>
-            <SelectItem value="qualified">Qualified</SelectItem>
-            <SelectItem value="proposal">Proposal</SelectItem>
-            <SelectItem value="negotiation">Negotiation</SelectItem>
-            <SelectItem value="won">Won</SelectItem>
-            <SelectItem value="lost">Lost</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Sort */}
-        <div className="flex gap-1 shrink-0">
-          <Select value={filters.sortField} onValueChange={v => set("sortField", v)}>
-            <SelectTrigger className="w-40">
-              <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-slate-400 shrink-0" />
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="icon" onClick={() => set("sortDir", filters.sortDir === "asc" ? "desc" : "asc")}>
-            {filters.sortDir === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </Button>
-        </div>
-
-        {/* Advanced filters toggle */}
-        <Popover open={advancedOpen} onOpenChange={setAdvancedOpen}>
-          <PopoverTrigger asChild>
-            <Button variant={activeFilterCount > 0 ? "default" : "outline"} size="sm" className={`shrink-0 gap-1.5 ${activeFilterCount > 0 ? "bg-slate-900 text-white" : ""}`}>
-              <SlidersHorizontal className="w-4 h-4" />
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="bg-teal-400 text-slate-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                  {activeFilterCount}
-                </span>
-              )}
-            </Button>
-          </PopoverTrigger>
+          {/* Advanced filters toggle */}
+          <Popover open={advancedOpen} onOpenChange={setAdvancedOpen}>
+            <PopoverTrigger asChild>
+              <Button variant={activeFilterCount > 0 ? "default" : "outline"} size="sm" className={`shrink-0 gap-1.5 ${activeFilterCount > 0 ? "bg-slate-900 text-white" : ""}`}>
+                <SlidersHorizontal className="w-4 h-4" />
+                <span className="hidden sm:inline">Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="bg-teal-400 text-slate-900 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
           <PopoverContent className="w-80 p-4 space-y-4 max-h-[80vh] overflow-y-auto" align="end">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-sm text-slate-900">Advanced Filters</h3>
@@ -538,6 +507,43 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
           <button onClick={() => onViewModeChange("list")} className={`px-3 py-2 ${viewMode === "list" ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>
             <List className="w-4 h-4" />
           </button>
+        </div>
+      </div>
+
+        {/* Second row: status + sort */}
+        <div className="flex gap-2 flex-wrap">
+          {/* Status */}
+          <Select value={filters.status} onValueChange={v => set("status", v)}>
+            <SelectTrigger className="w-32 sm:w-36 shrink-0">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="new">New</SelectItem>
+              <SelectItem value="contacted">Contacted</SelectItem>
+              <SelectItem value="qualified">Qualified</SelectItem>
+              <SelectItem value="proposal">Proposal</SelectItem>
+              <SelectItem value="negotiation">Negotiation</SelectItem>
+              <SelectItem value="won">Won</SelectItem>
+              <SelectItem value="lost">Lost</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Sort */}
+          <div className="flex gap-1 shrink-0">
+            <Select value={filters.sortField} onValueChange={v => set("sortField", v)}>
+              <SelectTrigger className="w-36 sm:w-40">
+                <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-slate-400 shrink-0" />
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="icon" onClick={() => set("sortDir", filters.sortDir === "asc" ? "desc" : "asc")}>
+              {filters.sortDir === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </Button>
+          </div>
         </div>
       </div>
 
