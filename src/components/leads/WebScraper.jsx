@@ -30,7 +30,7 @@ export default function WebScraper({ onImportComplete }) {
   const handleScrape = async (e) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
 
-    // --- LinkedIn mode: process each URL with LLM ---
+    // --- LinkedIn mode: process URLs via backend function ---
     if (mode === "linkedin") {
       const lines = linkedinUrls.split("\n").map(l => l.trim()).filter(l => l.startsWith("http"));
       if (lines.length === 0) {
@@ -40,47 +40,23 @@ export default function WebScraper({ onImportComplete }) {
       setScraping(true);
       setExtractedLeads([]);
       setSelectedLeads([]);
-      setMessage({ type: "info", text: `Fetching ${lines.length} LinkedIn profile${lines.length > 1 ? "s" : ""}...` });
+      setMessage({ type: "info", text: `Searching ${lines.length} LinkedIn profile${lines.length > 1 ? "s" : ""} (may take ~30s per profile)...` });
       setLinkedinProgress({ done: 0, total: lines.length });
 
-      const results = [];
-      for (let i = 0; i < lines.length; i++) {
-        const profileUrl = lines[i];
-        try {
-          const result = await base44.integrations.Core.InvokeLLM({
-            prompt: `Extract professional profile data from this LinkedIn profile URL: ${profileUrl}
-Return only: first_name, last_name, job_title, company_name, location, industry, email (if public), phone (if public).
-If a field is not available, return null.`,
-            add_context_from_internet: true,
-            response_json_schema: {
-              type: "object",
-              properties: {
-                first_name: { type: "string" },
-                last_name: { type: "string" },
-                job_title: { type: "string" },
-                company_name: { type: "string" },
-                location: { type: "string" },
-                industry: { type: "string" },
-                email: { type: "string" },
-                phone: { type: "string" },
-              }
-            }
-          });
-          if (result.first_name || result.last_name || result.company_name) {
-            results.push({ ...result, linkedin_url: profileUrl });
-          }
-        } catch (err) {
-          console.warn("LinkedIn fetch failed for", profileUrl, err.message);
-        }
-        setLinkedinProgress({ done: i + 1, total: lines.length });
-      }
+      const res = await base44.functions.invoke('extractLinkedInProfile', { urls: lines });
+      const rawResults = res.data?.results || [];
+      const results = rawResults.filter(r => !r._failed && (r.first_name || r.last_name || r.company_name));
 
+      setLinkedinProgress({ done: lines.length, total: lines.length });
       setExtractedLeads(results);
       setSelectedLeads(results.map((_, i) => i));
       setLinkedinProgress(null);
       setScraping(false);
+      const failed = rawResults.filter(r => r._failed).length;
       if (results.length === 0) {
-        setMessage({ type: "error", text: "Could not extract data from the provided LinkedIn URLs." });
+        setMessage({ type: "error", text: "Could not find public data for the provided LinkedIn profiles. This works best for profiles that appear in Google search results. Private or unlisted profiles cannot be extracted." });
+      } else if (failed > 0) {
+        setMessage({ type: "success", text: `Extracted ${results.length} profile${results.length !== 1 ? "s" : ""}. ${failed} could not be found (private/unlisted).` });
       } else {
         setMessage({ type: "success", text: `Extracted ${results.length} profile${results.length !== 1 ? "s" : ""}.` });
       }
