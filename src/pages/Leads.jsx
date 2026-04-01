@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Upload, Globe, Trash2, Search, Download, Zap, Copy, Edit3, ClipboardPaste } from "lucide-react";
+import { Plus, Upload, Globe, Trash2, Search, Download, Zap, Copy, Edit3, ClipboardPaste, MessageCircle } from "lucide-react";
+import BulkWhatsAppScan from "../components/leads/BulkWhatsAppScan";
 import * as XLSX from "xlsx";
 import { motion, AnimatePresence } from "framer-motion";
 import LeadCard from "../components/leads/LeadCard";
@@ -64,6 +65,7 @@ export default function Leads() {
   const [showPaste, setShowPaste] = useState(false);
   const [pastedLeadData, setPastedLeadData] = useState(null);
   const [showDuplicates, setShowDuplicates] = useState(false);
+  const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 50;
 
@@ -328,6 +330,14 @@ export default function Leads() {
                 <Zap className="w-3.5 h-3.5 mr-1.5" />
                 Enrich {selectedIds.length} with AI
               </Button>
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => setShowBulkWhatsApp(true)}
+              >
+                <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
+                WhatsApp Scan
+              </Button>
               <Button variant="destructive" size="sm" onClick={() => bulkDeleteMutation.mutate(selectedIds)} disabled={bulkDeleteMutation.isPending}>
                 <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                 Delete {selectedIds.length}
@@ -514,6 +524,14 @@ export default function Leads() {
         leads={filteredLeads.filter(l => selectedIds.includes(l.id))}
         onComplete={() => { queryClient.invalidateQueries({ queryKey: ['leads'] }); setSelectedIds([]); setShowBatchEdit(false); }}
 
+      />
+
+      {/* Bulk WhatsApp Scan */}
+      <BulkWhatsAppScan
+        open={showBulkWhatsApp}
+        onClose={() => setShowBulkWhatsApp(false)}
+        leads={selectedIds.length > 0 ? filteredLeads.filter(l => selectedIds.includes(l.id)) : filteredLeads}
+        onComplete={() => queryClient.invalidateQueries({ queryKey: ['leads'] })}
       />
 
       {/* Batch Enrich Dialog */}

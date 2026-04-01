@@ -17,6 +17,7 @@ import OutreachTrackingList from "@/components/outreach/OutreachTrackingList";
 import HunterPanel from "./HunterPanel";
 import AddToSequenceDialog from "@/components/outreach/AddToSequenceDialog";
 import LeadTemperatureBadge from "./LeadTemperatureBadge";
+import WhatsAppScanPanel from "./WhatsAppScanPanel";
 import { format, differenceInDays } from "date-fns";
 import { base44 } from "@/api/base44Client";
 
@@ -508,6 +509,14 @@ For the best contact found, provide:
                 ICP {lead.icp_score}/5
               </Badge>
             )}
+            {lead.website_scan_status === 'completed' && (
+              lead.whatsapp_detected
+                ? <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30 text-xs">🟢 WhatsApp</Badge>
+                : <Badge className="bg-white/10 text-slate-300 border-white/20 text-xs">⚪ No WhatsApp</Badge>
+            )}
+            {lead.website_scan_status === 'failed' && (
+              <Badge className="bg-red-500/20 text-red-300 border-red-400/30 text-xs">🔴 Scan Failed</Badge>
+            )}
           </div>
         </div>
 
@@ -519,6 +528,7 @@ For the best contact found, provide:
               { value: "activities", label: leadActivities.length > 0 ? `Activity (${leadActivities.length})` : "Activity" },
               { value: "research", label: "AI Research" },
               { value: "outreach", label: "Outreach" },
+              { value: "whatsapp", label: "💬 WhatsApp" },
               { value: "hunter", label: "🎯 Hunter" },
               { value: "apollo", label: "🚀 Apollo" },
             ].map(tab => (
@@ -585,6 +595,12 @@ For the best contact found, provide:
                   <a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-700 hover:text-teal-600 transition-colors">
                     <Linkedin className="w-4 h-4 text-slate-400" />
                     LinkedIn Profile
+                  </a>
+                )}
+                {lead.whatsapp_number && (
+                  <a href={`https://wa.me/${lead.whatsapp_number.replace(/[^\d]/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-700 hover:text-emerald-600 transition-colors">
+                    <span className="text-emerald-500 text-base leading-none">💬</span>
+                    {lead.whatsapp_number}
                   </a>
                 )}
                 {lead.location && (
@@ -915,6 +931,11 @@ For the best contact found, provide:
               )}
             </div>
           </TabsContent>
+          {/* WhatsApp Tab */}
+          <TabsContent value="whatsapp" className="p-4 mt-0">
+            <WhatsAppScanPanel lead={lead} onUpdateLead={onUpdateLead} />
+          </TabsContent>
+
           {/* Outreach Tab */}
           <TabsContent value="outreach" className="p-4 mt-0">
             <OutreachTrackingList lead={lead} />

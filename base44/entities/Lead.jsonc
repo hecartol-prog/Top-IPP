@@ -236,6 +236,35 @@
       ],
       "default": "not_enriched",
       "description": "Apollo enrichment status"
+    },
+    "whatsapp_number": {
+      "type": "string",
+      "description": "WhatsApp contact number (international format)"
+    },
+    "whatsapp_detected": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether WhatsApp was detected on website"
+    },
+    "whatsapp_source_url": {
+      "type": "string",
+      "description": "URL where WhatsApp number was found"
+    },
+    "website_scanned_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last time website was scanned for WhatsApp"
+    },
+    "website_scan_status": {
+      "type": "string",
+      "enum": [
+        "not_scanned",
+        "scanning",
+        "completed",
+        "failed"
+      ],
+      "default": "not_scanned",
+      "description": "Website WhatsApp scan status"
     }
   },
   "required": [
