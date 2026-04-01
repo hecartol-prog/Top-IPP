@@ -180,10 +180,10 @@ async function fetchSimple(url, timeoutMs = 12000) {
 }
 
 // AI extraction — last resort, uses 1 credit
-async function aiExtract(html, pageUrl, base44) {
+async function aiExtract(html, pageUrl, db) {
   try {
     const snippet = html.slice(0, 10000);
-    const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
+    const result = await db.integrations.Core.InvokeLLM({
       prompt: `Extract the WhatsApp phone number from this website HTML.
 
 Look for ALL of these:
@@ -243,7 +243,9 @@ Deno.serve(async (req) => {
     const { lead_id, force } = await req.json();
     if (!lead_id) return Response.json({ error: 'lead_id is required' }, { status: 400 });
 
-    const lead = await base44.entities.Lead.get(lead_id);
+    const db = base44.asServiceRole;
+
+    const lead = await db.entities.Lead.get(lead_id);
     if (!lead) return Response.json({ error: `Lead not found` }, { status: 404 });
     if (!lead.website) return Response.json({ error: 'No website on this lead', skipped: true });
 
@@ -260,7 +262,7 @@ Deno.serve(async (req) => {
       return Response.json({ skipped: true, message: 'Number already exists, use force=true to override', whatsapp_number: lead.whatsapp_number, whatsapp_detected: true });
     }
 
-    await base44.entities.Lead.update(lead_id, { website_scan_status: 'scanning' });
+    await db.entities.Lead.update(lead_id, { website_scan_status: 'scanning' });
 
     const urls = buildUrls(lead.website);
     let result = null;
@@ -304,14 +306,14 @@ Deno.serve(async (req) => {
         // === PASS 3: AI extraction on rendered HTML (most accurate, uses 1 credit) ===
         if (!result) {
           console.log('[Pass3] AI extraction on rendered HTML');
-          result = await aiExtract(renderedHtml, homeUrl, base44);
+          result = await aiExtract(renderedHtml, homeUrl, db);
         }
       } else {
         // No Apify — try AI on simple-fetched homepage
         const homeHtml = await fetchSimple(urls[0]);
         if (homeHtml) {
           console.log('[Pass3] AI extraction on simple HTML');
-          result = await aiExtract(homeHtml, urls[0], base44);
+          result = await aiExtract(homeHtml, urls[0], db);
         }
       }
     }
@@ -328,13 +330,13 @@ Deno.serve(async (req) => {
       updateData.whatsapp_source_url = result.source;
     }
 
-    await base44.entities.Lead.update(lead_id, updateData);
+    await db.entities.Lead.update(lead_id, updateData);
 
     const activityDesc = result
       ? `WhatsApp Found: ${result.number} (via ${result.method} on ${result.source})`
       : `No WhatsApp found after scanning ${pagesScanned} page(s) of ${lead.website}`;
 
-    await base44.entities.Activity.create({
+    await db.entities.Activity.create({
       lead_id,
       type: 'note',
       title: result ? 'Website Scan — WhatsApp Found' : 'Website Scan — No WhatsApp Found',
