@@ -7,15 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Globe, Search, UserPlus, CheckCircle2, AlertCircle, BookOpen, Link, LayoutGrid } from "lucide-react";
+import { Loader2, Globe, Search, UserPlus, CheckCircle2, AlertCircle, BookOpen, Link, LayoutGrid, Linkedin } from "lucide-react";
 
 const MODES = [
-  { value: "deep",   icon: Link,       label: "Deep Crawl", desc: "Follow profile/detail links (up to 30 pages)" },
-  { value: "simple", icon: BookOpen,   label: "Simple",     desc: "Single page extraction only" },
+  { value: "deep",      icon: Link,      label: "Deep Crawl", desc: "Follow profile/detail links (up to 30 pages)" },
+  { value: "simple",    icon: BookOpen,  label: "Simple",     desc: "Single page extraction only" },
+  { value: "linkedin",  icon: Linkedin,  label: "LinkedIn",   desc: "Paste LinkedIn profile URLs, one per line" },
 ];
 
 export default function WebScraper({ onImportComplete }) {
   const [url, setUrl]                     = useState("");
+  const [linkedinUrls, setLinkedinUrls]   = useState("");
   const [mode, setMode]                   = useState("deep");
   const [scraping, setScraping]           = useState(false);
   const [importing, setImporting]         = useState(false);
@@ -23,9 +25,69 @@ export default function WebScraper({ onImportComplete }) {
   const [selectedLeads, setSelectedLeads] = useState([]);
   const [message, setMessage]             = useState(null);
   const [pagesScraped, setPagesScraped]   = useState(null);
+  const [linkedinProgress, setLinkedinProgress] = useState(null); // { done, total }
 
   const handleScrape = async (e) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
+
+    // --- LinkedIn mode: process each URL with LLM ---
+    if (mode === "linkedin") {
+      const lines = linkedinUrls.split("\n").map(l => l.trim()).filter(l => l.startsWith("http"));
+      if (lines.length === 0) {
+        setMessage({ type: "error", text: "Please enter at least one LinkedIn profile URL." });
+        return;
+      }
+      setScraping(true);
+      setExtractedLeads([]);
+      setSelectedLeads([]);
+      setMessage({ type: "info", text: `Fetching ${lines.length} LinkedIn profile${lines.length > 1 ? "s" : ""}...` });
+      setLinkedinProgress({ done: 0, total: lines.length });
+
+      const results = [];
+      for (let i = 0; i < lines.length; i++) {
+        const profileUrl = lines[i];
+        try {
+          const result = await base44.integrations.Core.InvokeLLM({
+            prompt: `Extract professional profile data from this LinkedIn profile URL: ${profileUrl}
+Return only: first_name, last_name, job_title, company_name, location, industry, email (if public), phone (if public).
+If a field is not available, return null.`,
+            add_context_from_internet: true,
+            response_json_schema: {
+              type: "object",
+              properties: {
+                first_name: { type: "string" },
+                last_name: { type: "string" },
+                job_title: { type: "string" },
+                company_name: { type: "string" },
+                location: { type: "string" },
+                industry: { type: "string" },
+                email: { type: "string" },
+                phone: { type: "string" },
+              }
+            }
+          });
+          if (result.first_name || result.last_name || result.company_name) {
+            results.push({ ...result, linkedin_url: profileUrl });
+          }
+        } catch (err) {
+          console.warn("LinkedIn fetch failed for", profileUrl, err.message);
+        }
+        setLinkedinProgress({ done: i + 1, total: lines.length });
+      }
+
+      setExtractedLeads(results);
+      setSelectedLeads(results.map((_, i) => i));
+      setLinkedinProgress(null);
+      setScraping(false);
+      if (results.length === 0) {
+        setMessage({ type: "error", text: "Could not extract data from the provided LinkedIn URLs." });
+      } else {
+        setMessage({ type: "success", text: `Extracted ${results.length} profile${results.length !== 1 ? "s" : ""}.` });
+      }
+      return;
+    }
+
+    // --- Website scrape modes ---
     if (!url.trim()) return;
     setScraping(true);
     setMessage({ type: "info", text: mode === "deep" ? "Crawling site pages (may take 2-3 min for JS-heavy sites)..." : "Fetching and extracting leads (may take 1-3 min)..." });
@@ -84,8 +146,9 @@ export default function WebScraper({ onImportComplete }) {
         location:   lead.location   || "",
         industry:   lead.industry   || "",
         notes:      lead.notes      || "",
+        linkedin_url: lead.linkedin_url || "",
         status: "new",
-        source: "website"
+        source: lead.linkedin_url ? "linkedin" : "website"
       });
       imported++;
     }
@@ -100,31 +163,64 @@ export default function WebScraper({ onImportComplete }) {
 
   return (
     <div className="space-y-4">
-      {/* URL Input */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !scraping) { e.preventDefault(); handleScrape(e); } }}
-            placeholder="https://directory.com/companies/ or any company/contact page..."
-            className="pl-10"
+      {/* Input area */}
+      {mode === "linkedin" ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+            <Linkedin className="w-3.5 h-3.5 shrink-0" />
+            Paste one LinkedIn profile URL per line. AI will extract each profile and create leads.
+          </div>
+          <textarea
+            value={linkedinUrls}
+            onChange={(e) => setLinkedinUrls(e.target.value)}
+            placeholder={"https://linkedin.com/in/john-smith\nhttps://linkedin.com/in/jane-doe"}
+            rows={4}
             disabled={scraping}
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
           />
+          {linkedinProgress && (
+            <p className="text-xs text-slate-500 text-center">
+              Processing {linkedinProgress.done} / {linkedinProgress.total}...
+            </p>
+          )}
+          <Button
+            type="button"
+            onClick={handleScrape}
+            disabled={!linkedinUrls.trim() || scraping}
+            className="w-full bg-blue-700 hover:bg-blue-800"
+          >
+            {scraping
+              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Fetching Profiles...</>
+              : <><Linkedin className="w-4 h-4 mr-2" />Extract LinkedIn Profiles</>
+            }
+          </Button>
         </div>
-        <Button
-          type="button"
-          onClick={handleScrape}
-          disabled={!url.trim() || scraping}
-          className="bg-slate-900 hover:bg-slate-800 shrink-0"
-        >
-          {scraping
-            ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Crawling...</>
-            : <><Search className="w-4 h-4 mr-2" />Extract</>
-          }
-        </Button>
-      </div>
+      ) : (
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !scraping) { e.preventDefault(); handleScrape(e); } }}
+              placeholder="https://directory.com/companies/ or any company/contact page..."
+              className="pl-10"
+              disabled={scraping}
+            />
+          </div>
+          <Button
+            type="button"
+            onClick={handleScrape}
+            disabled={!url.trim() || scraping}
+            className="bg-slate-900 hover:bg-slate-800 shrink-0"
+          >
+            {scraping
+              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Crawling...</>
+              : <><Search className="w-4 h-4 mr-2" />Extract</>
+            }
+          </Button>
+        </div>
+      )}
 
       {/* Mode selector */}
       <div>
@@ -153,9 +249,11 @@ export default function WebScraper({ onImportComplete }) {
             </button>
           ))}
         </div>
-        <p className="text-[11px] text-slate-400 mt-2 text-center">
-          Powered by Apify — all crawling is done server-side, then parsed with a single AI call to save credits.
-        </p>
+        {mode !== "linkedin" && (
+          <p className="text-[11px] text-slate-400 mt-2 text-center">
+            Powered by Apify — all crawling is done server-side, then parsed with a single AI call to save credits.
+          </p>
+        )}
       </div>
 
       {/* Scraping indicator */}
