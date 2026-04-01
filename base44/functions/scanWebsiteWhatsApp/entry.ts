@@ -237,13 +237,10 @@ function buildUrls(baseUrl) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const db = base44.asServiceRole;
 
     const { lead_id, force } = await req.json();
     if (!lead_id) return Response.json({ error: 'lead_id is required' }, { status: 400 });
-
-    const db = base44.asServiceRole;
 
     const lead = await db.entities.Lead.get(lead_id);
     if (!lead) return Response.json({ error: `Lead not found` }, { status: 404 });
