@@ -13,9 +13,9 @@ import {
 } from "lucide-react";
 import AIEditDialog from "./AIEditDialog";
 import ApolloEnrichPanel from "./ApolloEnrichPanel";
-import OutreachTrackingList from "@/components/outreach/OutreachTrackingList";
-import HunterPanel from "./HunterPanel";
+import LeadOutreachTab from "@/components/outreach/LeadOutreachTab";
 import AddToSequenceDialog from "@/components/outreach/AddToSequenceDialog";
+import HunterPanel from "./HunterPanel";
 import LeadTemperatureBadge from "./LeadTemperatureBadge";
 import WhatsAppScanPanel from "./WhatsAppScanPanel";
 import { format, differenceInDays } from "date-fns";
@@ -937,7 +937,7 @@ For the best contact found, provide:
 
           {/* Outreach Tab */}
           <TabsContent value="outreach" className="p-4 mt-0">
-            <OutreachTrackingList lead={lead} />
+            <LeadOutreachTab lead={lead} onUpdateLead={onUpdateLead} />
           </TabsContent>
 
           {/* Hunter Tab */}
