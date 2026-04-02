@@ -83,6 +83,7 @@ const DEFAULT_FILTERS = {
   hasEmail: "all",
   hasPhone: "all",
   hasWebsite: "all",
+  hasWhatsApp: "all",
   minValue: "",
   maxValue: "",
   sortField: "created_date",
@@ -139,6 +140,9 @@ export function applyFilters(leads, filters) {
       // Has website
       if (filters.hasWebsite === "yes" && !lead.website) return false;
       if (filters.hasWebsite === "no" && lead.website) return false;
+      // Has WhatsApp
+      if (filters.hasWhatsApp === "yes" && !lead.whatsapp_detected) return false;
+      if (filters.hasWhatsApp === "no" && lead.whatsapp_detected) return false;
       // Deal value range
       if (filters.minValue !== "" && (lead.estimated_value || 0) < Number(filters.minValue)) return false;
       if (filters.maxValue !== "" && (lead.estimated_value || 0) > Number(filters.maxValue)) return false;
@@ -206,6 +210,7 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
     filters.hasEmail !== "all",
     filters.hasPhone !== "all",
     filters.hasWebsite !== "all",
+    filters.hasWhatsApp !== "all",
     filters.minValue !== "",
     filters.maxValue !== "",
   ].filter(Boolean).length;
@@ -460,6 +465,17 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-600">💬 Has WhatsApp</span>
+                    <Select value={filters.hasWhatsApp} onValueChange={v => set("hasWhatsApp", v)}>
+                      <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -564,6 +580,7 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
           {filters.hasEmail !== "all" && <FilterChip label={`Email: ${filters.hasEmail}`} onRemove={() => set("hasEmail", "all")} />}
           {filters.hasPhone !== "all" && <FilterChip label={`Phone: ${filters.hasPhone}`} onRemove={() => set("hasPhone", "all")} />}
           {filters.hasWebsite !== "all" && <FilterChip label={`Website: ${filters.hasWebsite}`} onRemove={() => set("hasWebsite", "all")} />}
+          {filters.hasWhatsApp !== "all" && <FilterChip label={`WhatsApp: ${filters.hasWhatsApp}`} onRemove={() => set("hasWhatsApp", "all")} />}
           {filters.minValue !== "" && <FilterChip label={`Min $${filters.minValue}`} onRemove={() => set("minValue", "")} />}
           {filters.maxValue !== "" && <FilterChip label={`Max $${filters.maxValue}`} onRemove={() => set("maxValue", "")} />}
           <button onClick={clearAll} className="text-xs text-slate-400 hover:text-rose-500 ml-1 flex items-center gap-0.5">

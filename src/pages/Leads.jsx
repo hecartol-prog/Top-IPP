@@ -47,6 +47,7 @@ export default function Leads() {
     hasEmail: "all",
     hasPhone: "all",
     hasWebsite: "all",
+    hasWhatsApp: "all",
     minValue: "",
     maxValue: "",
     sortField: "created_date",
