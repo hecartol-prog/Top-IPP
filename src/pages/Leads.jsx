@@ -314,34 +314,34 @@ export default function Leads() {
         {selectedIds.length > 0 && (
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <p className="text-sm font-medium text-slate-700">{selectedIds.length} selected</p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
                 onClick={() => setShowBatchEdit(true)}
               >
-                <Edit3 className="w-3.5 h-3.5 mr-1.5" />
-                Edit {selectedIds.length}
+                <Edit3 className="w-3.5 h-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">Edit {selectedIds.length}</span>
               </Button>
               <Button
                 size="sm"
                 className="bg-violet-600 hover:bg-violet-700 text-white"
                 onClick={() => setShowBatchEnrich(true)}
               >
-                <Zap className="w-3.5 h-3.5 mr-1.5" />
-                Enrich {selectedIds.length} with AI
+                <Zap className="w-3.5 h-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">Enrich {selectedIds.length} with AI</span>
               </Button>
               <Button
                 size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-teal-600 hover:bg-teal-700 text-white"
                 onClick={() => setShowBulkWhatsApp(true)}
               >
-                <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
-                WhatsApp Scan
+                <MessageCircle className="w-3.5 h-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">WhatsApp Scan</span>
               </Button>
               <Button variant="destructive" size="sm" onClick={() => bulkDeleteMutation.mutate(selectedIds)} disabled={bulkDeleteMutation.isPending}>
-                <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                Delete {selectedIds.length}
+                <Trash2 className="w-3.5 h-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">Delete {selectedIds.length}</span>
               </Button>
             </div>
           </div>
@@ -405,11 +405,11 @@ export default function Leads() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200">
-            <p className="text-sm text-slate-500">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-6 pt-4 border-t border-slate-200">
+            <p className="text-sm text-slate-500 shrink-0">
               Showing {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, filteredLeads.length)} of {filteredLeads.length} leads
             </p>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap justify-center">
               <Button
                 variant="outline"
                 size="sm"
