@@ -11,6 +11,7 @@ import {
   Sparkles, Send, RefreshCw, Eye, EyeOff, Mail, Paperclip, X,
   Search, ChevronLeft, Users
 } from "lucide-react";
+import RichEmailEditor from "./RichEmailEditor";
 
 const STATUS_OPTIONS = ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"];
 const INDUSTRY_OPTIONS = [
@@ -218,7 +219,7 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl bg-white max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-3xl bg-white max-h-[93vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <Mail className="w-5 h-5 text-teal-600 shrink-0" />
@@ -449,15 +450,13 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
               </div>
               {showPreview ? (
                 <div
-                  className="min-h-[160px] p-3 border border-slate-200 rounded-md bg-slate-50 text-sm text-slate-700"
+                  className="min-h-[220px] p-4 border border-slate-200 rounded-lg bg-slate-50 text-sm text-slate-700"
                   dangerouslySetInnerHTML={{ __html: replacePlaceholders(body, lead) || "<em class='text-slate-400'>No content yet</em>" }}
                 />
               ) : (
-                <textarea
+                <RichEmailEditor
                   value={body}
-                  onChange={e => setBody(e.target.value)}
-                  rows={7}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 font-mono"
+                  onChange={setBody}
                   placeholder="Email body... Use {{first_name}}, {{company_name}}, {{job_title}}, {{industry}}"
                 />
               )}
