@@ -8,9 +8,9 @@ async function fetchPageDirect(url) {
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "es,en;q=0.5",
+      "Accept-Language": "en-US,en;q=0.9",
     },
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(25000),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const html = await res.text();
@@ -28,7 +28,7 @@ async function fetchPageDirect(url) {
 }
 
 // Run Apify actor and poll until done
-async function runActor(actorId, input, maxWaitSecs = 180) {
+async function runActor(actorId, input, maxWaitSecs = 240) {
   const startRes = await fetch(
     `https://api.apify.com/v2/acts/${actorId}/runs?token=${APIFY_TOKEN}`,
     {
@@ -46,19 +46,17 @@ async function runActor(actorId, input, maxWaitSecs = 180) {
 
   // Poll for completion
   const polls = Math.ceil(maxWaitSecs / 5);
-  let succeeded = false;
   for (let i = 0; i < polls; i++) {
     await new Promise(r => setTimeout(r, 5000));
     const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
     const { data: status } = await statusRes.json();
     console.log(`Apify poll ${i + 1}: status=${status.status}`);
-    if (status.status === "SUCCEEDED") { succeeded = true; break; }
+    if (status.status === "SUCCEEDED") break;
     if (["FAILED", "ABORTED", "TIMED-OUT"].includes(status.status)) {
       throw new Error(`Apify run ${status.status}`);
     }
+    if (i === polls - 1) throw new Error("Apify run timed out waiting");
   }
-
-  if (!succeeded) throw new Error("Apify run timed out waiting");
 
   // Get dataset items
   const infoRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
@@ -66,7 +64,7 @@ async function runActor(actorId, input, maxWaitSecs = 180) {
   const datasetId = runInfo?.defaultDatasetId;
   if (!datasetId) return [];
 
-  const resultsRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}&clean=true&limit=100`);
+  const resultsRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}&clean=true&limit=200`);
   const body = await resultsRes.text();
   try { return JSON.parse(body); } catch { return []; }
 }
@@ -78,15 +76,16 @@ async function fetchWithApify(url, maxPages, depth) {
     maxCrawlPages: maxPages,
     crawlerType: "playwright:firefox",
     maxCrawlDepth: depth,
-    // Increase timeout per page for slow sites
     pageLoadTimeoutSecs: 60,
+    // For paginated directories, follow pagination links
+    linkSelector: "a[href]",
   });
   return Array.isArray(items) ? items : [];
 }
 
-// Extract leads from text via LLM
-async function extractLeadsFromText(text, pageCount, base44) {
-  const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
+// Extract leads from text via LLM — uses service role to avoid auth issues
+async function extractLeadsFromText(text, pageCount, serviceRole) {
+  const result = await serviceRole.integrations.Core.InvokeLLM({
     model: "gpt_5_mini",
     prompt: `You are extracting B2B company/contact leads from scraped website directory content.
 
@@ -138,11 +137,16 @@ Return ALL companies/contacts found.`,
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+
+    // Auth check — separate from service role to avoid token expiry issues
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const { url, mode } = await req.json();
     if (!url) return Response.json({ error: "url is required" }, { status: 400 });
+
+    // Use service role for all integrations so auth token expiry doesn't matter
+    const serviceRole = base44.asServiceRole;
 
     let allText = "";
     let pageCount = 0;
@@ -166,49 +170,30 @@ Deno.serve(async (req) => {
       console.log("Direct fetch failed:", e.message, "— will use Apify");
     }
 
-    // STRATEGY 2: Apify with Playwright (handles JS-rendered sites, cookie walls, 403s)
+    // STRATEGY 2: Apify with Playwright (handles JS-rendered, paginated, cookie-walled sites)
+    // Only use Apify if direct fetch failed or got too little content
     if (!allText || allText.length < 800) {
       console.log("Strategy 2: Apify Playwright...");
       try {
-        const maxPages = mode === "deep" ? 25 : 1;
-        const depth = mode === "deep" ? 1 : 0;
+        const maxPages = mode === "deep" ? 20 : 3;
+        const depth = mode === "deep" ? 1 : 1;
         const pages = await fetchWithApify(url, maxPages, depth);
         console.log(`Apify returned ${pages.length} page(s)`);
 
         if (pages.length > 0) {
           pageCount = pages.length;
-          if (pages.length === 1) {
-            allText = (pages[0].text || pages[0].markdown || "").slice(0, 80000);
-          } else {
-            allText = pages
-              .map(p => `--- ${p.url} ---\n${(p.text || p.markdown || "").slice(0, 4000)}`)
-              .join("\n\n");
-          }
+          const charsPerPage = Math.min(4000, Math.floor(60000 / pages.length));
+          allText = pages
+            .map(p => `--- ${p.url} ---\n${(p.text || p.markdown || "").slice(0, charsPerPage)}`)
+            .join("\n\n");
           method = "apify_playwright";
           console.log(`Apify Playwright: ${allText.length} chars from ${pageCount} pages`);
         }
       } catch (e) {
         console.error("Apify Playwright failed:", e.message);
-        return Response.json({ error: `Could not fetch content: ${e.message}` }, { status: 500 });
-      }
-    } else if (mode === "deep" && method === "direct") {
-      // For deep mode with direct fetch working, also try sub-pages via Apify cheerio (faster)
-      console.log("Deep mode: adding sub-page crawl...");
-      try {
-        const pages = await runActor("apify~website-content-crawler", {
-          startUrls: [{ url }],
-          maxCrawlPages: 20,
-          crawlerType: "cheerio",
-          maxCrawlDepth: 1,
-        });
-        if (Array.isArray(pages) && pages.length > 1) {
-          pageCount = pages.length;
-          allText = pages.map(p => `--- ${p.url} ---\n${(p.text || p.markdown || "").slice(0, 3000)}`).join("\n\n");
-          method = "apify_deep";
-          console.log(`Deep crawl: ${pageCount} pages`);
+        if (!allText || allText.length < 100) {
+          return Response.json({ error: `Could not fetch content: ${e.message}` }, { status: 500 });
         }
-      } catch (e) {
-        console.log("Deep crawl failed, using single-page direct result:", e.message);
       }
     }
 
@@ -217,7 +202,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Calling LLM on ${allText.length} chars from ${pageCount} pages (method: ${method})`);
-    const leads = await extractLeadsFromText(allText, pageCount, base44);
+    const leads = await extractLeadsFromText(allText, pageCount, serviceRole);
     console.log(`Extracted ${leads.length} leads`);
 
     return Response.json({ leads, pages_scraped: pageCount, method });
