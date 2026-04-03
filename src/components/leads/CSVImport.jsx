@@ -382,6 +382,7 @@ async function extractLeadsFromImage(file, defaultCountry, defaultLanguage, setP
 
   setProgress("Analyzing image with AI vision...");
   const result = await base44.integrations.Core.InvokeLLM({
+    model: "claude_sonnet_4_6",
     prompt: `You are a B2B lead extraction assistant for a plastic injection mold manufacturer.
 
 Carefully read this image (which may be a business card, directory listing, contact sheet, trade show badge, screenshot, or printed list) and extract ALL business leads / companies visible.
