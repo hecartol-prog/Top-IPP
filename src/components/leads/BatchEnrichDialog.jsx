@@ -105,7 +105,7 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
           </div>
         </div>
 
-        {!results ? (
+        {!results && !running ? (
           <div className="space-y-4">
             {/* Mode selection */}
             <div>
