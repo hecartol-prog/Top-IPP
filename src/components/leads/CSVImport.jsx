@@ -4,13 +4,18 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Upload, Loader2, CheckCircle2, FileText, AlertCircle, Check, X, Search } from "lucide-react";
+import { Upload, Loader2, CheckCircle2, FileText, AlertCircle, Check, X, Search, Image } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
-const ACCEPTED_TYPES = ".csv,.xlsx,.xls";
+const ACCEPTED_TYPES = ".csv,.xlsx,.xls,.jpg,.jpeg,.png";
+const IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png"];
+
+function isImageFile(file) {
+  return file && IMAGE_TYPES.includes(file.type);
+}
 
 function cleanValue(val) {
   if (val === null || val === undefined) return "";
@@ -371,6 +376,77 @@ function multiRowBlockToLead(block, country = "", language = "spanish") {
   };
 }
 
+async function extractLeadsFromImage(file, defaultCountry, defaultLanguage, setProgress) {
+  setProgress("Uploading image...");
+  const { file_url } = await base44.integrations.Core.UploadFile({ file });
+
+  setProgress("Analyzing image with AI vision...");
+  const result = await base44.integrations.Core.InvokeLLM({
+    prompt: `You are a B2B lead extraction assistant for a plastic injection mold manufacturer.
+
+Carefully read this image (which may be a business card, directory listing, contact sheet, trade show badge, screenshot, or printed list) and extract ALL business leads / companies visible.
+
+For each lead found, extract as many fields as possible:
+- company_name (required)
+- first_name, last_name
+- job_title
+- email
+- phone
+- website
+- industry
+- location (city, country, region)
+- notes (any relevant context)
+
+Default country if not visible: "${defaultCountry || 'unknown'}"
+Default language: "${defaultLanguage || 'english'}"
+
+For company_size, use one of: "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+"
+For priority, use: "low", "medium", "high", "urgent"
+
+Return all leads found in this image.`,
+    file_urls: [file_url],
+    response_json_schema: {
+      type: "object",
+      properties: {
+        leads: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              company_name: { type: "string" },
+              first_name: { type: "string" },
+              last_name: { type: "string" },
+              job_title: { type: "string" },
+              email: { type: "string" },
+              phone: { type: "string" },
+              website: { type: "string" },
+              industry: { type: "string" },
+              location: { type: "string" },
+              company_size: { type: "string" },
+              notes: { type: "string" },
+              priority: { type: "string" },
+            }
+          }
+        }
+      }
+    }
+  });
+
+  return (result?.leads || [])
+    .filter(l => l.company_name)
+    .map(lead => ({
+      ...lead,
+      email: (lead.email || "").includes("@") ? lead.email : "",
+      phone: /\d{4,}/.test(lead.phone || "") ? lead.phone : "",
+      status: "new",
+      source: "other",
+      country: lead.country || defaultCountry || "",
+      language: defaultLanguage || "english",
+      notes: (lead.notes || "").slice(0, 500),
+      priority: ["low","medium","high","urgent"].includes(lead.priority) ? lead.priority : "medium",
+    }));
+}
+
 export default function LeadCSVImport({ onImportComplete }) {
   const [file, setFile] = useState(null);
   const [step, setStep] = useState("idle");
@@ -396,6 +472,34 @@ export default function LeadCSVImport({ onImportComplete }) {
     setProgress("Reading file...");
     setMessage(null);
 
+    let leads = [];
+
+    if (isImageFile(file)) {
+      // Image path: upload + AI vision extraction
+      try {
+        leads = await extractLeadsFromImage(file, country, language, setProgress);
+      } catch (e) {
+        setMessage({ type: "error", text: `Image extraction failed: ${e.message}` });
+        setStep("idle");
+        setProgress("");
+        return;
+      }
+      if (leads.length === 0) {
+        setMessage({ type: "error", text: "No leads found in this image. Make sure it contains business contact information." });
+        setStep("idle");
+        setProgress("");
+        return;
+      }
+      const indexed = leads.map((l, i) => ({ ...l, _id: i }));
+      setPreviewLeads(indexed);
+      setSelectedIds(new Set(indexed.map(l => l._id)));
+      setStep("preview");
+      setProgress("");
+      setMessage({ type: "success", text: `Found ${leads.length} lead${leads.length !== 1 ? "s" : ""} from image.` });
+      return;
+    }
+
+    // Spreadsheet path
     const rows = await parseFileToRows(file);
     if (rows.length === 0) {
       setMessage({ type: "error", text: "File appears empty." });
@@ -418,9 +522,7 @@ export default function LeadCSVImport({ onImportComplete }) {
 
     setProgress(`Mapping detected. Extracting leads...`);
 
-    let leads;
     if (mapping.format === "card_blocks") {
-      // For card/block formats, fall back to LLM-based block extraction
       leads = await extractCardBlocks(rows, mapping.column_map, country, language, setProgress);
     } else {
       leads = rows
@@ -597,9 +699,14 @@ export default function LeadCSVImport({ onImportComplete }) {
             </div>
             {file && (
               <div className="text-sm text-slate-600 flex items-center gap-2">
-                <FileText className="w-4 h-4" />
+                {isImageFile(file) ? <Image className="w-4 h-4 text-violet-500" /> : <FileText className="w-4 h-4" />}
                 {file.name}
-                <Badge variant="outline" className="text-xs">{file.name.split(".").pop().toUpperCase()}</Badge>
+                <Badge variant="outline" className={`text-xs ${isImageFile(file) ? "border-violet-300 text-violet-600" : ""}`}>
+                  {file.name.split(".").pop().toUpperCase()}
+                </Badge>
+                {isImageFile(file) && (
+                  <span className="text-xs text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">AI Vision</span>
+                )}
               </div>
             )}
             {progress && (
@@ -615,7 +722,7 @@ export default function LeadCSVImport({ onImportComplete }) {
                 <><Upload className="w-4 h-4 mr-2" />Extract & Preview Leads</>
               )}
             </Button>
-            <p className="text-xs text-slate-400">Supports: CSV, Excel (XLSX/XLS)</p>
+            <p className="text-xs text-slate-400">Supports: CSV, Excel (XLSX/XLS), Images (JPG, PNG) — AI Vision</p>
           </div>
         )}
 
