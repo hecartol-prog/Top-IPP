@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,6 +88,8 @@ export default function BatchEditDialog({ open, onClose, leads, onComplete }) {
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [tagInput, setTagInput] = useState("");
+  const [progress, setProgress] = useState(0);
+  const abortRef = useRef(false);
 
   const toggleField = (key) => {
     setActiveFields(prev => {
@@ -125,11 +127,14 @@ export default function BatchEditDialog({ open, onClose, leads, onComplete }) {
     );
     if (fieldsToPatch.length === 0) return;
 
+    abortRef.current = false;
     setSaving(true);
-    const BATCH_SIZE = 25;
+    setProgress(0);
+    const BATCH_SIZE = 50;
     const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
     for (let i = 0; i < leads.length; i += BATCH_SIZE) {
+      if (abortRef.current) break;
       const batch = leads.slice(i, i + BATCH_SIZE);
       await Promise.all(batch.map(lead => {
         const patch = {};
@@ -142,14 +147,33 @@ export default function BatchEditDialog({ open, onClose, leads, onComplete }) {
         }
         return base44.entities.Lead.update(lead.id, patch);
       }));
-      if (i + BATCH_SIZE < leads.length) await delay(500);
+      setProgress(Math.min(100, Math.round(((i + BATCH_SIZE) / leads.length) * 100)));
+      if (i + BATCH_SIZE < leads.length && !abortRef.current) await delay(200);
     }
     setSaving(false);
-    setDone(true);
+    if (!abortRef.current) setDone(true);
+  };
+
+  const handleCancel = () => {
+    if (saving) {
+      abortRef.current = true;
+      setSaving(false);
+      setProgress(0);
+      return;
+    }
+    setActiveFields({});
+    setDone(false);
+    setTagInput("");
+    onClose();
   };
 
   const handleClose = () => {
-    if (saving) return;
+    if (saving) {
+      abortRef.current = true;
+      setSaving(false);
+      setProgress(0);
+      return;
+    }
     setActiveFields({});
     setDone(false);
     setTagInput("");
@@ -291,6 +315,19 @@ export default function BatchEditDialog({ open, onClose, leads, onComplete }) {
               </div>
             )}
 
+            {/* Progress bar */}
+            {saving && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>Saving... {Math.min(leads.length, Math.round(progress / 100 * leads.length))} / {leads.length}</span>
+                  <span>{progress}%</span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-1.5">
+                  <div className="bg-emerald-500 h-1.5 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                </div>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex gap-2 pt-1">
               <Button
@@ -310,8 +347,8 @@ export default function BatchEditDialog({ open, onClose, leads, onComplete }) {
                   <><Edit3 className="w-4 h-4 mr-2" />Apply to {leads.length} Lead{leads.length !== 1 ? "s" : ""}</>
                 )}
               </Button>
-              <Button variant="outline" onClick={handleClose} disabled={saving}>
-                Cancel
+              <Button variant="outline" onClick={handleCancel}>
+                {saving ? "Stop" : "Cancel"}
               </Button>
             </div>
           </div>
