@@ -130,26 +130,27 @@ export default function BatchEditDialog({ open, onClose, leads, onComplete }) {
     abortRef.current = false;
     setSaving(true);
     setProgress(0);
-    const BATCH_SIZE = 50;
-    const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
-    for (let i = 0; i < leads.length; i += BATCH_SIZE) {
+    let completed = 0;
+    for (const lead of leads) {
       if (abortRef.current) break;
-      const batch = leads.slice(i, i + BATCH_SIZE);
-      await Promise.all(batch.map(lead => {
-        const patch = {};
-        for (const [key, value] of fieldsToPatch) {
-          if (key === "tags") {
-            patch.tags = [...new Set([...(lead.tags || []), ...value])];
-          } else {
-            patch[key] = value;
-          }
+      const patch = {};
+      for (const [key, value] of fieldsToPatch) {
+        if (key === "tags") {
+          patch.tags = [...new Set([...(lead.tags || []), ...value])];
+        } else {
+          patch[key] = value;
         }
-        return base44.entities.Lead.update(lead.id, patch);
-      }));
-      setProgress(Math.min(100, Math.round(((i + BATCH_SIZE) / leads.length) * 100)));
-      if (i + BATCH_SIZE < leads.length && !abortRef.current) await delay(200);
+      }
+      try {
+        await base44.entities.Lead.update(lead.id, patch);
+      } catch (e) {
+        console.error("Failed to update lead", lead.id, e);
+      }
+      completed++;
+      setProgress(Math.round((completed / leads.length) * 100));
     }
+
     setSaving(false);
     if (!abortRef.current) setDone(true);
   };
@@ -319,7 +320,7 @@ export default function BatchEditDialog({ open, onClose, leads, onComplete }) {
             {saving && (
               <div className="space-y-1">
                 <div className="flex justify-between text-xs text-slate-500">
-                  <span>Saving... {Math.min(leads.length, Math.round(progress / 100 * leads.length))} / {leads.length}</span>
+                  <span>Saving... {Math.round(progress / 100 * leads.length)} / {leads.length}</span>
                   <span>{progress}%</span>
                 </div>
                 <div className="w-full bg-slate-100 rounded-full h-1.5">
