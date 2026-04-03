@@ -28,7 +28,8 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
   );
   const [onlyMissing, setOnlyMissing] = useState(true);
   const [running, setRunning] = useState(false);
-  const [results, setResults] = useState(null);
+  const [started, setStarted] = useState(false);
+  const [results, setResults] = useState([]);
   const [current, setCurrent] = useState(0);
   const lastPayloadRef = useRef(null);
 
@@ -42,6 +43,7 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
 
   const handleRun = async (retryFromIndex = 0) => {
     setRunning(true);
+    setStarted(true);
     if (retryFromIndex === 0) setResults([]);
     setCurrent(retryFromIndex);
 
@@ -82,12 +84,13 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
     if (onComplete) onComplete();
   };
 
-  const successCount = results?.filter(r => r.status === "success" && r.fields_updated.length > 0).length ?? 0;
-  const totalUpdated = results?.reduce((acc, r) => acc + r.fields_updated.length, 0) ?? 0;
+  const successCount = results.filter(r => r.status === "success" && r.fields_updated.length > 0).length;
+  const totalUpdated = results.reduce((acc, r) => acc + r.fields_updated.length, 0);
 
   const handleClose = () => {
     if (running) return;
-    setResults(null);
+    setResults([]);
+    setStarted(false);
     setCurrent(0);
     onClose();
   };
@@ -105,7 +108,7 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
           </div>
         </div>
 
-        {!results && !running ? (
+        {!started ? (
           <div className="space-y-4">
             {/* Mode selection */}
             <div>
