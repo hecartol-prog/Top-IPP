@@ -6,6 +6,19 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { MessageCircle, Loader2, CheckCircle2, XCircle, SkipForward, Play, X } from "lucide-react";
 
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+async function safeInvoke(fnName, payload) {
+  try {
+    const res = await base44.functions.invoke(fnName, payload);
+    if (!res) throw new Error("Empty response");
+    return res;
+  } catch (err) {
+    console.error(`[safeInvoke] ${fnName}:`, err);
+    return { data: { success: false, error: err.message || "Request failed" } };
+  }
+}
+
 export default function BulkWhatsAppScan({ open, onClose, leads, onComplete }) {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -33,7 +46,8 @@ export default function BulkWhatsAppScan({ open, onClose, leads, onComplete }) {
       setResults(prev => [...prev, resultEntry]);
 
       try {
-        const res = await base44.functions.invoke("scanWebsiteWhatsApp", { lead_id: lead.id, force: false });
+        await delay(1200);
+        const res = await safeInvoke("scanWebsiteWhatsApp", { lead_id: lead.id, force: false });
         const data = res.data;
         if (data?.success && data?.whatsapp_detected) {
           resultEntry = { lead, status: "found", number: data.whatsapp_number };
@@ -50,11 +64,6 @@ export default function BulkWhatsAppScan({ open, onClose, leads, onComplete }) {
 
       setResults(prev => prev.map((r, idx) => idx === prev.length - 1 ? resultEntry : r));
       setProgress(Math.round(((i + 1) / toScan.length) * 100));
-
-      // Delay between requests (3s)
-      if (i < toScan.length - 1 && !abortRef.current) {
-        await new Promise(r => setTimeout(r, 3000));
-      }
     }
 
     setCurrentLead(null);

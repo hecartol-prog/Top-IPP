@@ -126,18 +126,23 @@ export default function BatchEditDialog({ open, onClose, leads, onComplete }) {
     if (fieldsToPatch.length === 0) return;
 
     setSaving(true);
-    for (const lead of leads) {
-      const patch = {};
-      for (const [key, value] of fieldsToPatch) {
-        if (key === "tags") {
-          const existing = lead.tags || [];
-          const merged = [...new Set([...existing, ...value])];
-          patch.tags = merged;
-        } else {
-          patch[key] = value;
+    const BATCH_SIZE = 25;
+    const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
+    for (let i = 0; i < leads.length; i += BATCH_SIZE) {
+      const batch = leads.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(lead => {
+        const patch = {};
+        for (const [key, value] of fieldsToPatch) {
+          if (key === "tags") {
+            patch.tags = [...new Set([...(lead.tags || []), ...value])];
+          } else {
+            patch[key] = value;
+          }
         }
-      }
-      await base44.entities.Lead.update(lead.id, patch);
+        return base44.entities.Lead.update(lead.id, patch);
+      }));
+      if (i + BATCH_SIZE < leads.length) await delay(500);
     }
     setSaving(false);
     setDone(true);

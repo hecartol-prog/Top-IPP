@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useReducer } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,32 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Globe, Search, UserPlus, CheckCircle2, AlertCircle, BookOpen, Link, LayoutGrid, Linkedin } from "lucide-react";
+import { Loader2, Globe, Search, UserPlus, CheckCircle2, AlertCircle, BookOpen, Link, LayoutGrid, Linkedin, RefreshCw } from "lucide-react";
+
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+function scraperReducer(state, action) {
+  switch (action.type) {
+    case "START":    return { ...state, status: "running", message: action.message, results: [], error: null, progress: null };
+    case "DONE":     return { ...state, status: "idle", message: action.message, results: action.results ?? state.results };
+    case "ERROR":    return { ...state, status: "error", error: action.error, message: null };
+    case "PROGRESS": return { ...state, progress: action.progress };
+    case "RESET":    return { status: "idle", message: null, results: [], error: null, progress: null };
+    default:         return state;
+  }
+}
+
+async function safeInvoke(fnName, payload, onError) {
+  try {
+    const res = await base44.functions.invoke(fnName, payload);
+    if (!res) throw new Error("Empty response");
+    return res;
+  } catch (err) {
+    console.error(`[safeInvoke] ${fnName}:`, err);
+    if (onError) onError(err.message || "Operation failed. Please retry.");
+    return null;
+  }
+}
 
 const MODES = [
   { value: "deep",      icon: Link,      label: "Deep Crawl", desc: "Follow profile/detail links (up to 30 pages)" },
@@ -21,17 +46,17 @@ export default function WebScraper({ onImportComplete }) {
   const [mode, setMode]                   = useState("deep");
   const [scraping, setScraping]           = useState(false);
   const [importing, setImporting]         = useState(false);
+  const [importProgress, setImportProgress] = useState(null); // { current, total }
   const [extractedLeads, setExtractedLeads] = useState([]);
   const [selectedLeads, setSelectedLeads] = useState([]);
   const [message, setMessage]             = useState(null);
-  const [pagesScraped, setPagesScraped]   = useState(null);
-  const [linkedinProgress, setLinkedinProgress] = useState(null); // { done, total }
+  const [lastScrapePayload, setLastScrapePayload] = useState(null); // for retry
 
-  const handleScrape = async (e) => {
+  const handleScrape = async (e, retryPayload) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
 
-    // --- LinkedIn mode: process URLs via backend function ---
-    if (mode === "linkedin") {
+    // --- LinkedIn mode ---
+    if (mode === "linkedin" && !retryPayload) {
       const lines = linkedinUrls.split("\n").map(l => l.trim()).filter(l => l.startsWith("http"));
       if (lines.length === 0) {
         setMessage({ type: "error", text: "Please enter at least one LinkedIn profile URL." });
@@ -41,22 +66,24 @@ export default function WebScraper({ onImportComplete }) {
       setExtractedLeads([]);
       setSelectedLeads([]);
       setMessage({ type: "info", text: `Searching ${lines.length} LinkedIn profile${lines.length > 1 ? "s" : ""} (may take ~30s per profile)...` });
-      setLinkedinProgress({ done: 0, total: lines.length });
+      setLastScrapePayload({ _mode: "linkedin", urls: lines });
 
-      const res = await base44.functions.invoke('extractLinkedInProfile', { urls: lines });
+      const res = await safeInvoke('extractLinkedInProfile', { urls: lines }, (err) => {
+        setMessage({ type: "error", text: err });
+        setScraping(false);
+      });
+      if (!res) return;
+
       const rawResults = res.data?.results || [];
       const results = rawResults.filter(r => !r._failed && (r.first_name || r.last_name || r.company_name));
-
-      setLinkedinProgress({ done: lines.length, total: lines.length });
       setExtractedLeads(results);
       setSelectedLeads(results.map((_, i) => i));
-      setLinkedinProgress(null);
       setScraping(false);
       const failed = rawResults.filter(r => r._failed).length;
       if (results.length === 0) {
-        setMessage({ type: "error", text: "Could not find public data for the provided LinkedIn profiles. This works best for profiles that appear in Google search results. Private or unlisted profiles cannot be extracted." });
+        setMessage({ type: "error", text: "Could not find public data for the provided LinkedIn profiles." });
       } else if (failed > 0) {
-        setMessage({ type: "success", text: `Extracted ${results.length} profile${results.length !== 1 ? "s" : ""}. ${failed} could not be found (private/unlisted).` });
+        setMessage({ type: "success", text: `Extracted ${results.length} profile${results.length !== 1 ? "s" : ""}. ${failed} could not be found.` });
       } else {
         setMessage({ type: "success", text: `Extracted ${results.length} profile${results.length !== 1 ? "s" : ""}.` });
       }
@@ -64,14 +91,22 @@ export default function WebScraper({ onImportComplete }) {
     }
 
     // --- Website scrape modes ---
-    if (!url.trim()) return;
+    const targetUrl = retryPayload?.url || url.trim();
+    const targetMode = retryPayload?.mode || mode;
+    if (!targetUrl) return;
+
     setScraping(true);
-    setMessage({ type: "info", text: mode === "deep" ? "Crawling site pages (may take 2-3 min for JS-heavy sites)..." : "Fetching and extracting leads (may take 1-3 min)..." });
+    setMessage({ type: "info", text: targetMode === "deep" ? "Crawling site pages (may take 2-3 min for JS-heavy sites)..." : "Fetching and extracting leads (may take 1-3 min)..." });
     setExtractedLeads([]);
     setSelectedLeads([]);
-    setPagesScraped(null);
+    setLastScrapePayload({ url: targetUrl, mode: targetMode });
 
-    const res = await base44.functions.invoke('scrapeLeadsApify', { url: url.trim(), mode });
+    await delay(1200);
+    const res = await safeInvoke('scrapeLeadsApify', { url: targetUrl, mode: targetMode }, (err) => {
+      setMessage({ type: "error", text: err });
+      setScraping(false);
+    });
+    if (!res) return;
 
     if (res.data?.error) {
       setMessage({ type: "error", text: res.data.error });
@@ -81,7 +116,6 @@ export default function WebScraper({ onImportComplete }) {
 
     const leads = res.data?.leads || [];
     const pages = res.data?.pages_scraped || 0;
-    setPagesScraped(pages);
 
     if (leads.length === 0) {
       setMessage({ type: "error", text: `No leads found across ${pages} page${pages !== 1 ? 's' : ''}. Try the other mode or check the URL.` });
@@ -90,7 +124,6 @@ export default function WebScraper({ onImportComplete }) {
       setSelectedLeads(leads.map((_, i) => i));
       setMessage({ type: "success", text: `Found ${leads.length} lead${leads.length !== 1 ? 's' : ''} from ${pages} page${pages !== 1 ? 's' : ''}.` });
     }
-
     setScraping(false);
   };
 
@@ -107,32 +140,39 @@ export default function WebScraper({ onImportComplete }) {
   const handleImport = async () => {
     if (selectedLeads.length === 0) return;
     setImporting(true);
+    setImportProgress({ current: 0, total: selectedLeads.length });
 
+    const BATCH_SIZE = 20;
+    const leadsToImport = selectedLeads.map(i => extractedLeads[i]);
     let imported = 0;
-    for (const index of selectedLeads) {
-      const lead = extractedLeads[index];
-      await base44.entities.Lead.create({
-        first_name: lead.first_name || lead.company_name?.split(" ")[0] || "Unknown",
-        last_name:  lead.last_name  || "",
-        email:      lead.email      || "",
-        phone:      lead.phone      || "",
-        job_title:  lead.job_title  || "",
+
+    for (let i = 0; i < leadsToImport.length; i += BATCH_SIZE) {
+      const batch = leadsToImport.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(lead => base44.entities.Lead.create({
+        first_name:   lead.first_name || lead.company_name?.split(" ")[0] || "Unknown",
+        last_name:    lead.last_name  || "",
+        email:        lead.email      || "",
+        phone:        lead.phone      || "",
+        job_title:    lead.job_title  || "",
         company_name: lead.company_name || "",
-        website:    lead.website    || "",
-        location:   lead.location   || "",
-        industry:   lead.industry   || "",
-        notes:      lead.notes      || "",
+        website:      lead.website    || "",
+        location:     lead.location   || "",
+        industry:     lead.industry   || "",
+        notes:        lead.notes      || "",
         linkedin_url: lead.linkedin_url || "",
         status: "new",
         source: lead.linkedin_url ? "linkedin" : "website"
-      });
-      imported++;
+      })));
+      imported += batch.length;
+      setImportProgress({ current: imported, total: leadsToImport.length });
+      if (i + BATCH_SIZE < leadsToImport.length) await delay(500);
     }
 
     setMessage({ type: "success", text: `Successfully imported ${imported} lead${imported !== 1 ? 's' : ''}!` });
     setExtractedLeads([]);
     setSelectedLeads([]);
     setUrl("");
+    setImportProgress(null);
     setImporting(false);
     if (onImportComplete) onImportComplete();
   };
@@ -249,16 +289,30 @@ export default function WebScraper({ onImportComplete }) {
           message.type === "info"    ? "bg-blue-50 border-blue-200" :
                                        "bg-red-50 border-red-200"
         }>
-          {message.type === "success" && <CheckCircle2 className="w-4 h-4 inline mr-2 text-emerald-600" />}
-          {message.type === "info"    && <BookOpen     className="w-4 h-4 inline mr-2 text-blue-600" />}
-          {message.type === "error"   && <AlertCircle  className="w-4 h-4 inline mr-2 text-red-600" />}
-          <AlertDescription className={
-            message.type === "success" ? "text-emerald-800" :
-            message.type === "info"    ? "text-blue-800" :
-                                         "text-red-800"
-          }>
-            {message.text}
-          </AlertDescription>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-1 flex-1">
+              {message.type === "success" && <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-emerald-600" />}
+              {message.type === "info"    && <BookOpen     className="w-4 h-4 mt-0.5 shrink-0 text-blue-600" />}
+              {message.type === "error"   && <AlertCircle  className="w-4 h-4 mt-0.5 shrink-0 text-red-600" />}
+              <AlertDescription className={
+                message.type === "success" ? "text-emerald-800" :
+                message.type === "info"    ? "text-blue-800" :
+                                             "text-red-800"
+              }>
+                {message.text}
+              </AlertDescription>
+            </div>
+            {message.type === "error" && lastScrapePayload && (
+              <button
+                type="button"
+                onClick={(e) => handleScrape(e, lastScrapePayload._mode === "linkedin" ? null : lastScrapePayload)}
+                disabled={scraping}
+                className="text-xs flex items-center gap-1 text-red-600 hover:text-red-800 font-medium shrink-0 underline"
+              >
+                <RefreshCw className="w-3 h-3" /> Retry
+              </button>
+            )}
+          </div>
         </Alert>
       )}
 
@@ -311,7 +365,12 @@ export default function WebScraper({ onImportComplete }) {
                 </div>
               ))}
             </div>
-            <div className="p-4 border-t border-slate-100">
+            <div className="p-4 border-t border-slate-100 space-y-2">
+              {importProgress && (
+                <div className="text-xs text-center text-slate-500 font-medium">
+                  Importing {importProgress.current} / {importProgress.total} leads...
+                </div>
+              )}
               <Button
                 type="button"
                 onClick={handleImport}
@@ -319,7 +378,7 @@ export default function WebScraper({ onImportComplete }) {
                 className="w-full bg-teal-600 hover:bg-teal-700"
               >
                 {importing
-                  ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing...</>
+                  ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing {importProgress?.current ?? 0} / {importProgress?.total ?? selectedLeads.length}...</>
                   : <><UserPlus className="w-4 h-4 mr-2" />Import {selectedLeads.length} Lead{selectedLeads.length !== 1 ? "s" : ""}</>
                 }
               </Button>

@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { base44 } from "@/api/base44Client";
-import { Zap, CheckCircle2, XCircle, Loader2, AlertCircle, Rocket } from "lucide-react";
+import { Zap, CheckCircle2, XCircle, Loader2, AlertCircle, Rocket, RefreshCw } from "lucide-react";
+
+const delay = ms => new Promise(r => setTimeout(r, ms));
 
 const ENRICHABLE_FIELDS = [
   { key: "email", label: "Email" },
@@ -28,6 +30,7 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState(null);
   const [current, setCurrent] = useState(0);
+  const lastPayloadRef = useRef(null);
 
   const toggleField = (key) => {
     setSelectedFields(prev => {
@@ -37,22 +40,25 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
     });
   };
 
-  const handleRun = async () => {
+  const handleRun = async (retryFromIndex = 0) => {
     setRunning(true);
-    setResults([]);
-    setCurrent(0);
-    const res = [];
+    if (retryFromIndex === 0) setResults([]);
+    setCurrent(retryFromIndex);
 
-    for (let i = 0; i < leads.length; i++) {
+    lastPayloadRef.current = { enrichMode, selectedFields: Array.from(selectedFields), onlyMissing };
+    const res = retryFromIndex === 0 ? [] : (results || []).slice(0, retryFromIndex);
+
+    for (let i = retryFromIndex; i < leads.length; i++) {
       const lead = leads[i];
       setCurrent(i + 1);
-      try {
-        const fnName = enrichMode === "apollo" ? "apolloEnrich" : "enrichLead";
-        const payload = enrichMode === "apollo"
-          ? { lead_id: lead.id, only_missing: onlyMissing }
-          : { lead_id: lead.id, fields: Array.from(selectedFields), only_missing: onlyMissing };
+      const fnName = enrichMode === "apollo" ? "apolloEnrich" : "enrichLead";
+      const payload = enrichMode === "apollo"
+        ? { lead_id: lead.id, only_missing: onlyMissing }
+        : { lead_id: lead.id, fields: Array.from(selectedFields), only_missing: onlyMissing };
 
+      try {
         const response = await base44.functions.invoke(fnName, payload);
+        if (!response) throw new Error("Empty response");
         res.push({
           id: lead.id,
           name: `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || lead.company_name,
@@ -60,6 +66,7 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
           fields_updated: response.data?.fields_updated || [],
         });
       } catch (e) {
+        console.error(`[BatchEnrich] ${lead.company_name}:`, e);
         res.push({
           id: lead.id,
           name: `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || lead.company_name,
@@ -68,8 +75,7 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
         });
       }
       setResults([...res]);
-      // Rate limit: small delay between requests
-      if (i < leads.length - 1) await new Promise(r => setTimeout(r, 800));
+      if (i < leads.length - 1) await delay(800);
     }
 
     setRunning(false);
@@ -219,7 +225,22 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
             </div>
 
             {!running && (
-              <Button className="w-full" variant="outline" onClick={handleClose}>Close</Button>
+              <div className="flex gap-2">
+                {results?.some(r => r.status === "error") && (
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50"
+                    onClick={() => {
+                      const firstError = results.findIndex(r => r.status === "error");
+                      handleRun(firstError >= 0 ? firstError : 0);
+                    }}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Retry Failed
+                  </Button>
+                )}
+                <Button className="flex-1" variant="outline" onClick={handleClose}>Close</Button>
+              </div>
             )}
           </div>
         )}
