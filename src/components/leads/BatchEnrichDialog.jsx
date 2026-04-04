@@ -169,7 +169,7 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
 
             <div className="flex gap-2 pt-1">
               <Button
-                onClick={handleRun}
+                onClick={() => handleRun(0)}
                 disabled={enrichMode === "ai" && selectedFields.size === 0}
                 className={`flex-1 ${enrichMode === "apollo" ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-700"}`}
               >
