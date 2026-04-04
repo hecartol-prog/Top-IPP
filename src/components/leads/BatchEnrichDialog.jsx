@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { base44 } from "@/api/base44Client";
-import { Zap, CheckCircle2, XCircle, Loader2, AlertCircle, Rocket, RefreshCw } from "lucide-react";
+import { Zap, CheckCircle2, XCircle, Loader2, AlertCircle, Rocket, RefreshCw, Users } from "lucide-react";
+import DecisionMakerReviewPanel from "./DecisionMakerReviewPanel";
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
@@ -22,7 +23,7 @@ const ENRICHABLE_FIELDS = [
 ];
 
 export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) {
-  const [enrichMode, setEnrichMode] = useState("apollo"); // "apollo" | "ai"
+  const [enrichMode, setEnrichMode] = useState("apollo"); // "apollo" | "ai" | "decision_makers"
   const [selectedFields, setSelectedFields] = useState(
     new Set(["email", "phone", "website", "industry"])
   );
@@ -31,7 +32,10 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
   const [started, setStarted] = useState(false);
   const [results, setResults] = useState([]);
   const [current, setCurrent] = useState(0);
-  const lastPayloadRef = useRef(null);
+
+  // Decision maker state
+  const [dmFindings, setDmFindings] = useState([]); // [{lead_id, company_name, decision_makers}]
+  const [showDmReview, setShowDmReview] = useState(false);
 
   const toggleField = (key) => {
     setSelectedFields(prev => {
@@ -41,13 +45,13 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
     });
   };
 
+  // Standard enrichment (Apollo or AI)
   const handleRun = async (retryFromIndex = 0) => {
     setRunning(true);
     setStarted(true);
     if (retryFromIndex === 0) setResults([]);
     setCurrent(retryFromIndex);
 
-    lastPayloadRef.current = { enrichMode, selectedFields: Array.from(selectedFields), onlyMissing };
     const res = retryFromIndex === 0 ? [] : (results || []).slice(0, retryFromIndex);
 
     for (let i = retryFromIndex; i < leads.length; i++) {
@@ -68,7 +72,6 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
           fields_updated: response.data?.fields_updated || [],
         });
       } catch (e) {
-        console.error(`[BatchEnrich] ${lead.company_name}:`, e);
         res.push({
           id: lead.id,
           name: `${lead.first_name || ""} ${lead.last_name || ""}`.trim() || lead.company_name,
@@ -84,20 +87,78 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
     if (onComplete) onComplete();
   };
 
+  // Decision maker search
+  const handleRunDecisionMakers = async () => {
+    setRunning(true);
+    setStarted(true);
+    setResults([]);
+    setDmFindings([]);
+    setCurrent(0);
+
+    const findings = [];
+    const res = [];
+
+    for (let i = 0; i < leads.length; i++) {
+      const lead = leads[i];
+      setCurrent(i + 1);
+
+      try {
+        const response = await base44.functions.invoke("findDecisionMakers", { lead_id: lead.id });
+        const dms = response.data?.decision_makers || [];
+        findings.push({
+          lead_id: lead.id,
+          company_name: lead.company_name,
+          decision_makers: dms,
+        });
+        res.push({
+          id: lead.id,
+          name: lead.company_name,
+          status: "success",
+          fields_updated: dms.map(dm => [dm.first_name, dm.last_name].filter(Boolean).join(" ") || "Unknown"),
+          count: dms.length,
+        });
+      } catch (e) {
+        findings.push({ lead_id: lead.id, company_name: lead.company_name, decision_makers: [] });
+        res.push({
+          id: lead.id,
+          name: lead.company_name,
+          status: "error",
+          fields_updated: [],
+          count: 0,
+        });
+      }
+
+      setResults([...res]);
+      setDmFindings([...findings]);
+      if (i < leads.length - 1) await delay(600);
+    }
+
+    setRunning(false);
+    // Auto-open review panel
+    setShowDmReview(true);
+  };
+
   const successCount = results.filter(r => r.status === "success" && r.fields_updated.length > 0).length;
   const totalUpdated = results.reduce((acc, r) => acc + r.fields_updated.length, 0);
+  const totalDmFound = dmFindings.reduce((acc, f) => acc + (f.decision_makers?.length || 0), 0);
 
   const handleClose = () => {
     if (running) return;
     setResults([]);
     setStarted(false);
+    setShowDmReview(false);
+    setDmFindings([]);
     setCurrent(0);
     onClose();
   };
 
+  const handleDmSaved = (count) => {
+    if (onComplete) onComplete();
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg bg-white">
+      <DialogContent className="max-w-lg bg-white max-h-[90vh] overflow-y-auto">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
             <Zap className="w-5 h-5 text-violet-600" />
@@ -108,31 +169,57 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
           </div>
         </div>
 
-        {!started ? (
+        {/* Decision maker review panel */}
+        {showDmReview && enrichMode === "decision_makers" && (
+          <DecisionMakerReviewPanel
+            findings={dmFindings}
+            leads={leads}
+            onSaved={handleDmSaved}
+            onBack={() => { setShowDmReview(false); setStarted(false); setResults([]); setDmFindings([]); }}
+          />
+        )}
+
+        {/* Config panel (before starting) */}
+        {!started && !showDmReview && (
           <div className="space-y-4">
             {/* Mode selection */}
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Enrichment source</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setEnrichMode("apollo")}
+                    className={`p-3 rounded-lg border text-left transition-all ${enrichMode === "apollo" ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Rocket className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-semibold text-slate-800">Apollo.io</span>
+                    </div>
+                    <p className="text-xs text-slate-500">Verified contact & company data</p>
+                  </button>
+                  <button
+                    onClick={() => setEnrichMode("ai")}
+                    className={`p-3 rounded-lg border text-left transition-all ${enrichMode === "ai" ? "border-violet-500 bg-violet-50" : "border-slate-200 hover:bg-slate-50"}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Zap className="w-4 h-4 text-violet-600" />
+                      <span className="text-sm font-semibold text-slate-800">AI Web Search</span>
+                    </div>
+                    <p className="text-xs text-slate-500">Google-powered AI research</p>
+                  </button>
+                </div>
                 <button
-                  onClick={() => setEnrichMode("apollo")}
-                  className={`p-3 rounded-lg border text-left transition-all ${enrichMode === "apollo" ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}
+                  onClick={() => setEnrichMode("decision_makers")}
+                  className={`p-3 rounded-lg border text-left transition-all ${enrichMode === "decision_makers" ? "border-emerald-500 bg-emerald-50" : "border-slate-200 hover:bg-slate-50"}`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <Rocket className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-semibold text-slate-800">Apollo.io</span>
+                    <Users className="w-4 h-4 text-emerald-600" />
+                    <span className="text-sm font-semibold text-slate-800">Find Decision Makers</span>
+                    <Badge className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-200">New</Badge>
                   </div>
-                  <p className="text-xs text-slate-500">Verified contact & company data</p>
-                </button>
-                <button
-                  onClick={() => setEnrichMode("ai")}
-                  className={`p-3 rounded-lg border text-left transition-all ${enrichMode === "ai" ? "border-violet-500 bg-violet-50" : "border-slate-200 hover:bg-slate-50"}`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Zap className="w-4 h-4 text-violet-600" />
-                    <span className="text-sm font-semibold text-slate-800">AI Web Search</span>
-                  </div>
-                  <p className="text-xs text-slate-500">Google-powered AI research</p>
+                  <p className="text-xs text-slate-500">
+                    AI finds procurement managers, engineering directors & key contacts at each company — then lets you review and import them as new leads.
+                  </p>
                 </button>
               </div>
             </div>
@@ -152,47 +239,72 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
               </div>
             )}
 
-            {/* Only missing toggle */}
-            <label className="flex items-center gap-2 cursor-pointer">
-              <Checkbox checked={onlyMissing} onCheckedChange={setOnlyMissing} />
-              <span className="text-sm text-slate-700">Only fill in <strong>missing</strong> fields (skip if already has data)</span>
-            </label>
+            {/* Only missing toggle (not shown for decision_makers) */}
+            {enrichMode !== "decision_makers" && (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox checked={onlyMissing} onCheckedChange={setOnlyMissing} />
+                <span className="text-sm text-slate-700">Only fill in <strong>missing</strong> fields (skip if already has data)</span>
+              </label>
+            )}
 
             <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-amber-700">
                 {enrichMode === "apollo"
                   ? "Apollo.io enrichment is fast and uses verified data. Rate-limited to avoid throttling."
+                  : enrichMode === "decision_makers"
+                  ? "AI will search the web to find key decision makers at each company. You'll review and select which ones to import as new leads — existing leads are never modified."
                   : "AI web search enriches each lead one at a time. May take a while for large batches."}
               </p>
             </div>
 
             <div className="flex gap-2 pt-1">
               <Button
-                onClick={() => handleRun(0)}
+                onClick={() => enrichMode === "decision_makers" ? handleRunDecisionMakers() : handleRun(0)}
                 disabled={enrichMode === "ai" && selectedFields.size === 0}
-                className={`flex-1 ${enrichMode === "apollo" ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-700"}`}
+                className={`flex-1 ${
+                  enrichMode === "apollo" ? "bg-blue-600 hover:bg-blue-700"
+                  : enrichMode === "decision_makers" ? "bg-emerald-600 hover:bg-emerald-700"
+                  : "bg-violet-600 hover:bg-violet-700"
+                }`}
               >
-                {enrichMode === "apollo" ? <Rocket className="w-4 h-4 mr-2" /> : <Zap className="w-4 h-4 mr-2" />}
-                Enrich {leads.length} Lead{leads.length !== 1 ? "s" : ""}
+                {enrichMode === "apollo" && <Rocket className="w-4 h-4 mr-2" />}
+                {enrichMode === "ai" && <Zap className="w-4 h-4 mr-2" />}
+                {enrichMode === "decision_makers" && <Users className="w-4 h-4 mr-2" />}
+                {enrichMode === "decision_makers"
+                  ? `Find Decision Makers for ${leads.length} Compan${leads.length !== 1 ? "ies" : "y"}`
+                  : `Enrich ${leads.length} Lead${leads.length !== 1 ? "s" : ""}`
+                }
               </Button>
               <Button variant="outline" onClick={handleClose}>Cancel</Button>
             </div>
           </div>
-        ) : (
+        )}
+
+        {/* Progress panel (running or done for standard enrich) */}
+        {started && !showDmReview && (
           <div className="space-y-3">
-            {/* Progress */}
             {running && (
               <div className="flex items-center gap-2 text-sm text-violet-700 bg-violet-50 rounded-lg px-3 py-2">
                 <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-                Enriching lead {current} of {leads.length}...
+                {enrichMode === "decision_makers"
+                  ? `Searching decision makers for company ${current} of ${leads.length}...`
+                  : `Enriching lead ${current} of ${leads.length}...`
+                }
               </div>
             )}
 
-            {!running && (
+            {!running && enrichMode !== "decision_makers" && (
               <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                 Done! Updated {totalUpdated} field{totalUpdated !== 1 ? "s" : ""} across {successCount} lead{successCount !== 1 ? "s" : ""}.
+              </div>
+            )}
+
+            {!running && enrichMode === "decision_makers" && (
+              <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                Found {totalDmFound} decision maker{totalDmFound !== 1 ? "s" : ""}. Opening review...
               </div>
             )}
 
@@ -212,14 +324,18 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
                   <div className="flex gap-1 flex-wrap justify-end">
                     {r.status === "error"
                       ? <Badge variant="destructive" className="text-xs">Failed</Badge>
-                      : r.fields_updated.length > 0
-                        ? r.fields_updated.map(f => <Badge key={f} className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200">{f}</Badge>)
-                        : <span className="text-xs text-slate-400">No changes</span>
+                      : enrichMode === "decision_makers"
+                        ? r.count > 0
+                          ? <Badge className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200">{r.count} found</Badge>
+                          : <span className="text-xs text-slate-400">None found</span>
+                        : r.fields_updated.length > 0
+                          ? r.fields_updated.map(f => <Badge key={f} className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200">{f}</Badge>)
+                          : <span className="text-xs text-slate-400">No changes</span>
                     }
                   </div>
                 </div>
               ))}
-              {running && current <= leads.length && (
+              {running && (
                 <div className="flex items-center gap-2 px-2 py-1 text-sm text-slate-400">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   Processing...
@@ -229,7 +345,16 @@ export default function BatchEnrichDialog({ open, onClose, leads, onComplete }) 
 
             {!running && (
               <div className="flex gap-2">
-                {results?.some(r => r.status === "error") && (
+                {enrichMode === "decision_makers" && totalDmFound > 0 && (
+                  <Button
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => setShowDmReview(true)}
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Review & Import {totalDmFound} Contact{totalDmFound !== 1 ? "s" : ""}
+                  </Button>
+                )}
+                {enrichMode !== "decision_makers" && results?.some(r => r.status === "error") && (
                   <Button
                     variant="outline"
                     className="flex-1 border-rose-200 text-rose-600 hover:bg-rose-50"
