@@ -84,8 +84,11 @@ const DEFAULT_FILTERS = {
   hasPhone: "all",
   hasWebsite: "all",
   hasWhatsApp: "all",
+  hasDecisionMaker: "all",
   minValue: "",
   maxValue: "",
+  createdFrom: "",
+  createdTo: "",
   sortField: "created_date",
   sortDir: "desc",
 };
@@ -143,9 +146,29 @@ export function applyFilters(leads, filters) {
       // Has WhatsApp
       if (filters.hasWhatsApp === "yes" && !lead.whatsapp_detected) return false;
       if (filters.hasWhatsApp === "no" && lead.whatsapp_detected) return false;
+      // Has Decision Maker (notes contain "decision maker research" OR tags include it)
+      if (filters.hasDecisionMaker === "yes") {
+        const hasIt = (lead.notes || "").toLowerCase().includes("decision maker") ||
+          (lead.tags || []).some(t => (t || "").toLowerCase().includes("decision maker"));
+        if (!hasIt) return false;
+      }
+      if (filters.hasDecisionMaker === "no") {
+        const hasIt = (lead.notes || "").toLowerCase().includes("decision maker") ||
+          (lead.tags || []).some(t => (t || "").toLowerCase().includes("decision maker"));
+        if (hasIt) return false;
+      }
       // Deal value range
       if (filters.minValue !== "" && (lead.estimated_value || 0) < Number(filters.minValue)) return false;
       if (filters.maxValue !== "" && (lead.estimated_value || 0) > Number(filters.maxValue)) return false;
+      // Created date range
+      if (filters.createdFrom && lead.created_date) {
+        if (new Date(lead.created_date) < new Date(filters.createdFrom)) return false;
+      }
+      if (filters.createdTo && lead.created_date) {
+        const toDate = new Date(filters.createdTo);
+        toDate.setHours(23, 59, 59, 999);
+        if (new Date(lead.created_date) > toDate) return false;
+      }
       // Last contacted / follow-up
       if (filters.contacted !== "all") {
         if (filters.contacted === "never") {
@@ -211,8 +234,11 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
     filters.hasPhone !== "all",
     filters.hasWebsite !== "all",
     filters.hasWhatsApp !== "all",
+    filters.hasDecisionMaker !== "all",
     filters.minValue !== "",
     filters.maxValue !== "",
+    !!filters.createdFrom,
+    !!filters.createdTo,
   ].filter(Boolean).length;
 
   const set = (key, value) => onChange({ ...filters, [key]: value });
@@ -476,6 +502,41 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-600">👤 Decision Maker</span>
+                    <Select value={filters.hasDecisionMaker} onValueChange={v => set("hasDecisionMaker", v)}>
+                      <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Date Created</label>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-[10px] text-slate-400 mb-0.5 block">From</label>
+                    <input
+                      type="date"
+                      value={filters.createdFrom}
+                      onChange={e => set("createdFrom", e.target.value)}
+                      className="w-full text-xs border border-input rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] text-slate-400 mb-0.5 block">To</label>
+                    <input
+                      type="date"
+                      value={filters.createdTo}
+                      onChange={e => set("createdTo", e.target.value)}
+                      className="w-full text-xs border border-input rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -581,8 +642,11 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
           {filters.hasPhone !== "all" && <FilterChip label={`Phone: ${filters.hasPhone}`} onRemove={() => set("hasPhone", "all")} />}
           {filters.hasWebsite !== "all" && <FilterChip label={`Website: ${filters.hasWebsite}`} onRemove={() => set("hasWebsite", "all")} />}
           {filters.hasWhatsApp !== "all" && <FilterChip label={`WhatsApp: ${filters.hasWhatsApp}`} onRemove={() => set("hasWhatsApp", "all")} />}
+          {filters.hasDecisionMaker !== "all" && <FilterChip label={`Decision Maker: ${filters.hasDecisionMaker}`} onRemove={() => set("hasDecisionMaker", "all")} />}
           {filters.minValue !== "" && <FilterChip label={`Min $${filters.minValue}`} onRemove={() => set("minValue", "")} />}
           {filters.maxValue !== "" && <FilterChip label={`Max $${filters.maxValue}`} onRemove={() => set("maxValue", "")} />}
+          {filters.createdFrom && <FilterChip label={`From: ${filters.createdFrom}`} onRemove={() => set("createdFrom", "")} />}
+          {filters.createdTo && <FilterChip label={`To: ${filters.createdTo}`} onRemove={() => set("createdTo", "")} />}
           <button onClick={clearAll} className="text-xs text-slate-400 hover:text-rose-500 ml-1 flex items-center gap-0.5">
             <X className="w-3 h-3" /> Clear all
           </button>
