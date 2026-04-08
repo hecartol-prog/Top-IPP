@@ -1,91 +1,156 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Mail, Plus, X, RefreshCw, Send, Eye, EyeOff, Trash2, Check
+  Mail, Plus, X, RefreshCw, Send, Eye, EyeOff, Check,
+  Paperclip, Sparkles, ChevronRight, ChevronLeft, FlaskConical
 } from "lucide-react";
 import RichEmailEditor from "./RichEmailEditor";
 
 function replacePlaceholders(text, data) {
   if (!text) return text;
   return text
-    .replace(/\{\{first_name\}\}/g, data.first_name || "")
-    .replace(/\{\{last_name\}\}/g, data.last_name || "")
-    .replace(/\{\{company_name\}\}/g, data.company_name || "")
-    .replace(/\{\{job_title\}\}/g, data.job_title || "")
-    .replace(/\{\{industry\}\}/g, data.industry || "");
+    .replace(/\{\{first_name\}\}/g, data.first_name || "Test")
+    .replace(/\{\{last_name\}\}/g, data.last_name || "Recipient")
+    .replace(/\{\{company_name\}\}/g, data.company_name || "Test Company")
+    .replace(/\{\{job_title\}\}/g, data.job_title || "Manager")
+    .replace(/\{\{industry\}\}/g, data.industry || "Manufacturing");
 }
 
-export default function TestEmailDialog({ open, onClose, subject, body, campaignName }) {
+export default function TestEmailDialog({ open, onClose, subject: initSubject, body: initBody, campaignName: initCampaign }) {
+  // Step 1: add recipients, Step 2: compose & send
+  const [step, setStep] = useState(1);
+
+  // Step 1 state
   const [testEmails, setTestEmails] = useState([]);
   const [newEmail, setNewEmail] = useState("");
-  const [sending, setSending] = useState(false);
+
+  // Step 2 state
+  const [subject, setSubject] = useState(initSubject || "");
+  const [body, setBody] = useState(initBody || "");
+  const [campaignName, setCampaignName] = useState(initCampaign || "Test Campaign");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [personalizing, setPersonalizing] = useState(false);
   const [sentResults, setSentResults] = useState([]);
+  const fileInputRef = useRef();
+
+  const { data: templates = [] } = useQuery({
+    queryKey: ['email-templates'],
+    queryFn: () => base44.entities.EmailTemplate.list()
+  });
+
+  // Reset on open/close
+  useEffect(() => {
+    if (open) {
+      setStep(1);
+      setTestEmails([]);
+      setNewEmail("");
+      setSubject(initSubject || "");
+      setBody(initBody || "");
+      setCampaignName(initCampaign || "Test Campaign");
+      setSelectedTemplateId("");
+      setShowPreview(false);
+      setAttachments([]);
+      setSentResults([]);
+      setSending(false);
+    }
+  }, [open]);
+
+  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleAddEmail = () => {
-    if (!newEmail.trim() || !isValidEmail(newEmail)) {
-      alert("Please enter a valid email address");
-      return;
-    }
-    if (testEmails.includes(newEmail.trim())) {
-      alert("Email already added");
-      return;
-    }
-    setTestEmails([...testEmails, newEmail.trim()]);
+    const trimmed = newEmail.trim();
+    if (!trimmed || !isValidEmail(trimmed)) return;
+    if (testEmails.includes(trimmed)) return;
+    setTestEmails([...testEmails, trimmed]);
     setNewEmail("");
   };
 
-  const handleRemoveEmail = (email) => {
-    setTestEmails(testEmails.filter(e => e !== email));
+  const handleRemoveEmail = (email) => setTestEmails(testEmails.filter(e => e !== email));
+
+  const handleTemplateSelect = (id) => {
+    setSelectedTemplateId(id);
+    const tpl = templates.find(t => t.id === id);
+    if (tpl) { setSubject(tpl.subject || ""); setBody(tpl.body || ""); }
   };
 
-  const isValidEmail = (email) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
+  const handlePersonalize = async () => {
+    if (!body) return;
+    setPersonalizing(true);
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `You are a B2B sales email specialist for a plastic injection mold manufacturing company.
+Improve this cold email template for better engagement. Keep placeholders like {{first_name}}, {{company_name}} intact.
+Subject: ${subject}
+Body: ${body}
+Return improved subject and body. Return HTML-safe text (use <br> for line breaks).`,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          subject: { type: "string" },
+          body: { type: "string" }
+        }
+      }
+    });
+    if (result?.subject) setSubject(result.subject);
+    if (result?.body) setBody(result.body);
+    setPersonalizing(false);
   };
 
-  const handleSendTest = async () => {
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploading(true);
+    for (const file of files) {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setAttachments(prev => [...prev, { name: file.name, url: file_url, type: file.type, size: file.size }]);
+    }
+    setUploading(false);
+    fileInputRef.current.value = "";
+  };
+
+  const removeAttachment = (idx) => setAttachments(prev => prev.filter((_, i) => i !== idx));
+
+  const formatSize = (bytes) => bytes < 1024 * 1024
+    ? `${(bytes / 1024).toFixed(0)} KB`
+    : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+  const testData = {
+    first_name: "Test", last_name: "Recipient",
+    company_name: "Test Company", job_title: "Manager", industry: "Manufacturing"
+  };
+
+  const handleSend = async () => {
     if (testEmails.length === 0 || !subject || !body) return;
-
     setSending(true);
-    setSentResults([]);
     const results = [];
-
     for (const email of testEmails) {
       try {
-        // Use simple test data for preview
-        const testData = {
-          first_name: "Test",
-          last_name: "Recipient",
-          company_name: "Test Company",
-          job_title: "Manager",
-          industry: "Manufacturing"
-        };
-
         await base44.functions.invoke('sendTrackedEmail', {
           lead_id: null,
           lead_email: email,
           lead_name: "Test Recipient",
           subject: replacePlaceholders(subject, testData),
           body: replacePlaceholders(body, testData),
-          campaign_name: campaignName || "Test Campaign",
+          campaign_name: campaignName,
           sequence_step: 1,
-          attachments: []
+          attachments: attachments.map(a => ({ name: a.name, url: a.url, type: a.type }))
         });
-        results.push({ email, success: true, error: null });
+        results.push({ email, success: true });
       } catch (error) {
         results.push({ email, success: false, error: error.message });
       }
     }
-
     setSentResults(results);
     setSending(false);
-
-    // Auto-close after 3 seconds if all successful
     if (results.every(r => r.success)) {
       setTimeout(() => onClose(), 3000);
     }
@@ -99,19 +164,24 @@ export default function TestEmailDialog({ open, onClose, subject, body, campaign
       <DialogContent className="w-full max-w-2xl bg-white max-h-[93vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Mail className="w-5 h-5 text-amber-600 shrink-0" />
-            Test Email Campaign
+            <FlaskConical className="w-5 h-5 text-amber-600 shrink-0" />
+            Test Email
+            <div className="ml-auto flex gap-1">
+              {[1, 2].map(s => (
+                <div key={s} className={`w-6 h-1.5 rounded-full transition-colors ${step >= s ? 'bg-amber-500' : 'bg-slate-200'}`} />
+              ))}
+            </div>
           </DialogTitle>
           <DialogDescription>
-            Send test emails to custom addresses before launching the campaign
+            {step === 1 ? "Add the email addresses to receive the test" : "Compose and send your test email"}
           </DialogDescription>
         </DialogHeader>
 
-        {sentResults.length === 0 ? (
-          <div className="space-y-4 mt-4">
-            {/* Email input */}
+        {/* STEP 1: Add recipients */}
+        {step === 1 && (
+          <div className="space-y-4 mt-2">
             <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Add Test Email Addresses</label>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Test Email Addresses</label>
               <div className="flex gap-2 mt-2">
                 <Input
                   value={newEmail}
@@ -120,10 +190,11 @@ export default function TestEmailDialog({ open, onClose, subject, body, campaign
                   placeholder="Enter email address..."
                   type="email"
                   className="flex-1"
+                  autoFocus
                 />
                 <Button
                   onClick={handleAddEmail}
-                  disabled={!newEmail.trim()}
+                  disabled={!newEmail.trim() || !isValidEmail(newEmail)}
                   variant="outline"
                   className="gap-2"
                 >
@@ -133,20 +204,19 @@ export default function TestEmailDialog({ open, onClose, subject, body, campaign
               </div>
             </div>
 
-            {/* Test emails list */}
             {testEmails.length > 0 && (
               <div>
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-2">
-                  Test Recipients ({testEmails.length})
+                  Recipients ({testEmails.length})
                 </label>
                 <div className="space-y-2">
                   {testEmails.map(email => (
                     <div key={email} className="flex items-center justify-between px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
-                      <span className="text-sm text-slate-700">{email}</span>
-                      <button
-                        onClick={() => handleRemoveEmail(email)}
-                        className="text-slate-400 hover:text-rose-500 transition-colors"
-                      >
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="text-sm text-slate-700">{email}</span>
+                      </div>
+                      <button onClick={() => handleRemoveEmail(email)} className="text-slate-400 hover:text-rose-500 transition-colors">
                         <X className="w-4 h-4" />
                       </button>
                     </div>
@@ -155,101 +225,164 @@ export default function TestEmailDialog({ open, onClose, subject, body, campaign
               </div>
             )}
 
-            {/* Preview section */}
-            {subject && body && (
-              <div className="border-t border-slate-200 pt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Email Preview</label>
-                  <button
-                    onClick={() => setShowPreview(!showPreview)}
-                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-700"
-                  >
-                    {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    {showPreview ? "Hide" : "Show"}
-                  </button>
-                </div>
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={() => setStep(2)}
+                disabled={testEmails.length === 0}
+                className="bg-amber-600 hover:bg-amber-700 gap-2"
+              >
+                Next: Compose Email
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
 
-                {showPreview && (
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
-                    <div>
-                      <p className="text-xs text-slate-400 uppercase tracking-wide font-semibold mb-1">Subject</p>
-                      <p className="text-sm text-slate-800 font-medium">{replacePlaceholders(subject, {})}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 uppercase tracking-wide font-semibold mb-1">Body</p>
-                      <div
-                        className="text-sm text-slate-700 prose prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ __html: replacePlaceholders(body, {}) || "<em class='text-slate-400'>No content</em>" }}
-                      />
-                    </div>
-                  </div>
-                )}
+        {/* STEP 2: Compose */}
+        {step === 2 && sentResults.length === 0 && (
+          <div className="space-y-4 mt-2">
+            {/* Recipients summary */}
+            <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg">
+              <Mail className="w-4 h-4 text-amber-600 shrink-0" />
+              <p className="text-sm text-amber-700">
+                Sending to: {testEmails.map(e => <Badge key={e} className="bg-amber-100 text-amber-700 border-0 ml-1">{e}</Badge>)}
+              </p>
+            </div>
+
+            {/* Campaign name */}
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Campaign Name</label>
+              <Input value={campaignName} onChange={e => setCampaignName(e.target.value)} className="mt-1" placeholder="e.g. Test Campaign" />
+            </div>
+
+            {/* Template selector */}
+            {templates.length > 0 && (
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Start from Template</label>
+                <Select value={selectedTemplateId} onValueChange={handleTemplateSelect}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Choose a template (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.name} — {t.stage}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
-            {/* Send button */}
-            <div className="flex gap-2 pt-2">
+            {/* Subject */}
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Subject</label>
+              <Input value={subject} onChange={e => setSubject(e.target.value)} className="mt-1" placeholder="Email subject... (use {{first_name}}, {{company_name}})" />
+            </div>
+
+            {/* Body */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Body</label>
+                <button onClick={() => setShowPreview(!showPreview)} className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-700">
+                  {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  {showPreview ? "Edit" : "Preview"}
+                </button>
+              </div>
+              {showPreview ? (
+                <div
+                  className="min-h-[200px] p-4 border border-slate-200 rounded-lg bg-slate-50 text-sm text-slate-700"
+                  dangerouslySetInnerHTML={{ __html: replacePlaceholders(body, testData) || "<em class='text-slate-400'>No content yet</em>" }}
+                />
+              ) : (
+                <RichEmailEditor
+                  value={body}
+                  onChange={setBody}
+                  placeholder="Email body... Use {{first_name}}, {{company_name}}, {{job_title}}, {{industry}}"
+                />
+              )}
+            </div>
+
+            {/* AI Improve */}
+            <Button
+              onClick={handlePersonalize}
+              disabled={personalizing || !body}
+              variant="outline"
+              className="w-full border-violet-200 text-violet-700 hover:bg-violet-50"
+            >
+              {personalizing
+                ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Improving with AI...</>
+                : <><Sparkles className="w-4 h-4 mr-2" />AI Improve Email</>
+              }
+            </Button>
+
+            {/* Attachments */}
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Attachments</label>
+              <div className="mt-1 space-y-2">
+                {attachments.map((att, idx) => (
+                  <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+                    <Paperclip className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="flex-1 truncate text-slate-700">{att.name}</span>
+                    <span className="text-xs text-slate-400 shrink-0">{formatSize(att.size)}</span>
+                    <button onClick={() => removeAttachment(idx)} className="text-slate-400 hover:text-rose-500 shrink-0">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
+                <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current.click()} disabled={uploading} className="gap-2">
+                  {uploading
+                    ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Uploading...</>
+                    : <><Paperclip className="w-3.5 h-3.5" />Add Attachment</>
+                  }
+                </Button>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" onClick={() => setStep(1)} className="gap-1.5 shrink-0">
+                <ChevronLeft className="w-4 h-4" />
+                Back
+              </Button>
               <Button
-                onClick={handleSendTest}
-                disabled={testEmails.length === 0 || !subject || !body || sending}
+                onClick={handleSend}
+                disabled={sending || !subject || !body}
                 className="flex-1 bg-amber-600 hover:bg-amber-700"
               >
-                {sending ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    Send Test to {testEmails.length} Address{testEmails.length !== 1 ? "es" : ""}
-                  </>
-                )}
+                {sending
+                  ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Sending...</>
+                  : <><Send className="w-4 h-4 mr-2" />Send Test to {testEmails.length} Address{testEmails.length !== 1 ? "es" : ""}</>
+                }
               </Button>
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} className="shrink-0">Cancel</Button>
             </div>
           </div>
-        ) : (
+        )}
+
+        {/* Results */}
+        {sentResults.length > 0 && (
           <div className="py-6 text-center space-y-4">
-            {successCount > 0 && failureCount === 0 && (
-              <>
-                <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
-                  <Check className="w-6 h-6 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-800">All test emails sent!</p>
-                  <p className="text-sm text-slate-500">{successCount} email{successCount !== 1 ? "s" : ""} delivered successfully</p>
-                </div>
-              </>
-            )}
-
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${failureCount === 0 ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+              {failureCount === 0
+                ? <Check className="w-6 h-6 text-emerald-600" />
+                : <Mail className="w-6 h-6 text-amber-600" />
+              }
+            </div>
+            <div>
+              <p className="font-semibold text-slate-800">Test sending complete</p>
+              <div className="flex justify-center gap-3 mt-2">
+                {successCount > 0 && <Badge className="bg-emerald-100 text-emerald-700 border-0">{successCount} sent</Badge>}
+                {failureCount > 0 && <Badge className="bg-rose-100 text-rose-700 border-0">{failureCount} failed</Badge>}
+              </div>
+            </div>
             {failureCount > 0 && (
-              <>
-                <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mx-auto">
-                  <Mail className="w-6 h-6 text-rose-600" />
-                </div>
-                <div className="space-y-2">
-                  <p className="font-semibold text-slate-800">Test sending complete</p>
-                  <div className="flex justify-center gap-3">
-                    <Badge className="bg-emerald-100 text-emerald-700 border-0">{successCount} sent</Badge>
-                    <Badge className="bg-rose-100 text-rose-700 border-0">{failureCount} failed</Badge>
-                  </div>
-                </div>
-
-                {/* Failed emails list */}
-                <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-left">
-                  <p className="text-xs font-semibold text-rose-700 mb-2">Failed deliveries:</p>
-                  {sentResults
-                    .filter(r => !r.success)
-                    .map(r => (
-                      <p key={r.email} className="text-xs text-rose-600 mb-1 break-all">
-                        {r.email}: {r.error}
-                      </p>
-                    ))}
-                </div>
-              </>
+              <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-left">
+                <p className="text-xs font-semibold text-rose-700 mb-2">Failed deliveries:</p>
+                {sentResults.filter(r => !r.success).map(r => (
+                  <p key={r.email} className="text-xs text-rose-600 mb-1 break-all">{r.email}: {r.error}</p>
+                ))}
+              </div>
             )}
-
             <Button variant="outline" onClick={onClose}>Close</Button>
           </div>
         )}
