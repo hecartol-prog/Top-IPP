@@ -37,9 +37,9 @@ Deno.serve(async (req) => {
     const pixelUrl = `${trackingBaseUrl}?tracking_id=${tracking_id}&type=open`;
     const htmlBody = `${trackedBody}<img src="${pixelUrl}" width="1" height="1" style="display:none;visibility:hidden;opacity:0;" alt="" />`;
 
-    // Save outreach record first
+    // Save outreach record first (test emails may have null lead_id)
     const record = await base44.asServiceRole.entities.EmailOutreach.create({
-      lead_id,
+      lead_id: lead_id || null,
       lead_email,
       lead_name: lead_name || '',
       subject,

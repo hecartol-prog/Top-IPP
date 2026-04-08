@@ -9,9 +9,10 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import {
   Sparkles, Send, RefreshCw, Eye, EyeOff, Mail, Paperclip, X,
-  Search, ChevronLeft, Users
+  Search, ChevronLeft, Users, FlaskConical
 } from "lucide-react";
 import RichEmailEditor from "./RichEmailEditor";
+import TestEmailDialog from "./TestEmailDialog";
 
 const STATUS_OPTIONS = ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"];
 const INDUSTRY_OPTIONS = [
@@ -50,6 +51,7 @@ export default function ComposeEmailDialog({ open, onClose, lead: propLead, onSe
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [batchProgress, setBatchProgress] = useState(null);
+  const [showTestDialog, setShowTestDialog] = useState(false);
   const fileInputRef = useRef();
 
   const { data: templates = [] } = useQuery({
@@ -72,6 +74,7 @@ export default function ComposeEmailDialog({ open, onClose, lead: propLead, onSe
       setSelectedBatch([]);
       setMode("single");
       setBatchProgress(null);
+      setShowTestDialog(false);
     }
   }, [open, propLead]);
 
@@ -510,6 +513,16 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
               </p>
             )}
 
+            <Button
+              onClick={() => setShowTestDialog(true)}
+              disabled={!subject || !body}
+              variant="outline"
+              className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
+            >
+              <FlaskConical className="w-4 h-4 mr-2" />
+              Test Campaign Before Sending
+            </Button>
+
             <div className="flex gap-2 pt-1">
               <Button variant="outline" size="sm" onClick={() => setStep("pick_lead")} className="gap-1.5 shrink-0">
                 <ChevronLeft className="w-4 h-4" />
@@ -543,6 +556,14 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
           </div>
         )}
       </DialogContent>
+
+      <TestEmailDialog
+        open={showTestDialog}
+        onClose={() => setShowTestDialog(false)}
+        subject={subject}
+        body={body}
+        campaignName={campaignName}
+      />
     </Dialog>
   );
 }

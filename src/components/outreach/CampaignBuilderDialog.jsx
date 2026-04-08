@@ -10,8 +10,7 @@ import {
   Search, Users, CheckSquare, Square, Send, RefreshCw,
   Sparkles, AlertCircle, CheckCircle, X, FlaskConical
 } from "lucide-react";
-
-const TEST_EMAIL = "hector@dgtopindustrial.com";
+import TestEmailDialog from "./TestEmailDialog";
 
 export default function CampaignBuilderDialog({ open, onClose, onComplete }) {
   const [step, setStep] = useState(1); // 1=select leads, 2=compose, 3=sending
@@ -24,8 +23,7 @@ export default function CampaignBuilderDialog({ open, onClose, onComplete }) {
   const [filterStatus, setFilterStatus] = useState("all");
   const [personalizing, setPersonalizing] = useState(false);
   const [sendingState, setSendingState] = useState([]); // [{lead, status}]
-  const [testSending, setTestSending] = useState(false);
-  const [testResult, setTestResult] = useState(null);
+  const [showTestDialog, setShowTestDialog] = useState(false);
 
   const { data: leads = [] } = useQuery({
     queryKey: ['leads'],
@@ -104,26 +102,7 @@ Return improved subject and body. Keep {{first_name}}, {{company_name}} tokens. 
       .replace(/{{industry}}/gi, lead.industry || '');
   };
 
-  const handleSendTest = async () => {
-    if (!subject || !body) return;
-    setTestSending(true);
-    setTestResult(null);
-    try {
-      await base44.functions.invoke('sendTrackedEmail', {
-        lead_id: 'test',
-        lead_email: TEST_EMAIL,
-        lead_name: 'Test User',
-        subject: `[TEST] ${subject}`,
-        body,
-        campaign_name: campaignName || 'Test',
-        sequence_step: 1
-      });
-      setTestResult({ ok: true });
-    } catch (e) {
-      setTestResult({ ok: false, error: e.message });
-    }
-    setTestSending(false);
-  };
+
 
   const handleLaunchCampaign = async () => {
     if (!subject || !body || selectedLeads.length === 0) return;
@@ -152,7 +131,7 @@ Return improved subject and body. Keep {{first_name}}, {{company_name}} tokens. 
 
   const handleClose = () => {
     setStep(1); setSelectedIds([]); setSubject(""); setBody("");
-    setCampaignName(""); setSelectedTemplateId(""); setTestResult(null);
+    setCampaignName(""); setSelectedTemplateId(""); setShowTestDialog(false);
     setSendingState([]);
     if (step === 3 && sendingState.length > 0) onComplete?.();
     onClose();
@@ -292,33 +271,15 @@ Return improved subject and body. Keep {{first_name}}, {{company_name}} tokens. 
               }
             </Button>
 
-            {/* Test Send */}
-            <div className="border border-slate-200 rounded-xl p-4 space-y-2">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
-                <FlaskConical className="w-3.5 h-3.5" /> Test Email
-              </p>
-              <p className="text-xs text-slate-400">Send a test to <strong>{TEST_EMAIL}</strong> before launching.</p>
-              <Button
-                onClick={handleSendTest}
-                disabled={testSending || !subject || !body}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-              >
-                {testSending
-                  ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Sending test...</>
-                  : <><FlaskConical className="w-3.5 h-3.5" />Send Test Email</>
-                }
-              </Button>
-              {testResult && (
-                <p className={`text-xs flex items-center gap-1 ${testResult.ok ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {testResult.ok
-                    ? <><CheckCircle className="w-3.5 h-3.5" />Test sent to {TEST_EMAIL}!</>
-                    : <><AlertCircle className="w-3.5 h-3.5" />Error: {testResult.error}</>
-                  }
-                </p>
-              )}
-            </div>
+            <Button
+              onClick={() => setShowTestDialog(true)}
+              disabled={!subject || !body}
+              variant="outline"
+              className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
+            >
+              <FlaskConical className="w-4 h-4 mr-2" />
+              Test Campaign with Custom Emails
+            </Button>
 
             <div className="flex gap-2 pt-1">
               <Button variant="outline" onClick={() => setStep(1)}>← Back</Button>
@@ -385,6 +346,14 @@ Return improved subject and body. Keep {{first_name}}, {{company_name}} tokens. 
             )}
           </div>
         )}
+
+        <TestEmailDialog
+          open={showTestDialog}
+          onClose={() => setShowTestDialog(false)}
+          subject={subject}
+          body={body}
+          campaignName={campaignName}
+        />
       </DialogContent>
     </Dialog>
   );
