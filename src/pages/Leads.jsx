@@ -49,6 +49,7 @@ export default function Leads() {
     hasPhone: "all",
     hasWebsite: "all",
     hasWhatsApp: "all",
+    hasDecisionMaker: "all",
     minValue: "",
     maxValue: "",
     sortField: "created_date",
