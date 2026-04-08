@@ -227,8 +227,18 @@ Return improved subject and body. Return HTML-safe text (use <br> for line break
 
             <div className="flex justify-end pt-2">
               <Button
-                onClick={() => setStep(2)}
-                disabled={testEmails.length === 0}
+                onClick={() => {
+                  // Auto-add current input if valid
+                  const trimmed = newEmail.trim();
+                  let emails = testEmails;
+                  if (trimmed && isValidEmail(trimmed) && !testEmails.includes(trimmed)) {
+                    emails = [...testEmails, trimmed];
+                    setTestEmails(emails);
+                    setNewEmail("");
+                  }
+                  if (emails.length > 0) setStep(2);
+                }}
+                disabled={testEmails.length === 0 && (!newEmail.trim() || !isValidEmail(newEmail.trim()))}
                 className="bg-amber-600 hover:bg-amber-700 gap-2"
               >
                 Next: Compose Email
