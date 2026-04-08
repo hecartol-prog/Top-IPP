@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Upload, Globe, Trash2, Search, Download, Zap, Copy, Edit3, ClipboardPaste, MessageCircle } from "lucide-react";
+import { Plus, Upload, Globe, Trash2, Search, Download, Zap, Copy, Edit3, ClipboardPaste, MessageCircle, Send } from "lucide-react";
 import BulkWhatsAppScan from "../components/leads/BulkWhatsAppScan";
+import BulkWhatsAppMessage from "../components/leads/BulkWhatsAppMessage";
 import * as XLSX from "xlsx";
 import { motion, AnimatePresence } from "framer-motion";
 import LeadCard from "../components/leads/LeadCard";
@@ -67,6 +68,7 @@ export default function Leads() {
   const [pastedLeadData, setPastedLeadData] = useState(null);
   const [showDuplicates, setShowDuplicates] = useState(false);
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
+  const [showWhatsAppMessage, setShowWhatsAppMessage] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 50;
 
@@ -339,6 +341,14 @@ export default function Leads() {
                 <MessageCircle className="w-3.5 h-3.5 sm:mr-1.5" />
                 <span className="hidden sm:inline">WhatsApp Scan</span>
               </Button>
+              <Button
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => setShowWhatsAppMessage(true)}
+              >
+                <Send className="w-3.5 h-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">WhatsApp Message</span>
+              </Button>
               <Button variant="destructive" size="sm" onClick={() => bulkDeleteMutation.mutate(selectedIds)} disabled={bulkDeleteMutation.isPending}>
                 <Trash2 className="w-3.5 h-3.5 sm:mr-1.5" />
                 <span className="hidden sm:inline">Delete {selectedIds.length}</span>
@@ -533,6 +543,13 @@ export default function Leads() {
         onClose={() => setShowBulkWhatsApp(false)}
         leads={selectedIds.length > 0 ? filteredLeads.filter(l => selectedIds.includes(l.id)) : filteredLeads}
         onComplete={() => queryClient.invalidateQueries({ queryKey: ['leads'] })}
+      />
+
+      {/* Bulk WhatsApp Message */}
+      <BulkWhatsAppMessage
+        open={showWhatsAppMessage}
+        onClose={() => setShowWhatsAppMessage(false)}
+        leads={selectedIds.length > 0 ? filteredLeads.filter(l => selectedIds.includes(l.id)) : filteredLeads}
       />
 
       {/* Batch Enrich Dialog */}
