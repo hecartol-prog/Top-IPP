@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import ComposeEmailDialog from "../components/outreach/ComposeEmailDialog.jsx";
 import CampaignBuilderDialog from "@/components/outreach/CampaignBuilderDialog";
+import TestEmailDialog from "@/components/outreach/TestEmailDialog";
 import { format } from "date-fns";
 import {
   Mail, Plus, Eye, MousePointer, Send, Search,
   TrendingUp, CheckCircle, BarChart3, RefreshCw, Users,
-  Trash2, Copy, Archive, X
+  Trash2, Copy, Archive, X, FlaskConical
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -32,6 +33,7 @@ const statusConfig = {
 export default function Outreach() {
   const [showCompose, setShowCompose] = useState(false);
   const [showCampaign, setShowCampaign] = useState(false);
+  const [showTestDialog, setShowTestDialog] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [composeLead, setComposeLead] = useState(null);
@@ -129,6 +131,9 @@ export default function Outreach() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" onClick={() => setShowTestDialog(true)} className="border-amber-200 text-amber-700 hover:bg-amber-50">
+            <FlaskConical className="w-4 h-4 mr-2" />Test Email
           </Button>
           <Button variant="outline" onClick={() => setShowCampaign(true)} className="border-teal-200 text-teal-700 hover:bg-teal-50">
             <Users className="w-4 h-4 mr-2" />Campaign
@@ -333,6 +338,14 @@ export default function Outreach() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <TestEmailDialog
+        open={showTestDialog}
+        onClose={() => setShowTestDialog(false)}
+        subject=""
+        body=""
+        campaignName="Quick Test"
+      />
     </div>
   );
 }
