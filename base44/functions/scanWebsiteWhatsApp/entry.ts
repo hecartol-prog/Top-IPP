@@ -3,13 +3,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 // Normalize a raw phone number to international format +XXXXXXXXXXX
 function normalizePhone(raw, countryCode = null) {
   if (!raw) return null;
-  // Remove everything except digits and leading +
   let digits = raw.replace(/[^\d+]/g, '');
   if (!digits) return null;
   if (digits.startsWith('+')) return digits.length >= 8 ? digits : null;
   if (digits.startsWith('00')) return digits.length >= 10 ? '+' + digits.slice(2) : null;
   if (digits.length >= 10) return '+' + digits;
-  // Short number with known country code
   if (countryCode && digits.length >= 8) return '+' + countryCode + digits;
   return null;
 }
@@ -36,12 +34,16 @@ function detectCountryCode(url, html) {
   return null;
 }
 
-// Extract all WhatsApp numbers from HTML using comprehensive patterns
+/**
+ * Extract WhatsApp numbers — ONLY from explicit WhatsApp URLs.
+ * No guessing from generic phone numbers, tel: links, or proximity to keywords.
+ * This prevents false positives (fax, landline, general phone).
+ */
 function extractFromHtml(html, pageUrl, countryCode) {
   const found = [];
   let m;
 
-  // 1. wa.me/NUMBER
+  // 1. wa.me/NUMBER  (highest confidence — explicit WhatsApp link)
   const waMeRe = /wa\.me\/(\+?[\d]{7,15})/gi;
   while ((m = waMeRe.exec(html)) !== null) {
     const n = normalizePhone(m[1], countryCode);
@@ -62,43 +64,22 @@ function extractFromHtml(html, pageUrl, countryCode) {
     if (n) found.push({ number: n, source: pageUrl, method: 'whatsapp://' });
   }
 
-  // 4. href="tel:+NUMBER" — tel links (WhatsApp icon often wraps these)
-  const telRe = /href=["']tel:([\d+\-\s().]+)["']/gi;
-  while ((m = telRe.exec(html)) !== null) {
-    const n = normalizePhone(m[1], countryCode);
-    if (n) found.push({ number: n, source: pageUrl, method: 'tel_href' });
-  }
-
-  // 5. Phone number adjacent to WhatsApp keyword/icon (within 300 chars)
-  const waContextRe = /(?:whatsapp|whatsapp\s*:|\bwa\b[\s:]+|icon[_-]?whatsapp|fa[_-]whatsapp|whatsapp[_-]?(?:icon|logo|btn|float|chat|widget|bubble)|class="[^"]*whatsapp[^"]*")[\s\S]{0,300}?(\+?[\d][\d\s\-().]{5,17}[\d])/gi;
-  while ((m = waContextRe.exec(html)) !== null) {
-    const n = normalizePhone(m[1], countryCode);
-    if (n) found.push({ number: n, source: pageUrl, method: 'near_keyword' });
-  }
-
-  // 6. Phone number BEFORE WhatsApp keyword (reversed — header pattern)
-  const beforeWaRe = /(\+?[\d][\d\s\-().]{5,17}[\d])[\s\S]{0,300}?(?:whatsapp|icon[_-]?whatsapp|fa[_-]whatsapp)/gi;
-  while ((m = beforeWaRe.exec(html)) !== null) {
-    const n = normalizePhone(m[1], countryCode);
-    if (n) found.push({ number: n, source: pageUrl, method: 'before_keyword' });
-  }
-
-  // 7. WhatsApp image/SVG file name near a phone number
-  const imgRe = /whatsapp\.(?:png|svg|jpg|webp|ico)[\s\S]{0,400}?(\+?[\d][\d\s\-().]{5,17}[\d])/gi;
-  while ((m = imgRe.exec(html)) !== null) {
-    const n = normalizePhone(m[1], countryCode);
-    if (n) found.push({ number: n, source: pageUrl, method: 'near_img' });
-  }
-
-  // 8. data-phone or data-whatsapp attributes
-  const dataRe = /data-(?:phone|whatsapp|number)=["']([\d+\-\s().]+)["']/gi;
-  while ((m = dataRe.exec(html)) !== null) {
+  // 4. data-whatsapp or data-phone attributes ONLY when on a WhatsApp element
+  const dataWaRe = /data-whatsapp=["']([\d+\-\s().]+)["']/gi;
+  while ((m = dataWaRe.exec(html)) !== null) {
     const n = normalizePhone(m[1], countryCode);
     if (n) found.push({ number: n, source: pageUrl, method: 'data_attr' });
   }
 
-  // Deduplicate — prefer explicit wa.me/api over inferred
-  const priority = { 'wa.me': 0, 'api.whatsapp.com': 1, 'whatsapp://': 2, 'tel_href': 3, 'data_attr': 4, 'near_keyword': 5, 'near_img': 6, 'before_keyword': 7 };
+  // 5. Text content INSIDE an <a> tag whose href is a wa.me link
+  const waHrefTextRe = /href=["'][^"']*wa\.me\/[^"']*["'][^>]*>\s*([^<]{4,25})\s*</gi;
+  while ((m = waHrefTextRe.exec(html)) !== null) {
+    const n = normalizePhone(m[1], countryCode);
+    if (n) found.push({ number: n, source: pageUrl, method: 'wa.me' }); // treat same priority as wa.me
+  }
+
+  // Deduplicate — strict priority: only explicit WhatsApp evidence
+  const priority = { 'wa.me': 0, 'api.whatsapp.com': 1, 'whatsapp://': 2, 'data_attr': 3 };
   const seen = new Map();
   for (const f of found) {
     const p = priority[f.method] ?? 99;
@@ -110,13 +91,12 @@ function extractFromHtml(html, pageUrl, countryCode) {
   return Array.from(seen.values());
 }
 
-// Use Apify to get JS-rendered HTML (handles dynamic sites, headers, floating buttons)
+// Use Apify to get JS-rendered HTML (handles dynamic sites, floating buttons)
 async function fetchWithApify(url) {
   const APIFY_TOKEN = Deno.env.get('APIFY_API_TOKEN');
   if (!APIFY_TOKEN) return null;
 
   try {
-    // Start Cheerio scraper (fast, gets full rendered HTML)
     const runRes = await fetch(
       `https://api.apify.com/v2/acts/apify~cheerio-scraper/runs?token=${APIFY_TOKEN}`,
       {
@@ -137,7 +117,6 @@ async function fetchWithApify(url) {
     const runId = run?.data?.id;
     if (!runId) return null;
 
-    // Poll for completion (max 30s)
     for (let i = 0; i < 15; i++) {
       await new Promise(r => setTimeout(r, 2000));
       const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
@@ -179,41 +158,36 @@ async function fetchSimple(url, timeoutMs = 12000) {
   }
 }
 
-// AI extraction — last resort, uses 1 credit
+// AI extraction — STRICT: only returns numbers found in actual wa.me / WhatsApp URLs
 async function aiExtract(html, pageUrl, db) {
   try {
     const snippet = html.slice(0, 10000);
     const result = await db.integrations.Core.InvokeLLM({
-      prompt: `Extract the WhatsApp phone number from this website HTML.
+      prompt: `Search this HTML for WhatsApp phone numbers.
 
-Look for ALL of these:
-- wa.me/NUMBER links
-- api.whatsapp.com links
-- Numbers next to WhatsApp icons, logos, images (whatsapp.png, whatsapp.svg, etc.)
-- Numbers labeled "WhatsApp" or next to a WhatsApp button
-- Floating WhatsApp chat buttons
-- Numbers in header/navigation near a WhatsApp icon
-- tel: links that might be WhatsApp numbers
-- Any phone number associated with WhatsApp messaging
+STRICT RULES:
+- ONLY extract a number if it appears inside an explicit WhatsApp URL: wa.me/NUMBER, api.whatsapp.com/send?phone=NUMBER, or whatsapp://send?phone=NUMBER.
+- Do NOT return generic phone numbers, tel: links, fax numbers, or numbers near WhatsApp text/icons unless they are embedded in one of the above URL formats.
+- Do NOT guess or infer. If there is no wa.me or api.whatsapp.com link, return null.
 
 Page URL: ${pageUrl}
 
-HTML snippet:
+HTML:
 ${snippet}
 
-Return the WhatsApp phone number in international format (e.g. +525577679032).
-If multiple numbers found, return the most likely WhatsApp one.
-Return null if no WhatsApp number exists.`,
+Extract the number exactly as it appears in the wa.me URL (e.g. +525577679032).
+Return null if no explicit WhatsApp URL link is found.`,
       response_json_schema: {
         type: 'object',
         properties: {
           whatsapp_number: { type: 'string' },
+          found_in_url: { type: 'string', description: 'The exact wa.me or api.whatsapp.com URL where the number was found' },
         }
       }
     });
     if (result?.whatsapp_number && result.whatsapp_number !== 'null' && result.whatsapp_number !== '') {
       const n = normalizePhone(result.whatsapp_number);
-      if (n) return { number: n, source: pageUrl, method: 'ai' };
+      if (n) return { number: n, source: result.found_in_url || pageUrl, method: 'ai' };
     }
     return null;
   } catch (e) {
@@ -280,8 +254,7 @@ Deno.serve(async (req) => {
       console.log(`[Pass1] ${matches.length} matches on ${pageUrl}:`, matches.map(m => `${m.number}(${m.method})`).join(', '));
 
       if (matches.length > 0) {
-        // Prefer explicit URL matches
-        result = matches.find(m => ['wa.me', 'api.whatsapp.com', 'whatsapp://', 'tel_href', 'data_attr'].includes(m.method)) || matches[0];
+        result = matches.find(m => ['wa.me', 'api.whatsapp.com', 'whatsapp://'].includes(m.method)) || matches[0];
         break;
       }
     }
@@ -297,16 +270,15 @@ Deno.serve(async (req) => {
         const matches = extractFromHtml(renderedHtml, homeUrl, countryCode);
         console.log(`[Pass2] Apify found ${matches.length} matches:`, matches.map(m => `${m.number}(${m.method})`).join(', '));
         if (matches.length > 0) {
-          result = matches.find(m => ['wa.me', 'api.whatsapp.com', 'whatsapp://', 'tel_href', 'data_attr'].includes(m.method)) || matches[0];
+          result = matches.find(m => ['wa.me', 'api.whatsapp.com', 'whatsapp://'].includes(m.method)) || matches[0];
         }
 
-        // === PASS 3: AI extraction on rendered HTML (most accurate, uses 1 credit) ===
+        // === PASS 3: AI extraction — strict, only from explicit WhatsApp URLs ===
         if (!result) {
           console.log('[Pass3] AI extraction on rendered HTML');
           result = await aiExtract(renderedHtml, homeUrl, db);
         }
       } else {
-        // No Apify — try AI on simple-fetched homepage
         const homeHtml = await fetchSimple(urls[0]);
         if (homeHtml) {
           console.log('[Pass3] AI extraction on simple HTML');
