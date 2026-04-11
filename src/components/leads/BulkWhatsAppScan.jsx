@@ -47,7 +47,7 @@ export default function BulkWhatsAppScan({ open, onClose, leads, onComplete }) {
 
       try {
         await delay(1200);
-        const res = await safeInvoke("scanWebsiteWhatsApp", { lead_id: lead.id, force: false });
+        const res = await safeInvoke("scanWebsiteWhatsApp", { lead_id: lead.id, force: true });
         const data = res.data;
         if (data?.success && data?.whatsapp_detected) {
           resultEntry = { lead, status: "found", number: data.whatsapp_number };
@@ -117,8 +117,7 @@ export default function BulkWhatsAppScan({ open, onClose, leads, onComplete }) {
               <p className="font-medium mb-1">What this does:</p>
               <ul className="list-disc list-inside space-y-0.5 text-xs text-blue-600">
                 <li>Scans up to 3 pages per lead (homepage + /contact, /about)</li>
-                <li>Skips leads already scanned within 7 days</li>
-                <li>Skips leads with existing WhatsApp numbers</li>
+                <li>Always overwrites existing WhatsApp numbers with fresh results</li>
                 <li>3-second delay between each lead to be respectful</li>
               </ul>
             </div>
