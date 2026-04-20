@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 Deno.serve(async (req) => {
   try {
@@ -86,7 +86,53 @@ Deno.serve(async (req) => {
 
     if (!brevoRes.ok) {
       const errText = await brevoRes.text();
-      throw new Error(`Brevo API error ${brevoRes.status}: ${errText}`);
+      console.warn(`Brevo API error ${brevoRes.status}: ${errText} — falling back to SMTP`);
+
+      // Fallback: Brevo SMTP
+      const brevoSmtpKey = Deno.env.get('BREVO_SMTP_KEY');
+      if (!brevoSmtpKey) throw new Error(`Brevo API error ${brevoRes.status}: ${errText}`);
+
+      // Build a simple multipart/alternative email via SMTP using Brevo's relay
+      const boundary = `----=_Part_${Date.now()}`;
+      const encodedSubject = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
+      const rawEmail = [
+        `From: "${senderName}" <${senderEmail}>`,
+        `To: ${lead_name ? `"${lead_name}" <${lead_email}>` : lead_email}`,
+        `Subject: ${encodedSubject}`,
+        `MIME-Version: 1.0`,
+        `Content-Type: multipart/alternative; boundary="${boundary}"`,
+        ``,
+        `--${boundary}`,
+        `Content-Type: text/html; charset=UTF-8`,
+        `Content-Transfer-Encoding: base64`,
+        ``,
+        btoa(unescape(encodeURIComponent(htmlBody))),
+        `--${boundary}--`,
+      ].join('\r\n');
+
+      const smtpPayload = {
+        sender: { name: senderName, email: senderEmail },
+        to: [{ email: lead_email, name: lead_name || lead_email }],
+        subject,
+        htmlContent: htmlBody,
+        ...(brevoPayload.attachment ? { attachment: brevoPayload.attachment } : {}),
+      };
+
+      // Use Brevo SMTP relay via their API with SMTP key as alternative auth
+      const smtpFallbackRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoSmtpKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(smtpPayload),
+      });
+
+      if (!smtpFallbackRes.ok) {
+        const smtpErr = await smtpFallbackRes.text();
+        throw new Error(`Both Brevo API and SMTP fallback failed. SMTP error: ${smtpErr}`);
+      }
     }
 
     return Response.json({ success: true, record });
