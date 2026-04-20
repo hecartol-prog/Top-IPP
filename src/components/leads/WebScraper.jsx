@@ -194,11 +194,6 @@ export default function WebScraper({ onImportComplete }) {
             disabled={scraping}
             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
           />
-          {linkedinProgress && (
-            <p className="text-xs text-slate-500 text-center">
-              Processing {linkedinProgress.done} / {linkedinProgress.total}...
-            </p>
-          )}
           <Button
             type="button"
             onClick={handleScrape}
