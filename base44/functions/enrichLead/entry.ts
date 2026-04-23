@@ -252,7 +252,7 @@ Deno.serve(async function(req) {
       }
     }
 
-    var stillNeeded = fieldsToEnrich.filter(function(f) { return !updates[f]; });
+    var stillNeeded = fieldsToEnrich.filter(function(f) { return !updates[f] && isMissing(lead[f]); });
 
     if (stillNeeded.length > 0 && combinedContext.length > 100) {
       try {

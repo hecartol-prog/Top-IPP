@@ -19,15 +19,30 @@ async function fetchWebsiteText(url) {
 }
 
 async function fetchSearchSnippets(query) {
+  // Try DuckDuckGo first (free, no API key, not rate-limited like Google)
   try {
-    const url = `https://www.google.com/search?q=${encodeURIComponent(query)}&num=5`;
+    const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 8000);
-    const resp = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9'
-      },
+    const resp = await fetch(ddgUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120' },
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if (resp.ok) {
+      const html = await resp.text();
+      const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 5000);
+      if (text.length > 200) return text;
+    }
+  } catch {}
+
+  // Fallback: Bing
+  try {
+    const bingUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}&count=5`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const resp = await fetch(bingUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120' },
       signal: controller.signal
     });
     clearTimeout(timer);

@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
         const username = cleanUrl.split("/in/")[1] || cleanUrl;
 
         const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
-          model: "gemini_3_pro",
+          model: "gemini_3_flash",
           prompt: `Search Google and LinkedIn for the person with LinkedIn username "${username}" (profile: ${cleanUrl}).
 
 Find their professional details:

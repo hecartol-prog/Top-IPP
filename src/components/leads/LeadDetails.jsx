@@ -218,29 +218,27 @@ export default function LeadDetails({ open, onClose, lead, activities = [], onEd
     setEnrichedFields(null);
     setSaved(false);
     try {
-      // Stage 1: Standard AI enrichment
+      const contactName = [lead.first_name, lead.last_name].filter(Boolean).join(' ');
+      // Single call with web search — covers both "stage 1" and "stage 2" in one credit
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are a B2B lead research assistant for a plastic injection mold manufacturing company.
+        model: "gemini_3_flash",
+        prompt: `You are a B2B lead research assistant for a plastic injection mold manufacturer.
+Search the web and find the missing fields for this company/contact.
 
-Research this lead and fill in the missing information fields as accurately as possible.
+Company: ${lead.company_name}
+Contact: ${contactName || 'N/A'}
+Job Title: ${lead.job_title || 'N/A'}
+Website: ${lead.website || 'N/A'}
+Location: ${lead.location || 'N/A'}
 
-Lead info:
-- Name: ${lead.first_name} ${lead.last_name}
-- Job Title: ${lead.job_title || 'Unknown'}
-- Company: ${lead.company_name}
-- Website: ${lead.website || 'Unknown'}
-- LinkedIn: ${lead.linkedin_url || 'Unknown'}
-- Industry: ${lead.industry || 'Unknown'}
-- Location: ${lead.location || 'Unknown'}
-- Email: ${lead.email || 'Unknown'}
-- Phone: ${lead.phone || 'Unknown'}
-- Company Size: ${lead.company_size || 'Unknown'}
+Missing fields to find: ${missingFields.map(f => f.key).join(', ')}
 
-Missing fields to research and fill in: ${missingFields.map(f => f.key).join(', ')}
+Search: "${lead.company_name} ${lead.location || ''} contact email website"
+Also check their website and LinkedIn page if available.
 
-Return ONLY valid JSON with the fields you could find. Only include fields you are reasonably confident about. Use null for fields you cannot determine.
-For company_size, use only one of: "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+".
-For notes, write a brief 2-3 sentence summary about the company and their potential manufacturing needs.`,
+Return only fields you found with reasonable confidence. Use null for anything uncertain.
+For company_size use exactly one of: "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+".
+For notes, write a 2-3 sentence summary about the company and their manufacturing needs.`,
         add_context_from_internet: true,
         response_json_schema: {
           type: "object",
@@ -258,57 +256,10 @@ For notes, write a brief 2-3 sentence summary about the company and their potent
         }
       });
 
-      // Build partial found from stage 1
       const found = {};
       missingFields.forEach(f => {
         if (result[f.key]) found[f.key] = result[f.key];
       });
-
-      // Stage 2: Google search cross-reference for remaining missing fields
-      setResearchStage("google");
-      const stillMissing = missingFields.filter(f => !found[f.key]);
-      if (stillMissing.length > 0) {
-        const contactName = [lead.first_name, lead.last_name].filter(Boolean).join(' ');
-        const googleResult = await base44.integrations.Core.InvokeLLM({
-          prompt: `Search Google for: "${lead.company_name}${contactName ? ' ' + contactName : ''}"
-
-Using web search results, find the following missing information about this company/contact:
-- Company: ${lead.company_name}
-- Contact: ${contactName || 'Unknown'}
-- Website already known: ${lead.website || found.website || 'Unknown'}
-
-Fields still needed: ${stillMissing.map(f => f.key).join(', ')}
-
-Search specifically for:
-1. "${lead.company_name} official website contact"
-2. "${contactName ? contactName + ' ' + lead.company_name + ' email phone' : lead.company_name + ' manager director contact'}"
-3. "${lead.company_name} LinkedIn company page"
-
-Return only the fields you found with high confidence. Use null for anything uncertain.
-For company_size, use only one of: "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+".`,
-          add_context_from_internet: true,
-          response_json_schema: {
-            type: "object",
-            properties: {
-              industry: { type: "string" },
-              company_size: { type: "string" },
-              location: { type: "string" },
-              website: { type: "string" },
-              linkedin_url: { type: "string" },
-              phone: { type: "string" },
-              email: { type: "string" },
-              job_title: { type: "string" },
-              notes: { type: "string" },
-            }
-          }
-        });
-
-        // Merge google results for still-missing fields only
-        stillMissing.forEach(f => {
-          if (googleResult[f.key]) found[f.key] = googleResult[f.key];
-        });
-      }
-
       setEnrichedFields(found);
     } catch (e) {
       setEnrichedFields({});
@@ -766,9 +717,9 @@ For the best contact found, provide:
 
             {researchLoading && (
               <div className="space-y-3">
-                <div className={`flex items-center gap-2 text-xs rounded-lg px-3 py-2 ${researchStage === "initial" ? "bg-violet-50 text-violet-700" : "bg-emerald-50 text-emerald-700"}`}>
+                <div className="flex items-center gap-2 text-xs rounded-lg px-3 py-2 bg-violet-50 text-violet-700">
                   <RefreshCw className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
-                  {researchStage === "initial" ? "Stage 1: AI enrichment from known sources..." : "Stage 2: Google search cross-reference..."}
+                  Searching the web for company data...
                 </div>
                 <div className="space-y-2 animate-pulse">
                   <div className="h-3 bg-slate-100 rounded w-3/4" />

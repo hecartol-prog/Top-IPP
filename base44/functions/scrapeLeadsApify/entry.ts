@@ -182,7 +182,7 @@ Deno.serve(async function(req) {
 
     var sourceLabel = pageCount + ' source' + (pageCount !== 1 ? 's' : '');
     var extractResult = await serviceRole.integrations.Core.InvokeLLM({
-      prompt: 'Extract ALL B2B company and contact leads from this web content for a plastic injection mold CRM.\n\nExtract EVERY distinct company or contact. Be thorough.\n\nFor each get: company name, website, email, phone, city, country, industry, contact name and title.\n\nRules:\n- Only real companies, not ads or navigation links\n- Clean phone numbers: keep digits and + sign only\n- Include full website URL if listed\n\nContent (' + sourceLabel + '):\n---\n' + allText.slice(0, 55000) + '\n---\n\nReturn ALL companies and contacts found.',
+      prompt: 'Extract ALL B2B company and contact leads from this web content for a plastic injection mold CRM.\n\nExtract EVERY distinct company or contact. Be thorough.\n\nFor each get: company name, website, email, phone, city, country, industry, contact name and title.\n\nRules:\n- Only real companies, not ads or navigation links\n- Clean phone numbers: keep digits and + sign only\n- Include full website URL if listed\n\nContent (' + sourceLabel + '):\n---\n' + allText.slice(0, 30000) + '\n---\n\nReturn ALL companies and contacts found.',
       response_json_schema: {
         type: 'object',
         properties: {
