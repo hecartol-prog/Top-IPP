@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import {
   Search, Users, CheckSquare, Square, Send, RefreshCw,
-  Sparkles, AlertCircle, CheckCircle, X, FlaskConical, Server, Cloud
+  Sparkles, AlertCircle, CheckCircle, FlaskConical
 } from "lucide-react";
 import TestEmailDialog from "./TestEmailDialog";
 
@@ -24,7 +24,7 @@ export default function CampaignBuilderDialog({ open, onClose, onComplete }) {
   const [personalizing, setPersonalizing] = useState(false);
   const [sendingState, setSendingState] = useState([]); // [{lead, status}]
   const [showTestDialog, setShowTestDialog] = useState(false);
-  const [sendMode, setSendMode] = useState("brevo");
+
 
   const { data: leads = [] } = useQuery({
     queryKey: ['leads'],
@@ -120,8 +120,7 @@ Return improved subject and body. Keep {{first_name}}, {{company_name}} tokens. 
           subject: personalizedSubject,
           body: personalizedBody,
           campaign_name: campaignName || 'Campaign',
-          sequence_step: 1,
-          send_mode: sendMode
+          sequence_step: 1
         });
         results.push({ lead, status: 'sent' });
       } catch (e) {
@@ -264,30 +263,6 @@ Return improved subject and body. Keep {{first_name}}, {{company_name}} tokens. 
                 className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 font-mono"
                 placeholder="Hi {{first_name}},&#10;&#10;I noticed {{company_name}} might benefit from..."
               />
-            </div>
-
-            {/* Send Mode */}
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Sending Method</label>
-              <div className="flex gap-2 mt-1">
-                <button
-                  onClick={() => setSendMode("brevo")}
-                  className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${sendMode === "brevo" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}
-                >
-                  <Cloud className="w-4 h-4 shrink-0" />
-                  Brevo API
-                </button>
-                <button
-                  onClick={() => setSendMode("direct")}
-                  className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${sendMode === "direct" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}
-                >
-                  <Server className="w-4 h-4 shrink-0" />
-                  Direct Server
-                </button>
-              </div>
-              <p className="text-xs text-slate-400 mt-1">
-                {sendMode === "direct" ? "Via prometheus.hongkongserver.net:465 (SSL/TLS)" : "Via Brevo transactional email API"}
-              </p>
             </div>
 
             <Button onClick={handlePersonalize} disabled={personalizing || !body} variant="outline" className="border-violet-200 text-violet-700 hover:bg-violet-50">

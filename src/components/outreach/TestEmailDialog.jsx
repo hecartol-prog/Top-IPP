@@ -8,7 +8,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import {
   Mail, Plus, X, RefreshCw, Send, Eye, EyeOff, Check,
-  Paperclip, Sparkles, ChevronRight, ChevronLeft, FlaskConical, Server, Cloud
+  Paperclip, Sparkles, ChevronRight, ChevronLeft, FlaskConical
 } from "lucide-react";
 import RichEmailEditor from "./RichEmailEditor";
 
@@ -41,7 +41,7 @@ export default function TestEmailDialog({ open, onClose, subject: initSubject, b
   const [sending, setSending] = useState(false);
   const [personalizing, setPersonalizing] = useState(false);
   const [sentResults, setSentResults] = useState([]);
-  const [sendMode, setSendMode] = useState("brevo");
+
   const fileInputRef = useRef();
 
   const { data: templates = [] } = useQuery({
@@ -63,7 +63,6 @@ export default function TestEmailDialog({ open, onClose, subject: initSubject, b
       setAttachments([]);
       setSentResults([]);
       setSending(false);
-      setSendMode("brevo");
     }
   }, [open]);
 
@@ -144,8 +143,7 @@ Return improved subject and body. Return HTML-safe text (use <br> for line break
           body: replacePlaceholders(body, testData),
           campaign_name: campaignName,
           sequence_step: 1,
-          attachments: attachments.map(a => ({ name: a.name, url: a.url, type: a.type })),
-          send_mode: sendMode
+          attachments: attachments.map(a => ({ name: a.name, url: a.url, type: a.type }))
         });
         results.push({ email, success: true });
       } catch (error) {
@@ -353,33 +351,6 @@ Return improved subject and body. Return HTML-safe text (use <br> for line break
                   }
                 </Button>
               </div>
-            </div>
-
-            {/* Send Mode */}
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Sending Method</label>
-              <div className="flex gap-2 mt-1">
-                <button
-                  onClick={() => setSendMode("brevo")}
-                  className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${sendMode === "brevo" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}
-                >
-                  <Cloud className="w-4 h-4 shrink-0" />
-                  <span>Brevo API</span>
-                </button>
-                <button
-                  onClick={() => setSendMode("direct")}
-                  className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${sendMode === "direct" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}
-                >
-                  <Server className="w-4 h-4 shrink-0" />
-                  <span>Direct Server</span>
-                </button>
-              </div>
-              {sendMode === "direct" && (
-                <p className="text-xs text-slate-400 mt-1">Via prometheus.hongkongserver.net:465 (SSL/TLS)</p>
-              )}
-              {sendMode === "brevo" && (
-                <p className="text-xs text-slate-400 mt-1">Via Brevo transactional email API</p>
-              )}
             </div>
 
             {/* Actions */}

@@ -1,11 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import nodemailer from 'npm:nodemailer@6.9.13';
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    const { lead_id, lead_email, lead_name, subject, body, campaign_name, sequence_step, attachments, send_mode } = await req.json();
+    const { lead_id, lead_email, lead_name, subject, body, campaign_name, sequence_step, attachments } = await req.json();
 
     if (!lead_email) return Response.json({ error: 'lead_email is required' }, { status: 400 });
     if (!subject)    return Response.json({ error: 'subject is required' }, { status: 400 });
@@ -31,36 +30,7 @@ Deno.serve(async (req) => {
     const pixelUrl = `${trackingBaseUrl}?tracking_id=${tracking_id}&type=open`;
     const htmlBody = `${trackedBody}<img src="${pixelUrl}" width="1" height="1" style="display:none;visibility:hidden;opacity:0;" alt="" />`;
 
-    if (send_mode === 'direct') {
-      // --- Brevo SMTP Relay (cloud-compatible alternative transport) ---
-      const smtpKey = Deno.env.get('BREVO_SMTP_KEY');
-      if (!smtpKey) return Response.json({ error: 'BREVO_SMTP_KEY not configured' }, { status: 500 });
-
-      const transporter = nodemailer.createTransport({
-        host: 'smtp-relay.brevo.com',
-        port: 587,
-        secure: false,
-        auth: { user: senderEmail, pass: smtpKey },
-      });
-
-      const mailOptions = {
-        from: `"${senderName}" <${senderEmail}>`,
-        to: lead_name ? `"${lead_name}" <${lead_email}>` : lead_email,
-        subject,
-        html: htmlBody,
-      };
-
-      if (attachments && attachments.length > 0) {
-        mailOptions.attachments = await Promise.all(attachments.map(async (att) => {
-          const res = await fetch(att.url);
-          const buffer = await res.arrayBuffer();
-          return { filename: att.name, content: Buffer.from(buffer), contentType: att.type };
-        }));
-      }
-
-      await transporter.sendMail(mailOptions);
-
-    } else {
+    {
       // --- Brevo Transactional Email API (default) ---
       const brevoApiKey = Deno.env.get('BREVO_API_KEY');
       if (!brevoApiKey) return Response.json({ error: 'BREVO_API_KEY not configured' }, { status: 500 });
