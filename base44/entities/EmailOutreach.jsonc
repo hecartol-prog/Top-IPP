@@ -1,0 +1,75 @@
+{
+  "name": "EmailOutreach",
+  "type": "object",
+  "properties": {
+    "lead_id": {
+      "type": "string",
+      "description": "Reference to the lead"
+    },
+    "lead_name": {
+      "type": "string",
+      "description": "Lead's full name (denormalized)"
+    },
+    "lead_email": {
+      "type": "string",
+      "description": "Lead's email address"
+    },
+    "campaign_name": {
+      "type": "string",
+      "description": "Campaign or sequence name"
+    },
+    "sequence_step": {
+      "type": "number",
+      "default": 1,
+      "description": "Step number in sequence"
+    },
+    "subject": {
+      "type": "string",
+      "description": "Email subject"
+    },
+    "body": {
+      "type": "string",
+      "description": "Email HTML body"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "sent",
+        "opened",
+        "clicked",
+        "replied",
+        "bounced"
+      ],
+      "default": "draft"
+    },
+    "sent_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "opened_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "clicked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "open_count": {
+      "type": "number",
+      "default": 0
+    },
+    "click_count": {
+      "type": "number",
+      "default": 0
+    },
+    "tracking_id": {
+      "type": "string",
+      "description": "Unique tracking token"
+    }
+  },
+  "required": [
+    "subject",
+    "body"
+  ]
+}

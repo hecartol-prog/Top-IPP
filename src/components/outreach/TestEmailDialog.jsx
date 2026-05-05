@@ -393,7 +393,16 @@ Return improved subject and body. Return HTML-safe text (use <br> for line break
               <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-left">
                 <p className="text-xs font-semibold text-rose-700 mb-2">Failed deliveries:</p>
                 {sentResults.filter(r => !r.success).map(r => (
-                  <p key={r.email} className="text-xs text-rose-600 mb-1 break-all">{r.email}: {r.error}</p>
+                  <div key={r.email} className="mb-2">
+                    <p className="text-xs text-rose-600 break-all font-medium">{r.email}</p>
+                    <p className="text-xs text-rose-500 break-all mt-0.5">
+                      {r.error?.includes('not yet activated')
+                        ? '⚠️ Brevo SMTP account not activated. Please contact contact@brevo.com to request activation.'
+                        : r.error?.includes('permission_denied') || r.error?.includes('403')
+                        ? '⚠️ Brevo permission denied. Check your API key and account activation status.'
+                        : r.error}
+                    </p>
+                  </div>
                 ))}
               </div>
             )}
