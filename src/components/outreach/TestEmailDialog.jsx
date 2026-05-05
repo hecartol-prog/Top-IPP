@@ -259,28 +259,32 @@ Return improved subject and body. Return HTML-safe text (use <br> for line break
               </p>
             </div>
 
-            {/* Campaign name */}
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Campaign Name</label>
-              <Input value={campaignName} onChange={e => setCampaignName(e.target.value)} className="mt-1" placeholder="e.g. Test Campaign" />
-            </div>
-
-            {/* Template selector */}
+            {/* Template selector — prominent at the top */}
             {templates.length > 0 && (
-              <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Start from Template</label>
+              <div className={`rounded-lg border p-3 ${!subject && !body ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  {!subject && !body ? '📋 Pick a Template to Start' : 'Template'}
+                </label>
                 <Select value={selectedTemplateId} onValueChange={handleTemplateSelect}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Choose a template (optional)" />
+                  <SelectTrigger className="mt-1 bg-white">
+                    <SelectValue placeholder="Choose a template..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {templates.map(t => (
-                      <SelectItem key={t.id} value={t.id}>{t.name} — {t.stage}</SelectItem>
+                    {templates.filter(t => t.type === 'email').map(t => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}{t.stage ? ` — ${t.stage}` : ''}{t.language && t.language !== 'english' ? ` (${t.language})` : ''}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
+
+            {/* Campaign name */}
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Campaign Name</label>
+              <Input value={campaignName} onChange={e => setCampaignName(e.target.value)} className="mt-1" placeholder="e.g. Test Campaign" />
+            </div>
 
             {/* Subject */}
             <div>
