@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
     if (!brevoApiKey) return Response.json({ error: 'BREVO_API_KEY not configured' }, { status: 500 });
 
     const senderName = 'Top Industrial Molds & Plastics';
-    const senderEmail = 'hectorcarrenotoledo@gmail.com';
+    const senderEmail = 'contact@moldsandplastics.com';
 
     const tracking_id = crypto.randomUUID();
     const appId = Deno.env.get('BASE44_APP_ID');
