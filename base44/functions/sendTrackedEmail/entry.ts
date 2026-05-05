@@ -32,20 +32,15 @@ Deno.serve(async (req) => {
     const htmlBody = `${trackedBody}<img src="${pixelUrl}" width="1" height="1" style="display:none;visibility:hidden;opacity:0;" alt="" />`;
 
     if (send_mode === 'direct') {
-      // --- Direct SMTP via cPanel server ---
-      const smtpHost = Deno.env.get('SMTP_HOST') || 'prometheus.hongkongserver.net';
-      const smtpPort = parseInt(Deno.env.get('SMTP_PORT') || '587');
-      const smtpUser = Deno.env.get('SMTP_USER') || senderEmail;
-      const smtpPass = Deno.env.get('SMTP_PASS');
-
-      if (!smtpPass) return Response.json({ error: 'SMTP_PASS not configured' }, { status: 500 });
+      // --- Brevo SMTP Relay (cloud-compatible alternative transport) ---
+      const smtpKey = Deno.env.get('BREVO_SMTP_KEY');
+      if (!smtpKey) return Response.json({ error: 'BREVO_SMTP_KEY not configured' }, { status: 500 });
 
       const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,   // true for 465, STARTTLS for 587
-        auth: { user: smtpUser, pass: smtpPass },
-        tls: { rejectUnauthorized: false },  // allow self-signed certs common on cPanel
+        host: 'smtp-relay.brevo.com',
+        port: 587,
+        secure: false,
+        auth: { user: senderEmail, pass: smtpKey },
       });
 
       const mailOptions = {
