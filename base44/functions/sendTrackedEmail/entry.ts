@@ -1,19 +1,17 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import nodemailer from 'npm:nodemailer@6.9.13';
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    const { lead_id, lead_email, lead_name, subject, body, campaign_name, sequence_step, attachments } = await req.json();
+    const { lead_id, lead_email, lead_name, subject, body, campaign_name, sequence_step, attachments, send_mode } = await req.json();
 
     if (!lead_email) return Response.json({ error: 'lead_email is required' }, { status: 400 });
     if (!subject)    return Response.json({ error: 'subject is required' }, { status: 400 });
     if (!body)       return Response.json({ error: 'body is required' }, { status: 400 });
 
-    const brevoApiKey = Deno.env.get('BREVO_API_KEY');
-    if (!brevoApiKey) return Response.json({ error: 'BREVO_API_KEY not configured' }, { status: 500 });
-
-    const senderName = 'Top Industrial Molds & Plastics';
+    const senderName  = 'Top Industrial Molds & Plastics';
     const senderEmail = 'contact@moldsandplastics.com';
 
     const tracking_id = crypto.randomUUID();
@@ -33,44 +31,80 @@ Deno.serve(async (req) => {
     const pixelUrl = `${trackingBaseUrl}?tracking_id=${tracking_id}&type=open`;
     const htmlBody = `${trackedBody}<img src="${pixelUrl}" width="1" height="1" style="display:none;visibility:hidden;opacity:0;" alt="" />`;
 
-    // Build Brevo API payload
-    const brevoPayload = {
-      sender: { name: senderName, email: senderEmail },
-      to: [{ email: lead_email, name: lead_name || lead_email }],
-      subject,
-      htmlContent: htmlBody,
-    };
+    if (send_mode === 'direct') {
+      // --- Direct SMTP via cPanel server ---
+      const smtpHost = Deno.env.get('SMTP_HOST') || 'prometheus.hongkongserver.net';
+      const smtpPort = parseInt(Deno.env.get('SMTP_PORT') || '587');
+      const smtpUser = Deno.env.get('SMTP_USER') || senderEmail;
+      const smtpPass = Deno.env.get('SMTP_PASS');
 
-    // Handle attachments (fetch and base64-encode)
-    if (attachments && attachments.length > 0) {
-      const brevoAttachments = [];
-      for (const att of attachments) {
-        const res = await fetch(att.url);
-        const buffer = await res.arrayBuffer();
-        const bytes = new Uint8Array(buffer);
-        let binary = '';
-        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-        const base64 = btoa(binary);
-        brevoAttachments.push({ name: att.name, content: base64 });
+      if (!smtpPass) return Response.json({ error: 'SMTP_PASS not configured' }, { status: 500 });
+
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,   // true for 465, STARTTLS for 587
+        auth: { user: smtpUser, pass: smtpPass },
+        tls: { rejectUnauthorized: false },  // allow self-signed certs common on cPanel
+      });
+
+      const mailOptions = {
+        from: `"${senderName}" <${senderEmail}>`,
+        to: lead_name ? `"${lead_name}" <${lead_email}>` : lead_email,
+        subject,
+        html: htmlBody,
+      };
+
+      if (attachments && attachments.length > 0) {
+        mailOptions.attachments = await Promise.all(attachments.map(async (att) => {
+          const res = await fetch(att.url);
+          const buffer = await res.arrayBuffer();
+          return { filename: att.name, content: Buffer.from(buffer), contentType: att.type };
+        }));
       }
-      brevoPayload.attachment = brevoAttachments;
-    }
 
-    // Send via Brevo Transactional Email API
-    const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': brevoApiKey,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(brevoPayload),
-    });
+      await transporter.sendMail(mailOptions);
 
-    const brevoText = await brevoRes.text();
-    if (!brevoRes.ok) {
-      console.error(`Brevo API error ${brevoRes.status}: ${brevoText}`);
-      throw new Error(`Brevo send failed (${brevoRes.status}): ${brevoText}`);
+    } else {
+      // --- Brevo Transactional Email API (default) ---
+      const brevoApiKey = Deno.env.get('BREVO_API_KEY');
+      if (!brevoApiKey) return Response.json({ error: 'BREVO_API_KEY not configured' }, { status: 500 });
+
+      const brevoPayload = {
+        sender: { name: senderName, email: senderEmail },
+        to: [{ email: lead_email, name: lead_name || lead_email }],
+        subject,
+        htmlContent: htmlBody,
+      };
+
+      if (attachments && attachments.length > 0) {
+        const brevoAttachments = [];
+        for (const att of attachments) {
+          const res = await fetch(att.url);
+          const buffer = await res.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+          let binary = '';
+          for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+          brevoAttachments.push({ name: att.name, content: btoa(binary) });
+        }
+        brevoPayload.attachment = brevoAttachments;
+      }
+
+      const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoApiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(brevoPayload),
+      });
+
+      const brevoText = await brevoRes.text();
+      if (!brevoRes.ok) {
+        console.error(`Brevo API error ${brevoRes.status}: ${brevoText}`);
+        throw new Error(`Brevo send failed (${brevoRes.status}): ${brevoText}`);
+      }
     }
 
     // Save outreach record AFTER successful send
