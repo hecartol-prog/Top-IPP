@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
 
     // Save outreach record
     const record = await base44.asServiceRole.entities.EmailOutreach.create({
-      lead_id: lead_id || null,
+      ...(lead_id ? { lead_id } : {}),
       lead_email,
       lead_name: lead_name || '',
       subject,
