@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import nodemailer from 'npm:nodemailer@6.9.9';
 
 Deno.serve(async (req) => {
   try {
@@ -11,17 +10,11 @@ Deno.serve(async (req) => {
     if (!subject)    return Response.json({ error: 'subject is required' }, { status: 400 });
     if (!body)       return Response.json({ error: 'body is required' }, { status: 400 });
 
-    const smtpHost = Deno.env.get('SMTP_HOST') || 'smtp-relay.brevo.com';
-    const smtpPort = parseInt(Deno.env.get('SMTP_PORT') || '587');
-    const smtpUser = Deno.env.get('SMTP_USER');
-    const smtpPass = Deno.env.get('SMTP_PASS');
-
-    if (!smtpUser || !smtpPass) {
-      return Response.json({ error: 'SMTP_USER and SMTP_PASS secrets are required' }, { status: 500 });
-    }
+    const brevoApiKey = Deno.env.get('BREVO_API_KEY');
+    if (!brevoApiKey) return Response.json({ error: 'BREVO_API_KEY not configured' }, { status: 500 });
 
     const senderName = 'Top Industrial Molds & Plastics';
-    const senderEmail = smtpUser;
+    const senderEmail = 'hectorcarrenotoledo@gmail.com';
 
     const tracking_id = crypto.randomUUID();
     const appId = Deno.env.get('BASE44_APP_ID');
@@ -40,31 +33,45 @@ Deno.serve(async (req) => {
     const pixelUrl = `${trackingBaseUrl}?tracking_id=${tracking_id}&type=open`;
     const htmlBody = `${trackedBody}<img src="${pixelUrl}" width="1" height="1" style="display:none;visibility:hidden;opacity:0;" alt="" />`;
 
-    // Build transporter
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: false, // STARTTLS on port 587
-      auth: { user: smtpUser, pass: smtpPass },
-    });
-
-    const mailOptions = {
-      from: `"${senderName}" <${senderEmail}>`,
-      to: lead_name ? `"${lead_name}" <${lead_email}>` : lead_email,
+    // Build Brevo API payload
+    const brevoPayload = {
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: lead_email, name: lead_name || lead_email }],
       subject,
-      html: htmlBody,
+      htmlContent: htmlBody,
     };
 
-    // Handle attachments
+    // Handle attachments (fetch and base64-encode)
     if (attachments && attachments.length > 0) {
-      mailOptions.attachments = attachments.map(att => ({
-        filename: att.name,
-        path: att.url,
-        contentType: att.type,
-      }));
+      const brevoAttachments = [];
+      for (const att of attachments) {
+        const res = await fetch(att.url);
+        const buffer = await res.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        const base64 = btoa(binary);
+        brevoAttachments.push({ name: att.name, content: base64 });
+      }
+      brevoPayload.attachment = brevoAttachments;
     }
 
-    await transporter.sendMail(mailOptions);
+    // Send via Brevo Transactional Email API
+    const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': brevoApiKey,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(brevoPayload),
+    });
+
+    const brevoText = await brevoRes.text();
+    if (!brevoRes.ok) {
+      console.error(`Brevo API error ${brevoRes.status}: ${brevoText}`);
+      throw new Error(`Brevo send failed (${brevoRes.status}): ${brevoText}`);
+    }
 
     // Save outreach record AFTER successful send
     const createPayload = {
