@@ -206,6 +206,7 @@ export default function Leads() {
       "Source": l.source || "",
       "Language": l.language || "",
       "LinkedIn": l.linkedin_url || "",
+      "WhatsApp": l.whatsapp_number || "",
       "Estimated Value": l.estimated_value || "",
       "Tags": (l.tags || []).join(", "),
       "Notes": l.notes || "",
