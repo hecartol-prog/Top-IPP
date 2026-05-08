@@ -146,12 +146,13 @@ export function applyFilters(leads, filters) {
       // Has WhatsApp
       if (filters.hasWhatsApp === "yes" && !lead.whatsapp_detected) return false;
       if (filters.hasWhatsApp === "no" && lead.whatsapp_detected) return false;
-      // Has Decision Maker: filters leads that were imported via the decision maker tool
-      // These leads have notes starting with "Found via AI decision maker research"
+      // Has Decision Maker: "yes" = lead was imported via the AI decision maker tool (has a name + DM note)
+      // "no" = company-level placeholder lead with no individual contact found yet (no first_name)
       if (filters.hasDecisionMaker !== "all") {
-        const isDecisionMaker = (lead.notes || "").toLowerCase().startsWith("found via ai decision maker research");
-        if (filters.hasDecisionMaker === "yes" && !isDecisionMaker) return false;
-        if (filters.hasDecisionMaker === "no" && isDecisionMaker) return false;
+        const isDecisionMakerLead = !!(lead.first_name && (lead.notes || "").toLowerCase().startsWith("found via ai decision maker research"));
+        const isCompanyPlaceholder = !lead.first_name;
+        if (filters.hasDecisionMaker === "yes" && !isDecisionMakerLead) return false;
+        if (filters.hasDecisionMaker === "no" && !isCompanyPlaceholder) return false;
       }
       // Deal value range
       if (filters.minValue !== "" && (lead.estimated_value || 0) < Number(filters.minValue)) return false;
