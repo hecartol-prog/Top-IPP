@@ -146,16 +146,12 @@ export function applyFilters(leads, filters) {
       // Has WhatsApp
       if (filters.hasWhatsApp === "yes" && !lead.whatsapp_detected) return false;
       if (filters.hasWhatsApp === "no" && lead.whatsapp_detected) return false;
-      // Has Decision Maker (notes contain "decision maker research" OR tags include it)
-      if (filters.hasDecisionMaker === "yes") {
-        const hasIt = (lead.notes || "").toLowerCase().includes("decision maker") ||
-          (lead.tags || []).some(t => (t || "").toLowerCase().includes("decision maker"));
-        if (!hasIt) return false;
-      }
-      if (filters.hasDecisionMaker === "no") {
-        const hasIt = (lead.notes || "").toLowerCase().includes("decision maker") ||
-          (lead.tags || []).some(t => (t || "").toLowerCase().includes("decision maker"));
-        if (hasIt) return false;
+      // Has Decision Maker: filters leads that were imported via the decision maker tool
+      // These leads have notes starting with "Found via AI decision maker research"
+      if (filters.hasDecisionMaker !== "all") {
+        const isDecisionMaker = (lead.notes || "").toLowerCase().startsWith("found via ai decision maker research");
+        if (filters.hasDecisionMaker === "yes" && !isDecisionMaker) return false;
+        if (filters.hasDecisionMaker === "no" && isDecisionMaker) return false;
       }
       // Deal value range
       if (filters.minValue !== "" && (lead.estimated_value || 0) < Number(filters.minValue)) return false;
@@ -503,7 +499,7 @@ export default function LeadFilterBar({ filters, onChange, viewMode, onViewModeC
                     </Select>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600">👤 Decision Maker</span>
+                    <span className="text-sm text-slate-600">👤 Is Decision Maker</span>
                     <Select value={filters.hasDecisionMaker} onValueChange={v => set("hasDecisionMaker", v)}>
                       <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
