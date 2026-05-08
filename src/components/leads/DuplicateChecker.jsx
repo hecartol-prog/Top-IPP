@@ -51,6 +51,25 @@ function findDuplicates(leads) {
     }
   });
 
+  const byName = {};
+  leads.forEach(lead => {
+    const name = `${lead.first_name || ""} ${lead.last_name || ""}`.toLowerCase().trim();
+    if (name && name !== "_ _" && name.length > 2) {
+      if (!byName[name]) byName[name] = [];
+      byName[name].push(lead);
+    }
+  });
+
+  Object.entries(byName).forEach(([name, group]) => {
+    if (group.length > 1) {
+      const ids = group.map(l => l.id).sort().join(",");
+      if (!seenIds.has(ids)) {
+        seenIds.add(ids);
+        groups.push({ reason: `Same name: ${name}`, leads: group });
+      }
+    }
+  });
+
   return groups;
 }
 
@@ -118,7 +137,7 @@ export default function DuplicateChecker({ open, onClose, leads, onComplete }) {
             <Copy className="w-5 h-5 text-blue-600" /> Duplicate Contact Checker
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            Detected by matching email addresses and name + company combinations.
+            Detected by matching email addresses, name + company, and same full name across companies.
           </p>
         </div>
 
