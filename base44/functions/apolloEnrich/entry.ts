@@ -87,9 +87,6 @@ async function freeEnrichFallback(lead) {
 Deno.serve(async function(req) {
   try {
     var base44 = createClientFromRequest(req);
-    var user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
     var body = await req.json();
     var lead_id = body.lead_id;
     var only_missing = body.only_missing !== false;

@@ -57,9 +57,6 @@ async function fetchSearchSnippets(query) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
     const { lead_id } = await req.json();
     if (!lead_id) return Response.json({ error: 'lead_id is required' }, { status: 400 });
 
