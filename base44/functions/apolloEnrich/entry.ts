@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 var APOLLO_API_KEY = Deno.env.get('APOLLO_API_KEY');
 var APOLLO_BASE = 'https://api.apollo.io/v1';
@@ -96,7 +96,7 @@ Deno.serve(async function(req) {
 
     if (!lead_id) return Response.json({ error: 'lead_id required' }, { status: 400 });
 
-    var leads = await base44.entities.Lead.filter({ id: lead_id });
+    var leads = await base44.asServiceRole.entities.Lead.filter({ id: lead_id });
     var lead = leads[0];
     if (!lead) return Response.json({ error: 'Lead not found' }, { status: 404 });
 
