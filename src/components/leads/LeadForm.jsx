@@ -51,6 +51,7 @@ export default function LeadForm({ open, onClose, lead, onSave, isLoading }) {
     last_name: "",
     email: "",
     phone: "",
+    whatsapp_number: "",
     job_title: "",
     company_name: "",
     company_size: "",
@@ -80,6 +81,7 @@ export default function LeadForm({ open, onClose, lead, onSave, isLoading }) {
         last_name: "",
         email: "",
         phone: "",
+        whatsapp_number: "",
         job_title: "",
         company_name: "",
         company_size: "",
@@ -191,6 +193,16 @@ export default function LeadForm({ open, onClose, lead, onSave, isLoading }) {
                     placeholder="+1 (555) 123-4567"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp_number">WhatsApp Number</Label>
+                <Input
+                  id="whatsapp_number"
+                  value={formData.whatsapp_number}
+                  onChange={(e) => handleChange("whatsapp_number", e.target.value)}
+                  placeholder="+1 (555) 123-4567"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
