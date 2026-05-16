@@ -1,0 +1,34 @@
+{
+  "name": "InboxStats",
+  "type": "object",
+  "properties": {
+    "inbox": {
+      "type": "string",
+      "enum": [
+        "sales",
+        "topmolds",
+        "info"
+      ],
+      "description": "Inbox identifier"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "The day this stat is for (YYYY-MM-DD)"
+    },
+    "sent_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Emails sent today"
+    },
+    "failed_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Emails failed today"
+    }
+  },
+  "required": [
+    "inbox",
+    "date"
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "name": "EmailQueue",
+  "type": "object",
+  "properties": {
+    "to_email": {
+      "type": "string",
+      "description": "Recipient email address"
+    },
+    "to_name": {
+      "type": "string",
+      "description": "Recipient first name"
+    },
+    "subject": {
+      "type": "string",
+      "description": "Email subject"
+    },
+    "body": {
+      "type": "string",
+      "description": "Email body (HTML or plain text)"
+    },
+    "inbox": {
+      "type": "string",
+      "enum": [
+        "sales",
+        "topmolds",
+        "info"
+      ],
+      "description": "Inbox to send from"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "sent",
+        "failed",
+        "skipped"
+      ],
+      "default": "pending",
+      "description": "Current email status"
+    },
+    "retry_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of retry attempts"
+    },
+    "sent_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When email was successfully sent"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error message if failed"
+    },
+    "campaign_name": {
+      "type": "string",
+      "description": "Optional campaign label"
+    },
+    "lead_id": {
+      "type": "string",
+      "description": "Associated lead ID"
+    },
+    "scheduled_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When to send (optional, for future scheduling)"
+    }
+  },
+  "required": [
+    "to_email",
+    "subject",
+    "body"
+  ]
+}
