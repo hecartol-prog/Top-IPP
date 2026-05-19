@@ -4,9 +4,9 @@ import nodemailer from 'npm:nodemailer@6.9.9';
 const DAILY_LIMIT = 20;
 
 const INBOXES = {
-  sales:    { name: 'Top Mold Sales', user: Deno.env.get('SMTP_SALES_USER'),    pass: Deno.env.get('SMTP_SALES_PASS') },
-  topmolds: { name: 'Top Molds',      user: Deno.env.get('SMTP_TOPMOLDS_USER'), pass: Deno.env.get('SMTP_TOPMOLDS_PASS') },
-  info:     { name: 'Top Mold Info',  user: Deno.env.get('SMTP_INFO_USER'),     pass: Deno.env.get('SMTP_INFO_PASS') },
+  sales:    { name: 'Top Industrial Molds and Plastics Ltd.', user: Deno.env.get('SMTP_SALES_USER'),    pass: Deno.env.get('SMTP_SALES_PASS') },
+  topmolds: { name: 'Top Molds',                             user: Deno.env.get('SMTP_TOPMOLDS_USER'), pass: Deno.env.get('SMTP_TOPMOLDS_PASS') },
+  info:     { name: 'Top Industrial Molds and Plastics Ltd.', user: Deno.env.get('SMTP_INFO_USER'),     pass: Deno.env.get('SMTP_INFO_PASS') },
 };
 
 function todayStr() {
