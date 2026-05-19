@@ -41,7 +41,7 @@ export default function EmailOutreachPanel() {
   const [testingInbox, setTestingInbox] = useState(null);
   const [testEmailTarget, setTestEmailTarget] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [emailProvider, setEmailProvider] = useState("workspace");
+  const [emailProvider, setEmailProvider] = useState("base44");
 
   const [newEmail, setNewEmail] = useState({
     to_email: "", to_name: "", subject: "", body: "", inbox: "sales", campaign_name: ""
@@ -179,15 +179,15 @@ export default function EmailOutreachPanel() {
 
       {/* Provider notice */}
       {emailProvider === "base44" && (
-        <div className="bg-purple-50 border border-purple-200 rounded-lg px-4 py-2 text-xs text-purple-700 flex items-center gap-2">
-          <Zap className="w-3.5 h-3.5 shrink-0" />
-          Using Base44 Mail — emails are sent via Base44's platform. Switch to Google Workspace to send from your own inboxes.
+        <div className="bg-purple-50 border border-purple-200 rounded-lg px-4 py-2 text-sm text-purple-700 flex items-center gap-2">
+          <Zap className="w-4 h-4 shrink-0" />
+          <span><strong>Base44 Mail active</strong> — emails delivered reliably via Base44's platform using your sender names.</span>
         </div>
       )}
       {emailProvider === "workspace" && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700 flex items-center gap-2">
-          <Building2 className="w-3.5 h-3.5 shrink-0" />
-          Using Google Workspace SMTP — emails are sent directly from your inboxes.
+        <div className="bg-orange-50 border border-orange-300 rounded-lg px-4 py-2 text-sm text-orange-700 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span><strong>Warning:</strong> Google Workspace SMTP (port 465) is currently blocked on this platform. Switch to <button className="underline font-semibold" onClick={() => setEmailProvider("base44")}>Base44 Mail</button> for reliable delivery.</span>
         </div>
       )}
 
