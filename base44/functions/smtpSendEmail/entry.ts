@@ -30,8 +30,8 @@ function createTransporter(inbox) {
   if (!cfg || !cfg.user || !cfg.pass) throw new Error(`Missing SMTP credentials for inbox: ${inbox}`);
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
+    port: 465,
+    secure: true,
     auth: { user: cfg.user, pass: cfg.pass },
     tls: { rejectUnauthorized: false }
   });
