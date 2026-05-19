@@ -107,16 +107,18 @@ Deno.serve(async (req) => {
 
     // ── SEND TEST EMAIL ──────────────────────────────────────
     if (action === 'sendTest') {
-      const { inbox, to } = body;
+      const { inbox, to, subject: emailSubject, body: emailBody } = body;
       if (!inbox || !to) return Response.json({ error: 'inbox and to are required' }, { status: 400 });
       const cfg = INBOXES[inbox];
       const transporter = createTransporter(inbox);
+      const finalSubject = emailSubject || 'SMTP Test - Top Mold CRM';
+      const finalHtml = emailBody || `<p>This is a test email sent from the <b>${inbox}</b> inbox via Top Mold CRM.</p>`;
       await transporter.sendMail({
         from: `"${cfg.name}" <${cfg.user}>`,
         to,
-        subject: 'SMTP Test - Top Mold CRM',
-        text: `This is a test email sent from the ${inbox} inbox via Top Mold CRM.`,
-        html: `<p>This is a test email sent from the <b>${inbox}</b> inbox via Top Mold CRM.</p>`
+        subject: finalSubject,
+        text: finalHtml.replace(/<[^>]*>/g, ''),
+        html: finalHtml
       });
       console.log(`[TEST] Sent test email from ${cfg.user} to ${to}`);
       return Response.json({ success: true, message: `Test email sent from ${cfg.user} to ${to}` });

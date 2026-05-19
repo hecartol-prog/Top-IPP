@@ -135,17 +135,18 @@ Return improved subject and body. Return HTML-safe text (use <br> for line break
     const results = [];
     for (const email of testEmails) {
       try {
-        await base44.functions.invoke('sendTrackedEmail', {
-          lead_id: null,
-          lead_email: email,
-          lead_name: "Test Recipient",
+        const res = await base44.functions.invoke('smtpSendEmail', {
+          action: 'sendTest',
+          inbox: 'sales',
+          to: email,
           subject: replacePlaceholders(subject, testData),
           body: replacePlaceholders(body, testData),
-          campaign_name: campaignName,
-          sequence_step: 1,
-          attachments: attachments.map(a => ({ name: a.name, url: a.url, type: a.type }))
         });
-        results.push({ email, success: true });
+        if (res?.data?.success) {
+          results.push({ email, success: true });
+        } else {
+          results.push({ email, success: false, error: res?.data?.error || 'Send failed' });
+        }
       } catch (error) {
         results.push({ email, success: false, error: error.message });
       }
