@@ -14,19 +14,45 @@ function todayStr() {
 }
 
 async function sendViaWorkspace(cfg, toEmail, toName, subject, html) {
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user: cfg.user, pass: cfg.pass },
-  });
+  // Google Workspace SMTP options in order of preference
+  const configs = [
+    // smtp-relay.gmail.com is a Workspace-specific relay (requires Workspace admin config)
+    { host: 'smtp-relay.gmail.com', port: 587, secure: false, requireTLS: true },
+    { host: 'smtp-relay.gmail.com', port: 465, secure: true },
+    // Standard Gmail SMTP
+    { host: 'smtp.gmail.com', port: 587, secure: false, requireTLS: true },
+    { host: 'smtp.gmail.com', port: 465, secure: true },
+    // Port 25 (less common but sometimes open)
+    { host: 'smtp.gmail.com', port: 25, secure: false },
+  ];
+
   const to = toName ? `"${toName}" <${toEmail}>` : toEmail;
-  await transporter.sendMail({
-    from: `"${cfg.name}" <${cfg.user}>`,
-    to,
-    subject,
-    html,
-  });
+  let lastError;
+
+  for (const smtpCfg of configs) {
+    try {
+      const transporter = nodemailer.createTransport({
+        ...smtpCfg,
+        auth: { user: cfg.user, pass: cfg.pass },
+        connectionTimeout: 12000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+        tls: { rejectUnauthorized: false },
+      });
+      await transporter.sendMail({
+        from: `"${cfg.name}" <${cfg.user}>`,
+        to,
+        subject,
+        html,
+      });
+      console.log(`[Workspace] Sent via ${smtpCfg.host}:${smtpCfg.port} to ${toEmail}`);
+      return;
+    } catch (err) {
+      console.warn(`[Workspace] ${smtpCfg.host}:${smtpCfg.port} failed: ${err.message}`);
+      lastError = err;
+    }
+  }
+  throw new Error(`Google Workspace SMTP is not reachable from this server. All ports (587, 465, 25) are blocked. Please use Base44 Mail or configure a third-party SMTP relay. Last error: ${lastError.message}`);
 }
 
 async function sendViaBase44(base44, cfg, toEmail, subject, html) {
