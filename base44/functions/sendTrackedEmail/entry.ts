@@ -1,11 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import nodemailer from 'npm:nodemailer@6.9.9';
 
 const DAILY_LIMIT = 20;
 
 const INBOXES = {
-  sales:    { name: 'Top Mold Sales', user: Deno.env.get('SMTP_SALES_USER') },
-  topmolds: { name: 'Top Molds',      user: Deno.env.get('SMTP_TOPMOLDS_USER') },
-  info:     { name: 'Top Mold Info',  user: Deno.env.get('SMTP_INFO_USER') },
+  sales:    { name: 'Top Mold Sales', user: Deno.env.get('SMTP_SALES_USER'), pass: Deno.env.get('SMTP_SALES_PASS') },
+  topmolds: { name: 'Top Molds',      user: Deno.env.get('SMTP_TOPMOLDS_USER'), pass: Deno.env.get('SMTP_TOPMOLDS_PASS') },
+  info:     { name: 'Top Mold Info',  user: Deno.env.get('SMTP_INFO_USER'),  pass: Deno.env.get('SMTP_INFO_PASS') },
 };
 
 function todayStr() {
@@ -37,7 +38,7 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    const { lead_id, lead_email, lead_name, subject, body, campaign_name, sequence_step, inbox: preferredInbox } = await req.json();
+    const { lead_id, lead_email, lead_name, subject, body, campaign_name, sequence_step, inbox: preferredInbox, email_provider = 'workspace' } = await req.json();
 
     if (!lead_email) return Response.json({ error: 'lead_email is required' }, { status: 400 });
     if (!subject)    return Response.json({ error: 'subject is required' }, { status: 400 });
@@ -51,14 +52,28 @@ Deno.serve(async (req) => {
     const cfg = INBOXES[selectedInbox];
     const htmlBody = body.includes('<') ? body : `<p>${body.replace(/\n/g, '<br>')}</p>`;
 
-    await base44.asServiceRole.integrations.Core.SendEmail({
-      from_name: cfg.name,
-      to: lead_email,
-      subject: subject,
-      body: htmlBody,
-    });
+    if (email_provider === 'workspace') {
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com', port: 465, secure: true,
+        auth: { user: cfg.user, pass: cfg.pass },
+      });
+      const to = lead_name ? `"${lead_name}" <${lead_email}>` : lead_email;
+      await transporter.sendMail({
+        from: `"${cfg.name}" <${cfg.user}>`,
+        to,
+        subject,
+        html: htmlBody,
+      });
+    } else {
+      await base44.asServiceRole.integrations.Core.SendEmail({
+        from_name: cfg.name,
+        to: lead_email,
+        subject,
+        body: htmlBody,
+      });
+    }
 
-    console.log(`[sendTrackedEmail] Sent as "${cfg.name}" → ${lead_email} | ${subject}`);
+    console.log(`[sendTrackedEmail][${email_provider}] Sent as "${cfg.name}" → ${lead_email} | ${subject}`);
 
     await incrementStat(base44, selectedInbox);
 
@@ -80,7 +95,7 @@ Deno.serve(async (req) => {
 
     const record = await base44.asServiceRole.entities.EmailOutreach.create(createPayload);
 
-    return Response.json({ success: true, inbox: selectedInbox, record });
+    return Response.json({ success: true, inbox: selectedInbox, provider: email_provider, record });
 
   } catch (error) {
     console.error('[sendTrackedEmail] Error:', error.message);

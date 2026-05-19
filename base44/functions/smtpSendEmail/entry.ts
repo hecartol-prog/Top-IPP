@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import nodemailer from 'npm:nodemailer@6.9.9';
 
 const DAILY_LIMIT = 20;
 
@@ -12,13 +13,37 @@ function todayStr() {
   return new Date().toISOString().split('T')[0];
 }
 
-async function sendEmail(base44, cfg, toEmail, toName, subject, html) {
+async function sendViaWorkspace(cfg, toEmail, toName, subject, html) {
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: { user: cfg.user, pass: cfg.pass },
+  });
+  const to = toName ? `"${toName}" <${toEmail}>` : toEmail;
+  await transporter.sendMail({
+    from: `"${cfg.name}" <${cfg.user}>`,
+    to,
+    subject,
+    html,
+  });
+}
+
+async function sendViaBase44(base44, cfg, toEmail, subject, html) {
   await base44.asServiceRole.integrations.Core.SendEmail({
     from_name: cfg.name,
     to: toEmail,
-    subject: subject,
+    subject,
     body: html,
   });
+}
+
+async function sendEmail(base44, cfg, toEmail, toName, subject, html, provider) {
+  if (provider === 'base44') {
+    await sendViaBase44(base44, cfg, toEmail, subject, html);
+  } else {
+    await sendViaWorkspace(cfg, toEmail, toName, subject, html);
+  }
 }
 
 async function getOrCreateStat(base44, inbox) {
@@ -34,8 +59,7 @@ async function incrementStat(base44, inbox, field) {
 }
 
 async function pickInbox(base44, preferredInbox) {
-  const today = todayStr();
-  const stats = await base44.asServiceRole.entities.InboxStats.filter({ date: today });
+  const stats = await base44.asServiceRole.entities.InboxStats.filter({ date: todayStr() });
   const sentMap = {};
   for (const s of (stats || [])) sentMap[s.inbox] = s.sent_count || 0;
   if (preferredInbox && INBOXES[preferredInbox] && (sentMap[preferredInbox] || 0) < DAILY_LIMIT) return preferredInbox;
@@ -52,7 +76,7 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { action } = body;
+    const { action, provider = 'workspace' } = body;
 
     // ── TEST CONNECTION ──────────────────────────────────────
     if (action === 'test') {
@@ -60,7 +84,14 @@ Deno.serve(async (req) => {
       if (!INBOXES[inbox]) return Response.json({ error: 'Invalid inbox' }, { status: 400 });
       const cfg = INBOXES[inbox];
       if (!cfg.user) return Response.json({ error: `Credentials not set for ${inbox}` }, { status: 400 });
-      return Response.json({ success: true, message: `Workspace inbox ${cfg.user} is configured` });
+      if (provider === 'workspace') {
+        const transporter = nodemailer.createTransport({
+          host: 'smtp.gmail.com', port: 465, secure: true,
+          auth: { user: cfg.user, pass: cfg.pass },
+        });
+        await transporter.verify();
+      }
+      return Response.json({ success: true, message: `${provider === 'workspace' ? 'Workspace SMTP' : 'Base44'} connection OK for ${cfg.user}` });
     }
 
     // ── SEND TEST EMAIL ──────────────────────────────────────
@@ -70,10 +101,10 @@ Deno.serve(async (req) => {
       const cfg = INBOXES[inbox];
       if (!cfg) return Response.json({ error: 'Invalid inbox' }, { status: 400 });
       const finalSubject = emailSubject || 'Test - Top Mold CRM';
-      const finalHtml = emailBody || `<p>Test email from <b>${cfg.name}</b> via Top Mold CRM.</p>`;
-      await sendEmail(base44, cfg, to, null, finalSubject, finalHtml);
-      console.log(`[TEST] Sent test email as "${cfg.name}" to ${to}`);
-      return Response.json({ success: true, message: `Test email sent from ${cfg.user} to ${to}` });
+      const finalHtml = emailBody || `<p>Test email from <b>${cfg.name}</b> via Top Mold CRM (${provider}).</p>`;
+      await sendEmail(base44, cfg, to, null, finalSubject, finalHtml, provider);
+      console.log(`[TEST][${provider}] Sent test email as "${cfg.name}" to ${to}`);
+      return Response.json({ success: true, message: `Test email sent via ${provider} from ${cfg.user} to ${to}` });
     }
 
     // ── PROCESS QUEUE ────────────────────────────────────────
@@ -81,22 +112,23 @@ Deno.serve(async (req) => {
       const pending = await base44.asServiceRole.entities.EmailQueue.filter({ status: 'pending' }, 'created_date', 1);
       if (!pending || pending.length === 0) return Response.json({ processed: false, reason: 'No pending emails in queue' });
       const job = pending[0];
+      const jobProvider = job.email_provider || provider;
       const selectedInbox = await pickInbox(base44, job.inbox);
       if (!selectedInbox) return Response.json({ processed: false, reason: 'All inboxes reached daily limit of ' + DAILY_LIMIT });
       const cfg = INBOXES[selectedInbox];
       await base44.asServiceRole.entities.EmailQueue.update(job.id, { status: 'skipped' });
       try {
         const html = job.body.includes('<') ? job.body : `<p>${job.body.replace(/\n/g, '<br>')}</p>`;
-        await sendEmail(base44, cfg, job.to_email, job.to_name, job.subject, html);
+        await sendEmail(base44, cfg, job.to_email, job.to_name, job.subject, html, jobProvider);
         await base44.asServiceRole.entities.EmailQueue.update(job.id, { status: 'sent', inbox: selectedInbox, sent_at: new Date().toISOString(), error_message: '' });
         await incrementStat(base44, selectedInbox, 'sent_count');
-        console.log(`[SENT] ${cfg.name} → ${job.to_email} | ${job.subject}`);
-        return Response.json({ processed: true, to: job.to_email, inbox: selectedInbox, subject: job.subject });
+        console.log(`[SENT][${jobProvider}] ${cfg.name} → ${job.to_email} | ${job.subject}`);
+        return Response.json({ processed: true, to: job.to_email, inbox: selectedInbox, subject: job.subject, provider: jobProvider });
       } catch (err) {
         const retries = (job.retry_count || 0) + 1;
         await base44.asServiceRole.entities.EmailQueue.update(job.id, { status: retries >= 3 ? 'failed' : 'pending', retry_count: retries, error_message: err.message });
         await incrementStat(base44, selectedInbox, 'failed_count');
-        console.error(`[FAILED] ${job.to_email} | ${err.message}`);
+        console.error(`[FAILED][${jobProvider}] ${job.to_email} | ${err.message}`);
         return Response.json({ processed: false, error: err.message, retries });
       }
     }
@@ -105,7 +137,9 @@ Deno.serve(async (req) => {
     if (action === 'addToQueue') {
       const { emails } = body;
       if (!Array.isArray(emails) || emails.length === 0) return Response.json({ error: 'emails array required' }, { status: 400 });
-      const created = await base44.asServiceRole.entities.EmailQueue.bulkCreate(emails.map(e => ({ ...e, status: 'pending', retry_count: 0 })));
+      const created = await base44.asServiceRole.entities.EmailQueue.bulkCreate(
+        emails.map(e => ({ ...e, status: 'pending', retry_count: 0, email_provider: e.email_provider || provider }))
+      );
       return Response.json({ success: true, added: created.length });
     }
 

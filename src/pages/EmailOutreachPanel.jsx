@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Mail, Send, RefreshCw, CheckCircle2, XCircle, Clock, 
-  Inbox, BarChart3, Plus, Wifi, AlertCircle, Play
+  Inbox, BarChart3, Plus, Wifi, AlertCircle, Play, Building2, Zap
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -41,6 +41,7 @@ export default function EmailOutreachPanel() {
   const [testingInbox, setTestingInbox] = useState(null);
   const [testEmailTarget, setTestEmailTarget] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [emailProvider, setEmailProvider] = useState("workspace");
 
   const [newEmail, setNewEmail] = useState({
     to_email: "", to_name: "", subject: "", body: "", inbox: "sales", campaign_name: ""
@@ -48,9 +49,9 @@ export default function EmailOutreachPanel() {
   const [addingEmail, setAddingEmail] = useState(false);
 
   const invoke = useCallback(async (action, extra = {}) => {
-    const res = await base44.functions.invoke("smtpSendEmail", { action, ...extra });
+    const res = await base44.functions.invoke("smtpSendEmail", { action, provider: emailProvider, ...extra });
     return res.data;
-  }, []);
+  }, [emailProvider]);
 
   const loadData = useCallback(async () => {
     setLoadingStats(true);
@@ -101,7 +102,7 @@ export default function EmailOutreachPanel() {
     }
     setAddingEmail(true);
     try {
-      const res = await invoke("addToQueue", { emails: [newEmail] });
+      const res = await invoke("addToQueue", { emails: [{ ...newEmail, email_provider: emailProvider }] });
       if (res?.success) {
         toast.success("Email added to queue");
         setNewEmail({ to_email: "", to_name: "", subject: "", body: "", inbox: "sales", campaign_name: "" });
@@ -138,16 +139,57 @@ export default function EmailOutreachPanel() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Email Outreach</h1>
-          <p className="text-sm text-slate-500 mt-1">Google Workspace SMTP queue — safe, human-paced sending</p>
+          <p className="text-sm text-slate-500 mt-1">Safe, human-paced email queue</p>
         </div>
-        <Button variant="outline" size="sm" onClick={loadData} disabled={loadingStats}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${loadingStats ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* Provider toggle */}
+          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+            <button
+              onClick={() => setEmailProvider("workspace")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                emailProvider === "workspace"
+                  ? "bg-white text-blue-700 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <Building2 className="w-3.5 h-3.5" />
+              Google Workspace
+            </button>
+            <button
+              onClick={() => setEmailProvider("base44")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                emailProvider === "base44"
+                  ? "bg-white text-purple-700 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              Base44 Mail
+            </button>
+          </div>
+          <Button variant="outline" size="sm" onClick={loadData} disabled={loadingStats}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loadingStats ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
+
+      {/* Provider notice */}
+      {emailProvider === "base44" && (
+        <div className="bg-purple-50 border border-purple-200 rounded-lg px-4 py-2 text-xs text-purple-700 flex items-center gap-2">
+          <Zap className="w-3.5 h-3.5 shrink-0" />
+          Using Base44 Mail — emails are sent via Base44's platform. Switch to Google Workspace to send from your own inboxes.
+        </div>
+      )}
+      {emailProvider === "workspace" && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-xs text-blue-700 flex items-center gap-2">
+          <Building2 className="w-3.5 h-3.5 shrink-0" />
+          Using Google Workspace SMTP — emails are sent directly from your inboxes.
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
