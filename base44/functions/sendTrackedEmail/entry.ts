@@ -1,41 +1,22 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import nodemailer from 'npm:nodemailer@6.9.9';
-
-// Google Workspace SMTP inboxes
-const INBOXES = {
-  sales:    { user: Deno.env.get('SMTP_SALES_USER'),    pass: Deno.env.get('SMTP_SALES_PASS'),    name: 'Top Industrial Molds' },
-  topmolds: { user: Deno.env.get('SMTP_TOPMOLDS_USER'), pass: Deno.env.get('SMTP_TOPMOLDS_PASS'), name: 'Top Molds' },
-  info:     { user: Deno.env.get('SMTP_INFO_USER'),     pass: Deno.env.get('SMTP_INFO_PASS'),     name: 'Top Mold Info' },
-};
 
 const DAILY_LIMIT = 20;
 
-function createTransporter(inboxKey) {
-  const cfg = INBOXES[inboxKey];
-  if (!cfg?.user || !cfg?.pass) throw new Error(`Missing SMTP credentials for inbox: ${inboxKey}`);
-  return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user: cfg.user, pass: cfg.pass },
-    tls: { rejectUnauthorized: false }
-  });
-}
+const INBOXES = {
+  sales:    { name: 'Top Mold Sales', user: Deno.env.get('SMTP_SALES_USER') },
+  topmolds: { name: 'Top Molds',      user: Deno.env.get('SMTP_TOPMOLDS_USER') },
+  info:     { name: 'Top Mold Info',  user: Deno.env.get('SMTP_INFO_USER') },
+};
 
 function todayStr() {
   return new Date().toISOString().split('T')[0];
 }
 
 async function pickInbox(base44, preferredInbox) {
-  const today = todayStr();
-  const stats = await base44.asServiceRole.entities.InboxStats.filter({ date: today });
+  const stats = await base44.asServiceRole.entities.InboxStats.filter({ date: todayStr() });
   const sentMap = {};
   for (const s of (stats || [])) sentMap[s.inbox] = s.sent_count || 0;
-
-  if (preferredInbox && INBOXES[preferredInbox] && (sentMap[preferredInbox] || 0) < DAILY_LIMIT) {
-    return preferredInbox;
-  }
-  // Round-robin fallback
+  if (preferredInbox && INBOXES[preferredInbox] && (sentMap[preferredInbox] || 0) < DAILY_LIMIT) return preferredInbox;
   for (const key of ['sales', 'topmolds', 'info']) {
     if ((sentMap[key] || 0) < DAILY_LIMIT) return key;
   }
@@ -46,9 +27,7 @@ async function incrementStat(base44, inbox) {
   const today = todayStr();
   const existing = await base44.asServiceRole.entities.InboxStats.filter({ inbox, date: today });
   if (existing?.length > 0) {
-    await base44.asServiceRole.entities.InboxStats.update(existing[0].id, {
-      sent_count: (existing[0].sent_count || 0) + 1
-    });
+    await base44.asServiceRole.entities.InboxStats.update(existing[0].id, { sent_count: (existing[0].sent_count || 0) + 1 });
   } else {
     await base44.asServiceRole.entities.InboxStats.create({ inbox, date: today, sent_count: 1, failed_count: 0 });
   }
@@ -58,39 +37,31 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    const {
-      lead_id, lead_email, lead_name, subject, body,
-      campaign_name, sequence_step, inbox: preferredInbox
-    } = await req.json();
+    const { lead_id, lead_email, lead_name, subject, body, campaign_name, sequence_step, inbox: preferredInbox } = await req.json();
 
     if (!lead_email) return Response.json({ error: 'lead_email is required' }, { status: 400 });
     if (!subject)    return Response.json({ error: 'subject is required' }, { status: 400 });
     if (!body)       return Response.json({ error: 'body is required' }, { status: 400 });
 
-    // Pick best inbox
     const selectedInbox = await pickInbox(base44, preferredInbox || 'sales');
     if (!selectedInbox) {
       return Response.json({ error: 'All inboxes have reached the daily send limit of ' + DAILY_LIMIT }, { status: 429 });
     }
 
     const cfg = INBOXES[selectedInbox];
-    const transporter = createTransporter(selectedInbox);
-
     const htmlBody = body.includes('<') ? body : `<p>${body.replace(/\n/g, '<br>')}</p>`;
 
-    await transporter.sendMail({
-      from: `"${cfg.name}" <${cfg.user}>`,
-      to: lead_name ? `"${lead_name}" <${lead_email}>` : lead_email,
-      subject,
-      text: htmlBody.replace(/<[^>]*>/g, ''),
-      html: htmlBody,
+    await base44.asServiceRole.integrations.Core.SendEmail({
+      from_name: cfg.name,
+      to: lead_email,
+      subject: subject,
+      body: htmlBody,
     });
 
-    console.log(`[sendTrackedEmail] Sent via ${cfg.user} → ${lead_email} | ${subject}`);
+    console.log(`[sendTrackedEmail] Sent as "${cfg.name}" → ${lead_email} | ${subject}`);
 
     await incrementStat(base44, selectedInbox);
 
-    // Save outreach record
     const tracking_id = crypto.randomUUID();
     const createPayload = {
       lead_email,
