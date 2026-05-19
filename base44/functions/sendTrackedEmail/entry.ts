@@ -1,78 +1,97 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import nodemailer from 'npm:nodemailer@6.9.9';
+
+// Google Workspace SMTP inboxes
+const INBOXES = {
+  sales:    { user: Deno.env.get('SMTP_SALES_USER'),    pass: Deno.env.get('SMTP_SALES_PASS'),    name: 'Top Industrial Molds' },
+  topmolds: { user: Deno.env.get('SMTP_TOPMOLDS_USER'), pass: Deno.env.get('SMTP_TOPMOLDS_PASS'), name: 'Top Molds' },
+  info:     { user: Deno.env.get('SMTP_INFO_USER'),     pass: Deno.env.get('SMTP_INFO_PASS'),     name: 'Top Mold Info' },
+};
+
+const DAILY_LIMIT = 20;
+
+function createTransporter(inboxKey) {
+  const cfg = INBOXES[inboxKey];
+  if (!cfg?.user || !cfg?.pass) throw new Error(`Missing SMTP credentials for inbox: ${inboxKey}`);
+  return nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: { user: cfg.user, pass: cfg.pass },
+    tls: { rejectUnauthorized: false }
+  });
+}
+
+function todayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+
+async function pickInbox(base44, preferredInbox) {
+  const today = todayStr();
+  const stats = await base44.asServiceRole.entities.InboxStats.filter({ date: today });
+  const sentMap = {};
+  for (const s of (stats || [])) sentMap[s.inbox] = s.sent_count || 0;
+
+  if (preferredInbox && INBOXES[preferredInbox] && (sentMap[preferredInbox] || 0) < DAILY_LIMIT) {
+    return preferredInbox;
+  }
+  // Round-robin fallback
+  for (const key of ['sales', 'topmolds', 'info']) {
+    if ((sentMap[key] || 0) < DAILY_LIMIT) return key;
+  }
+  return null;
+}
+
+async function incrementStat(base44, inbox) {
+  const today = todayStr();
+  const existing = await base44.asServiceRole.entities.InboxStats.filter({ inbox, date: today });
+  if (existing?.length > 0) {
+    await base44.asServiceRole.entities.InboxStats.update(existing[0].id, {
+      sent_count: (existing[0].sent_count || 0) + 1
+    });
+  } else {
+    await base44.asServiceRole.entities.InboxStats.create({ inbox, date: today, sent_count: 1, failed_count: 0 });
+  }
+}
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    const { lead_id, lead_email, lead_name, subject, body, campaign_name, sequence_step, attachments } = await req.json();
+    const {
+      lead_id, lead_email, lead_name, subject, body,
+      campaign_name, sequence_step, inbox: preferredInbox
+    } = await req.json();
 
     if (!lead_email) return Response.json({ error: 'lead_email is required' }, { status: 400 });
     if (!subject)    return Response.json({ error: 'subject is required' }, { status: 400 });
     if (!body)       return Response.json({ error: 'body is required' }, { status: 400 });
 
-    const senderName  = 'Top Industrial Molds & Plastics';
-    const senderEmail = 'contact@moldsandplastics.com';
-
-    const tracking_id = crypto.randomUUID();
-    const appId = Deno.env.get('BASE44_APP_ID');
-    const trackingBaseUrl = `https://api.base44.com/api/apps/${appId}/functions/trackEmailEvent`;
-
-    // Wrap href links for click tracking
-    const trackedBody = body.replace(
-      /href="(https?:\/\/[^"]+)"/g,
-      (_match, url) => {
-        const trackedUrl = `${trackingBaseUrl}?tracking_id=${tracking_id}&type=click&redirect=${encodeURIComponent(url)}`;
-        return `href="${trackedUrl}"`;
-      }
-    );
-
-    // Append invisible tracking pixel
-    const pixelUrl = `${trackingBaseUrl}?tracking_id=${tracking_id}&type=open`;
-    const htmlBody = `${trackedBody}<img src="${pixelUrl}" width="1" height="1" style="display:none;visibility:hidden;opacity:0;" alt="" />`;
-
-    {
-      // --- Brevo Transactional Email API (default) ---
-      const brevoApiKey = Deno.env.get('BREVO_API_KEY');
-      if (!brevoApiKey) return Response.json({ error: 'BREVO_API_KEY not configured' }, { status: 500 });
-
-      const brevoPayload = {
-        sender: { name: senderName, email: senderEmail },
-        to: [{ email: lead_email, name: lead_name || lead_email }],
-        subject,
-        htmlContent: htmlBody,
-      };
-
-      if (attachments && attachments.length > 0) {
-        const brevoAttachments = [];
-        for (const att of attachments) {
-          const res = await fetch(att.url);
-          const buffer = await res.arrayBuffer();
-          const bytes = new Uint8Array(buffer);
-          let binary = '';
-          for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-          brevoAttachments.push({ name: att.name, content: btoa(binary) });
-        }
-        brevoPayload.attachment = brevoAttachments;
-      }
-
-      const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'api-key': brevoApiKey,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(brevoPayload),
-      });
-
-      const brevoText = await brevoRes.text();
-      if (!brevoRes.ok) {
-        console.error(`Brevo API error ${brevoRes.status}: ${brevoText}`);
-        throw new Error(`Brevo send failed (${brevoRes.status}): ${brevoText}`);
-      }
+    // Pick best inbox
+    const selectedInbox = await pickInbox(base44, preferredInbox || 'sales');
+    if (!selectedInbox) {
+      return Response.json({ error: 'All inboxes have reached the daily send limit of ' + DAILY_LIMIT }, { status: 429 });
     }
 
-    // Save outreach record AFTER successful send
+    const cfg = INBOXES[selectedInbox];
+    const transporter = createTransporter(selectedInbox);
+
+    const htmlBody = body.includes('<') ? body : `<p>${body.replace(/\n/g, '<br>')}</p>`;
+
+    await transporter.sendMail({
+      from: `"${cfg.name}" <${cfg.user}>`,
+      to: lead_name ? `"${lead_name}" <${lead_email}>` : lead_email,
+      subject,
+      text: htmlBody.replace(/<[^>]*>/g, ''),
+      html: htmlBody,
+    });
+
+    console.log(`[sendTrackedEmail] Sent via ${cfg.user} → ${lead_email} | ${subject}`);
+
+    await incrementStat(base44, selectedInbox);
+
+    // Save outreach record
+    const tracking_id = crypto.randomUUID();
     const createPayload = {
       lead_email,
       lead_name: lead_name || '',
@@ -90,9 +109,10 @@ Deno.serve(async (req) => {
 
     const record = await base44.asServiceRole.entities.EmailOutreach.create(createPayload);
 
-    return Response.json({ success: true, record });
+    return Response.json({ success: true, inbox: selectedInbox, record });
+
   } catch (error) {
-    console.error('sendTrackedEmail error:', error.message);
+    console.error('[sendTrackedEmail] Error:', error.message);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });

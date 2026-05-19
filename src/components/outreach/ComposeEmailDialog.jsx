@@ -171,7 +171,7 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
   const handleSend = async () => {
     if (!lead?.email || !subject || !body) return;
     setSending(true);
-    await base44.functions.invoke('sendTrackedEmail', {
+    const res = await base44.functions.invoke('sendTrackedEmail', {
       lead_id: lead.id,
       lead_email: lead.email,
       lead_name: `${lead.first_name || ''} ${lead.last_name || ''}`.trim(),
@@ -179,9 +179,12 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
       body: replacePlaceholders(body, lead),
       campaign_name: campaignName,
       sequence_step: 1,
-      attachments: attachments.map(a => ({ name: a.name, url: a.url, type: a.type }))
     });
     setSending(false);
+    if (res?.data?.error) {
+      alert(`Send failed: ${res.data.error}`);
+      return;
+    }
     setSentOk(true);
     if (onSent) onSent();
     setTimeout(() => { onClose(); setSentOk(false); }, 1500);
@@ -196,7 +199,7 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
     for (let i = 0; i < leads.length; i++) {
       const l = leads[i];
       try {
-        await base44.functions.invoke('sendTrackedEmail', {
+        const res = await base44.functions.invoke('sendTrackedEmail', {
           lead_id: l.id,
           lead_email: l.email,
           lead_name: `${l.first_name || ''} ${l.last_name || ''}`.trim(),
@@ -204,12 +207,14 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
           body: replacePlaceholders(body, l),
           campaign_name: campaignName,
           sequence_step: 1,
-          attachments: attachments.map(a => ({ name: a.name, url: a.url, type: a.type }))
         });
+        if (res?.data?.error) errors++;
       } catch {
         errors++;
       }
       setBatchProgress({ current: i + 1, total: leads.length, errors });
+      // Small delay between sends to avoid rate limits
+      if (i < leads.length - 1) await new Promise(r => setTimeout(r, 1500));
     }
     setSending(false);
     setSentOk(true);
@@ -393,7 +398,7 @@ Return a personalized version. Replace placeholders like {{first_name}}, {{compa
             ) : (
               <p className="font-semibold text-slate-800">Email sent successfully!</p>
             )}
-            <p className="text-sm text-slate-500">Open & click tracking is active.</p>
+            <p className="text-sm text-slate-500">Sent via Google Workspace SMTP.</p>
           </div>
         )}
 
