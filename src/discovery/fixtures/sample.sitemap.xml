@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://plants.example.com/norte-expansion</loc>
+    <company>Norte Assembly SA</company>
+    <country>Mexico</country>
+    <website>https://norte-assembly.example</website>
+    <title>Plant Construction — Norte Assembly capacity expansion</title>
+    <claim>Norte Assembly SA published plant construction details for a new assembly hall</claim>
+  </url>
+  <url>
+    <loc>https://plants.example.com/orphan-page</loc>
+    <title>Orphan page without company — must be skipped</title>
+  </url>
+</urlset>

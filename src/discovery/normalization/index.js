@@ -334,6 +334,9 @@ export function normalizeRecord(record, source) {
     raw_excerpt: record.raw_excerpt ? String(record.raw_excerpt).slice(0, 500) : claim.slice(0, 500),
     manual_attestation: Boolean(record.manual_attestation),
     attested_by: record.attested_by ? String(record.attested_by) : null,
+    registration_number: record.registration_number
+      ? String(record.registration_number).trim().toUpperCase()
+      : null,
     source,
   };
 }

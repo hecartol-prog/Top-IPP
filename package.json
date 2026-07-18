@@ -10,6 +10,7 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "test:discovery": "node src/discovery/tests/run-fixtures.mjs",
+    "test:connectors": "node src/discovery/tests/run-connectors.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

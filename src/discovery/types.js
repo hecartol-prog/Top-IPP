@@ -58,6 +58,7 @@
  * @property {string} [raw_excerpt]
  * @property {boolean} [manual_attestation]
  * @property {string} [attested_by]
+ * @property {string} [registration_number]
  * @property {Record<string, unknown>} [extras]
  */
 
@@ -84,6 +85,7 @@
  * @property {string|null} raw_excerpt
  * @property {boolean} manual_attestation
  * @property {string|null} attested_by
+ * @property {string|null} registration_number
  * @property {SourceMetadata} source
  */
 
@@ -100,6 +102,9 @@
  * @property {string} path_a_status
  * @property {string} [source_provenance]
  * @property {string[]} [tags]
+ * @property {string} [registration_number] - pipeline-only; stored in tags as reg: when creating
+ * @property {boolean} [duplicate_marked]
+ * @property {string} [duplicate_of_id]
  */
 
 /**
@@ -198,4 +203,13 @@ export const EVENT_SOFT_EXPIRY_DAYS = Object.freeze({
   other: 120,
 });
 
-export const EXTRACTOR_ID = 'discovery-pipeline@2.1.0';
+export const EXTRACTOR_ID = 'discovery-pipeline@2.2.0';
+
+/** Match confidence scores by rule (Sprint 2.2 priority order) */
+export const MATCH_SCORES = Object.freeze({
+  domain: 1.0,
+  website: 0.95,
+  registration_number: 0.95,
+  exact_name: 0.9,
+  normalized_name: 0.85,
+});

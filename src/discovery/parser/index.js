@@ -191,6 +191,8 @@ function parseCsv(csv) {
       raw_excerpt: (obj.claim || obj.description || '').slice(0, 500) || undefined,
       manual_attestation: String(obj.manual_attestation || '').toLowerCase() === 'true',
       attested_by: obj.attested_by || undefined,
+      registration_number:
+        obj.registration_number || obj.reg_number || obj.registry_id || undefined,
     });
   }
   return rows;
@@ -266,6 +268,7 @@ function parseJsonPayload(data) {
       raw_excerpt: (o.raw_excerpt || o.claim || o.description || '').slice(0, 500) || undefined,
       manual_attestation: Boolean(o.manual_attestation),
       attested_by: o.attested_by || undefined,
+      registration_number: o.registration_number || o.reg_number || o.registry_id || undefined,
       extras: o.extras,
     };
   });
@@ -287,6 +290,9 @@ function parseHtml(html) {
   const claimMatch = text.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
   const claim = claimMatch ? claimMatch[1].trim() : `HTML page observed for ${company}`;
   const urlMatch = text.match(/canonical["'][^>]+href=["']([^"']+)["']/i);
+  const reg =
+    text.match(/data-registration=["']([^"']+)["']/i) ||
+    text.match(/registration[_-]?number["':\s]+["']?([A-Za-z0-9\-/]+)/i);
   return [
     {
       company_name: company,
@@ -295,8 +301,54 @@ function parseHtml(html) {
       artifact_url: urlMatch ? urlMatch[1] : undefined,
       raw_excerpt: claim.slice(0, 500),
       website: extractWebsiteFromText(text),
+      registration_number: reg ? reg[1] : undefined,
     },
   ];
+}
+
+/**
+ * Sitemap XML → URL loc entries as artifact candidates (company from path/title attrs if present).
+ * @param {string} xml
+ * @returns {ParsedRecord[]}
+ */
+function parseSitemap(xml) {
+  const text = String(xml);
+  /** @type {ParsedRecord[]} */
+  const rows = [];
+  const urlBlocks = text.match(/<url[\s>][\s\S]*?<\/url>/gi) || [];
+  for (const block of urlBlocks) {
+    const loc = extractXmlTag(block, 'loc');
+    if (!loc) continue;
+    const company =
+      extractXmlTag(block, 'company') ||
+      extractXmlTag(block, 'companyName') ||
+      null;
+    const title = extractXmlTag(block, 'title') || extractXmlTag(block, 'news:title');
+    const claim =
+      extractXmlTag(block, 'claim') ||
+      title ||
+      (company ? `Sitemap URL observed for ${company}` : null);
+    // Without an attributable company we skip — never invent
+    if (!company) continue;
+    rows.push({
+      company_name: company,
+      claim: claim || `Sitemap entry for ${company}`,
+      artifact_url: loc,
+      event_type: inferEventFromText(`${title || ''} ${claim || ''}`),
+      country: extractXmlTag(block, 'country') || undefined,
+      website: extractXmlTag(block, 'website') || undefined,
+      registration_number: extractXmlTag(block, 'registration') || undefined,
+      raw_excerpt: (claim || loc).slice(0, 500),
+    });
+  }
+  return rows;
+}
+
+/**
+ * @param {string} xml
+ */
+function isSitemapDocument(xml) {
+  return /<urlset[\s>]/i.test(xml) || /xmlns=["'][^"']*sitemap/i.test(xml);
 }
 
 /**
@@ -304,27 +356,43 @@ function parseHtml(html) {
  * @returns {ParsedRecord[]}
  */
 export function parseRawDocument(doc) {
-  const kind = doc.source?.adapter_kind;
-  const content = doc.content;
+  try {
+    const kind = doc.source?.adapter_kind;
+    const content = doc.content;
+    const ct = String(doc.content_type || '');
 
-  if (kind === 'rss' || kind === 'xml' || String(doc.content_type || '').includes('xml')) {
-    return parseRssLikeXml(String(content));
-  }
-  if (kind === 'csv' || String(doc.content_type || '').includes('csv')) {
-    return parseCsv(String(content));
-  }
-  if (kind === 'html' || String(doc.content_type || '').includes('html')) {
-    return parseHtml(String(content));
-  }
-  // json_api, manual_upload, default
-  if (typeof content === 'string') {
-    try {
-      return parseJsonPayload(JSON.parse(content));
-    } catch {
-      // treat as CSV fallback for manual text
-      if (content.includes(',') && content.includes('\n')) return parseCsv(content);
-      return [];
+    if (kind === 'rss' || (ct.includes('rss') && typeof content === 'string')) {
+      return parseRssLikeXml(String(content));
     }
+    if (
+      kind === 'xml' ||
+      ct.includes('xml') ||
+      (typeof content === 'string' && isSitemapDocument(content))
+    ) {
+      const text = String(content);
+      if (isSitemapDocument(text)) return parseSitemap(text);
+      const items = parseRssLikeXml(text);
+      if (items.length) return items;
+      return parseSitemap(text);
+    }
+    if (kind === 'csv' || ct.includes('csv')) {
+      return parseCsv(String(content));
+    }
+    if (kind === 'html' || ct.includes('html')) {
+      return parseHtml(String(content));
+    }
+    // json_api, manual_upload (incl. pdf meta as JSON object)
+    if (typeof content === 'string') {
+      try {
+        return parseJsonPayload(JSON.parse(content));
+      } catch {
+        if (content.includes(',') && content.includes('\n')) return parseCsv(content);
+        return [];
+      }
+    }
+    return parseJsonPayload(content);
+  } catch {
+    // Survive bad HTML/XML/CSV/JSON — return empty rather than crash
+    return [];
   }
-  return parseJsonPayload(content);
 }

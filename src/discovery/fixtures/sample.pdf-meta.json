@@ -1,0 +1,17 @@
+{
+  "company_name": "MoldTech OEM Partners",
+  "filename": "k-show-booth-list-2026.pdf",
+  "title": "K-Show Exhibitor List Excerpt",
+  "page_count": 2,
+  "sha256": "abc123fixturehash",
+  "country": "Germany",
+  "website": "https://moldtech-oem.example",
+  "event_type": "other",
+  "claim": "MoldTech OEM Partners listed as exhibitor for injection molds and tooling",
+  "artifact_url": "file://uploads/k-show-booth-list-2026.pdf",
+  "manual_attestation": true,
+  "attested_by": "analyst@top-ipp.example",
+  "confidence": 0.7,
+  "sectors": ["plastic manufacturing", "injection molds"],
+  "registration_number": "DE-HRB-998877"
+}

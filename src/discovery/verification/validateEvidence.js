@@ -52,7 +52,10 @@ export function validateEvidence(evidence, existing = [], opts = {}) {
   }
 
   if (hasArtifact && !isValidArtifactUrl(evidence.artifact_url)) {
-    return { accepted: false, status: 'quarantined', reason: 'invalid_url' };
+    // Allow non-http artifact refs only when manual attestation is present (PDF upload paths)
+    if (!hasAttestation) {
+      return { accepted: false, status: 'quarantined', reason: 'invalid_url' };
+    }
   }
 
   if (typeof evidence.confidence !== 'number' || evidence.confidence < threshold) {
