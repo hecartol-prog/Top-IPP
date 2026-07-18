@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "company_name": "Pacific Mold Solutions",
+      "website": "https://pacificmold.example",
+      "country": "Japan",
+      "event_type": "new_product_line",
+      "claim": "Pacific Mold Solutions launched a multi-cavity hot-runner mold product line",
+      "artifact_url": "https://pr.example.com/pacific-mold-launch",
+      "confidence": 0.68,
+      "sectors": ["plastic injection molds"],
+      "observed_at": "2026-06-10T14:00:00.000Z",
+      "currency": "USD",
+      "amount": 250000
+    },
+    {
+      "company_name": "Andes Food Processing",
+      "website": "https://andesfood.example",
+      "country": "Chile",
+      "event_type": "hiring",
+      "claim": "Andes Food Processing is hiring process engineers for plant automation",
+      "artifact_url": "https://jobs.example.com/andes-process-engineer",
+      "confidence": 0.6,
+      "sectors": ["food processing"],
+      "observed_at": "2026-06-12T08:00:00.000Z"
+    }
+  ]
+}

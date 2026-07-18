@@ -1,0 +1,13 @@
+{
+  "company_name": "Manual Trade Show Lead Co",
+  "website": "https://tradeshow-lead.example",
+  "country": "Mexico",
+  "event_type": "factory_construction",
+  "claim": "Booth conversation: company confirmed new factory construction in Queretaro industrial park",
+  "manual_attestation": true,
+  "attested_by": "analyst@top-ipp.example",
+  "confidence": 0.75,
+  "sectors": ["factory automation", "complete production lines"],
+  "observed_at": "2026-06-18T16:30:00.000Z",
+  "raw_excerpt": "Confirmed greenfield plant — seeking line integrator partners"
+}

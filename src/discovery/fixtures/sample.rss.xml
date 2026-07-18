@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Industrial News Feed</title>
+    <item>
+      <title>AquaPure Industries — Factory Expansion</title>
+      <link>https://news.example.com/aquapure-expansion-2026</link>
+      <description>AquaPure Industries announced a factory expansion at its desalination equipment plant in Spain. Website https://www.aquapure-industries.example</description>
+      <pubDate>Mon, 15 Jun 2026 10:00:00 GMT</pubDate>
+      <company>AquaPure Industries</company>
+      <country>Spain</country>
+    </item>
+    <item>
+      <title>Nordic Bottling — Tender for filling line</title>
+      <link>https://tenders.example.com/nordic-filling-2026</link>
+      <description>Public tender for a new beverage filling line. Contact procurement.</description>
+      <pubDate>Wed, 01 Jul 2026 08:00:00 GMT</pubDate>
+      <company>Nordic Bottling AS</company>
+      <country>Norway</country>
+    </item>
+  </channel>
+</rss>

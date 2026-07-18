@@ -1,0 +1,3 @@
+company_name,website,country,event_type,claim,artifact_url,confidence,sector,observed_at
+Helios Packaging GmbH,https://www.helios-packaging.example,Germany,equipment_purchase,Helios Packaging purchasing cartoners for plant upgrade,https://procurement.example.com/helios-cartoner,0.72,packaging equipment,2026-06-01T12:00:00.000Z
+Desert Water Co,https://desertwater.example,United Arab Emirates,environmental_permit,Desert Water Co received environmental permit for RO discharge,https://permits.example.com/uae/dw-4421,0.91,industrial water,2026-05-20T09:00:00.000Z
