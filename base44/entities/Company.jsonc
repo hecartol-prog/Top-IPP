@@ -1,0 +1,120 @@
+{
+  "name": "Company",
+  "type": "object",
+  "description": "Industrial organization hub (Path A + Path B). Logical indexes: domain+country, normalized_name+country, verification_status, relationship_score.",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Company legal or trade name"
+    },
+    "normalized_name": {
+      "type": "string",
+      "description": "Lowercased trimmed name for deduplication"
+    },
+    "website": {
+      "type": "string",
+      "description": "Company website URL"
+    },
+    "domain": {
+      "type": "string",
+      "description": "Primary web domain for deduplication"
+    },
+    "country": {
+      "type": "string",
+      "description": "Country (ISO name preferred)"
+    },
+    "industry": {
+      "type": "string",
+      "description": "Legacy industry field used by existing UI"
+    },
+    "industry_raw": {
+      "type": "string",
+      "description": "Free-text industry from discovery/evidence"
+    },
+    "vertical_pack_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Referenced VerticalPack ids or codes"
+    },
+    "size": {
+      "type": "string",
+      "enum": ["1-10", "11-50", "51-200", "201-500", "501-1000", "1000+"],
+      "description": "Company size range"
+    },
+    "location": {
+      "type": "string",
+      "description": "Legacy location/region field used by existing UI"
+    },
+    "description": {
+      "type": "string",
+      "description": "Company description (prefer evidence-backed)"
+    },
+    "linkedin_url": {
+      "type": "string",
+      "description": "Company LinkedIn URL"
+    },
+    "annual_revenue": {
+      "type": "string",
+      "description": "Legacy annual revenue field used by existing UI"
+    },
+    "potential_needs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Legacy potential needs tags used by existing UI"
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": ["unverified", "pending", "verified", "rejected"],
+      "default": "unverified",
+      "description": "Identity verification status"
+    },
+    "verification_confidence": {
+      "type": "number",
+      "description": "Verification confidence 0-1"
+    },
+    "relationship_score": {
+      "type": "number",
+      "default": 0,
+      "description": "Path A Relationship Score 0-100"
+    },
+    "relationship_score_updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When relationship_score was last computed"
+    },
+    "path_a_status": {
+      "type": "string",
+      "enum": ["observed", "verified", "nurtured", "customer", "churn_risk"],
+      "default": "observed",
+      "description": "Market Intelligence lifecycle status"
+    },
+    "source_provenance": {
+      "type": "string",
+      "description": "First discovery source type / provenance"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Tags"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Internal notes"
+    },
+    "duplicate_of_id": {
+      "type": "string",
+      "description": "FK to canonical Company id when this row is a duplicate"
+    },
+    "supplier_match_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Reserved for future Supplier Intelligence"
+    },
+    "migration_unresolved": {
+      "type": "boolean",
+      "default": false,
+      "description": "Marked when automated migration could not safely resolve links"
+    }
+  },
+  "required": ["name"]
+}

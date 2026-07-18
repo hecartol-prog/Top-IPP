@@ -1,7 +1,22 @@
 {
   "name": "Lead",
   "type": "object",
+  "description": "Contact person (UI: Contact). Logical indexes: company_id, email. Preserves legacy company_name.",
   "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "FK to Company hub (nullable until backfill completes)"
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional Evidence ids for contact provenance"
+    },
+    "migration_unresolved": {
+      "type": "boolean",
+      "default": false,
+      "description": "True when company_id could not be safely resolved"
+    },
     "first_name": {
       "type": "string",
       "description": "Lead's first name"
@@ -25,7 +40,7 @@
     },
     "company_name": {
       "type": "string",
-      "description": "Company name"
+      "description": "Legacy company name (preserved for backward compatibility)"
     },
     "company_size": {
       "type": "string",
@@ -93,6 +108,8 @@
         "website",
         "trade_show",
         "cold_outreach",
+        "hubspot",
+        "discovery",
         "other"
       ],
       "description": "Lead source"

@@ -1,0 +1,47 @@
+{
+  "name": "ProductRecommendation",
+  "type": "object",
+  "description": "Evidence-bound product/service recommendation. Logical index: opportunity_id.",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "FK to Company"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "description": "FK to Opportunity"
+    },
+    "product_code": {
+      "type": "string",
+      "description": "Product code from VerticalPack catalog"
+    },
+    "product_label": {
+      "type": "string",
+      "description": "Human-readable product/service label"
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Why this recommendation, evidence-based"
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "FK ids to Evidence (required)"
+    },
+    "signal_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "FK ids to BuyingSignal (required)"
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Recommendation confidence 0-1"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["suggested", "accepted", "dismissed"],
+      "default": "suggested"
+    }
+  },
+  "required": ["evidence_ids", "signal_ids", "product_code"]
+}

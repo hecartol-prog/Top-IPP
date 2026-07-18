@@ -1,0 +1,57 @@
+{
+  "name": "Task",
+  "type": "object",
+  "description": "CRM task. Logical indexes: company_id, lead_id, opportunity_id.",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Task title"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["call", "email", "follow_up", "send_document", "schedule_meeting", "internal"],
+      "default": "call"
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "urgent"],
+      "default": "medium"
+    },
+    "lead_id": {
+      "type": "string",
+      "description": "FK to Lead"
+    },
+    "company_id": {
+      "type": "string",
+      "description": "FK to Company"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "description": "FK to Opportunity"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "auto_generated": {
+      "type": "boolean",
+      "default": false
+    },
+    "stage_trigger": {
+      "type": "string",
+      "description": "Lead status that auto-created this task"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": ["title"]
+}

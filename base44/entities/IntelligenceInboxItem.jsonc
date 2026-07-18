@@ -1,0 +1,65 @@
+{
+  "name": "IntelligenceInboxItem",
+  "type": "object",
+  "description": "Intelligence Inbox approval queue item. Logical indexes: status, priority_index.",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "FK to Company"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "description": "Optional FK to Opportunity draft/record"
+    },
+    "path": {
+      "type": "string",
+      "enum": ["A", "B", "AB"],
+      "description": "Acquisition path"
+    },
+    "priority_index": {
+      "type": "number",
+      "default": 0,
+      "description": "Computed priority 0-100"
+    },
+    "relationship_score_snapshot": {
+      "type": "number",
+      "description": "Rel score snapshot at queue time"
+    },
+    "opportunity_score_snapshot": {
+      "type": "number",
+      "description": "Opp score snapshot at queue time"
+    },
+    "strategic_fit_score_snapshot": {
+      "type": "number",
+      "description": "Fit score snapshot at queue time"
+    },
+    "recommendation_summary": {
+      "type": "string",
+      "description": "Short recommendation summary"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "approved", "rejected", "needs_research", "nurture_only"],
+      "default": "pending"
+    },
+    "assignee": {
+      "type": "string",
+      "description": "Assignee user email"
+    },
+    "decision_by": {
+      "type": "string",
+      "description": "Deciding user email"
+    },
+    "decision_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "decision_notes": {
+      "type": "string"
+    },
+    "reject_reason_code": {
+      "type": "string"
+    }
+  },
+  "required": ["company_id", "status"]
+}

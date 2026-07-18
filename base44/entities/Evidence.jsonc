@@ -1,0 +1,91 @@
+{
+  "name": "Evidence",
+  "type": "object",
+  "description": "Artifact-backed factual claim. Logical indexes: company_id, expires_at, source_type.",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "FK to Company"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "description": "Optional FK to Opportunity"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "identity",
+        "location",
+        "firmographic",
+        "contact_published",
+        "organizational",
+        "project_mention",
+        "financial_investment",
+        "operational",
+        "commercial_history",
+        "media",
+        "trade",
+        "manual_attestation"
+      ],
+      "description": "Evidence type"
+    },
+    "claim": {
+      "type": "string",
+      "description": "Atomic factual claim"
+    },
+    "artifact_url": {
+      "type": "string",
+      "description": "URL or artifact reference"
+    },
+    "artifact_hash": {
+      "type": "string",
+      "description": "Optional content hash for dedupe"
+    },
+    "source_type": {
+      "type": "string",
+      "description": "Source catalog type code (docs/27)"
+    },
+    "source_weight": {
+      "type": "number",
+      "description": "Source reliability weight W 0-1"
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Evidence confidence 0-1"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the artifact was observed"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Soft/hard expiry"
+    },
+    "extractor": {
+      "type": "string",
+      "description": "Agent/human id + version"
+    },
+    "raw_excerpt": {
+      "type": "string",
+      "description": "Bounded excerpt from artifact"
+    },
+    "manual_attestation": {
+      "type": "boolean",
+      "default": false,
+      "description": "True when human attested without public URL"
+    },
+    "attested_by": {
+      "type": "string",
+      "description": "User id/email for manual attestation"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "expired", "quarantined"],
+      "default": "active",
+      "description": "Evidence lifecycle status"
+    }
+  },
+  "required": ["company_id", "type", "claim", "source_type"]
+}

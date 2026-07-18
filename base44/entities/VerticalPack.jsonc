@@ -1,0 +1,67 @@
+{
+  "name": "VerticalPack",
+  "type": "object",
+  "description": "Industrial sector configuration pack. Logical index: code (unique).",
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "Stable pack code e.g. plastic_molds, industrial_water"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name"
+    },
+    "discovery_source_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Source catalog ids/names from docs/27"
+    },
+    "buying_signal_codes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Allowed BuyingSignal codes for this pack"
+    },
+    "decision_maker_roles": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Typical decision maker roles"
+    },
+    "typical_equipment": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "typical_products": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "sales_cycle_days_min": {
+      "type": "number"
+    },
+    "sales_cycle_days_max": {
+      "type": "number"
+    },
+    "prompt_template_keys": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Keys into AI Prompt Architecture (docs/26)"
+    },
+    "kpi_defs": {
+      "type": "string",
+      "description": "JSON string of pack KPI definitions"
+    },
+    "score_weights": {
+      "type": "string",
+      "description": "JSON string of Doc 11 score weight overrides"
+    },
+    "product_recommendation_rules": {
+      "type": "string",
+      "description": "JSON string of signal→product rules"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether pack is active"
+    }
+  },
+  "required": ["code", "name"]
+}

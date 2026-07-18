@@ -1,0 +1,40 @@
+{
+  "name": "Activity",
+  "type": "object",
+  "description": "CRM/intel activity log. Meeting is type=meeting (not a separate entity).",
+  "properties": {
+    "lead_id": {
+      "type": "string",
+      "description": "FK to Lead"
+    },
+    "company_id": {
+      "type": "string",
+      "description": "FK to Company"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "description": "FK to Opportunity"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["note", "call", "email", "meeting", "status_change", "other"],
+      "default": "note"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["positive", "neutral", "negative"],
+      "description": "Activity outcome"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": ["title", "type"]
+}

@@ -1,0 +1,47 @@
+{
+  "name": "BuyingSignal",
+  "type": "object",
+  "description": "Classified buying indicator. Logical indexes: company_id+code, observed_at.",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "FK to Company"
+    },
+    "code": {
+      "type": "string",
+      "description": "Taxonomy code from Discovery Engine (docs/12)"
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "FK ids to Evidence (min 1 enforced by services)"
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Signal confidence 0-1"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "vertical_pack_id": {
+      "type": "string",
+      "description": "FK to VerticalPack"
+    },
+    "geography": {
+      "type": "string",
+      "description": "Geography hint"
+    },
+    "intensity": {
+      "type": "string",
+      "enum": ["soft", "medium", "strong"],
+      "default": "soft"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "expired", "dismissed"],
+      "default": "active"
+    }
+  },
+  "required": ["company_id", "code", "evidence_ids"]
+}

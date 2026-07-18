@@ -1,0 +1,38 @@
+{
+  "name": "LearningEvent",
+  "type": "object",
+  "description": "Append-only learning event from Inbox/CRM outcomes.",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["approve", "reject", "win", "loss", "invalid_contact", "needs_research", "nurture_only"],
+      "description": "Learning event type"
+    },
+    "inbox_item_id": {
+      "type": "string",
+      "description": "FK to IntelligenceInboxItem"
+    },
+    "opportunity_id": {
+      "type": "string",
+      "description": "FK to Opportunity"
+    },
+    "company_id": {
+      "type": "string",
+      "description": "FK to Company"
+    },
+    "reason_code": {
+      "type": "string",
+      "description": "Reason code for reject/loss"
+    },
+    "payload": {
+      "type": "string",
+      "description": "JSON snapshot string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event timestamp"
+    }
+  },
+  "required": ["type"]
+}

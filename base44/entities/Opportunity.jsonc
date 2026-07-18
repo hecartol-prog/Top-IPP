@@ -1,0 +1,101 @@
+{
+  "name": "Opportunity",
+  "type": "object",
+  "description": "Project-shaped commercial opportunity. Logical indexes: company_id, timeline_stage, inbox_status, opportunity_score, strategic_fit_score.",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "FK to Company"
+    },
+    "title": {
+      "type": "string",
+      "description": "Opportunity title"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Evidence-based summary"
+    },
+    "vertical_pack_id": {
+      "type": "string",
+      "description": "FK to VerticalPack"
+    },
+    "timeline_stage": {
+      "type": "string",
+      "enum": [
+        "signal",
+        "research",
+        "verified",
+        "qualified",
+        "quoted",
+        "negotiation",
+        "won",
+        "lost",
+        "repeat_business"
+      ],
+      "default": "signal",
+      "description": "Opportunity Timeline stage (not a separate entity)"
+    },
+    "opportunity_score": {
+      "type": "number",
+      "default": 0,
+      "description": "Path B Opportunity Score 0-100"
+    },
+    "strategic_fit_score": {
+      "type": "number",
+      "default": 0,
+      "description": "Strategic Fit Score 0-100"
+    },
+    "confidence": {
+      "type": "number",
+      "description": "OpportunityConfidence 0-1 (evidence pack quality)"
+    },
+    "estimated_value": {
+      "type": "number",
+      "description": "Estimated project value"
+    },
+    "currency": {
+      "type": "string",
+      "default": "USD",
+      "description": "Currency code"
+    },
+    "signal_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "FK ids to BuyingSignal"
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "FK ids to Evidence (required non-empty at promote)"
+    },
+    "product_recommendation_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "FK ids to ProductRecommendation"
+    },
+    "inbox_status": {
+      "type": "string",
+      "enum": ["pending", "approved", "rejected", "needs_research", "nurture_only"],
+      "default": "pending",
+      "description": "Intelligence Inbox decision status"
+    },
+    "reject_reason_code": {
+      "type": "string",
+      "description": "Reject reason when inbox_status=rejected"
+    },
+    "crm_promoted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When approved into CRM execution"
+    },
+    "owner": {
+      "type": "string",
+      "description": "Owner user email"
+    },
+    "next_action": {
+      "type": "string",
+      "description": "Recommended next action"
+    }
+  },
+  "required": ["company_id", "evidence_ids"]
+}
